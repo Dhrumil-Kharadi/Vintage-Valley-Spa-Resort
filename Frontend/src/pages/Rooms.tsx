@@ -134,8 +134,7 @@ const Rooms = () => {
                   <button
                     className="bg-gold text-gray-800 px-6 py-3 rounded-full font-semibold hover:bg-bronze transition-colors duration-200 flex-1 sm:flex-none"
                     onClick={() => {
-                      const msg = encodeURIComponent(`Room: ${room.title} - Hey there! 👋 I’m interested in planning my stay and would love to know more about availability, rates, and any current offers. Could you please assist me? `);
-                      window.open(`https://wa.me/919371179888?text=${msg}`, '_blank');
+                      navigate(`/booking/${room.id}`);
                     }}
                   >
                     Book This Suite

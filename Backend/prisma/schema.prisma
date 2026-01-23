@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  CREATED
+  PAID
+  FAILED
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  phone         String?  @db.VarChar(30)
+  passwordHash  String
+  role          Role     @default(USER)
+
+  bookings      Booking[]
+  resetTokens   PasswordResetToken[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([role])
+}
+
+model Room {
+  id            Int      @id @default(autoincrement())
+  title         String
+  description   String   @db.Text
+  pricePerNight Int
+
+  images        RoomImage[]
+  amenities     RoomAmenity[]
+  bookings      Booking[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model RoomImage {
+  id        String   @id @default(cuid())
+  roomId    Int
+  url       String
+  sortOrder Int      @default(0)
+
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+}
+
+model RoomAmenity {
+  id     String @id @default(cuid())
+  roomId Int
+  name   String
+
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+}
+
+model Booking {
+  id          String        @id @default(cuid())
+  userId      String
+  roomId      Int
+
+  checkIn     DateTime
+  checkOut    DateTime
+  guests      Int
+  roomType    String?       @db.VarChar(50)
+
+  nights      Int
+  amount      Int
+  status      BookingStatus @default(PENDING)
+
+  payments    Payment[]
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room        Room          @relation(fields: [roomId], references: [id], onDelete: Restrict)
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([roomId])
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  bookingId        String
+
+  provider         String        @default("RAZORPAY")
+  status           PaymentStatus @default(CREATED)
+
+  currency         String        @default("INR")
+  amount           Int
+
+  razorpayOrderId  String?       @unique
+  razorpayPaymentId String?
+  razorpaySignature String?
+
+  booking          Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([bookingId])
+}
+
+model PasswordResetToken {
+  id          String   @id @default(cuid())
+  userId      String
+
+  tokenHash   String   @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}

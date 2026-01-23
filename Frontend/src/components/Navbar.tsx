@@ -1,18 +1,37 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [userName, setUserName] = useState<string | null>(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
-  const handleBookNow = () => {
-    const phoneNumber = '+919371179888'; // Replace with your actual WhatsApp number
-    const message = encodeURIComponent("Hey there! 👋 I'm interested in planning my stay and would love to know more about availability, rates, and any current offers. Could you please assist me?");
-    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
-    window.open(whatsappUrl, '_blank');
+  const getUserName = () => {
+    try {
+      const raw = localStorage.getItem("user");
+      if (!raw) return null;
+      const user = JSON.parse(raw);
+      return typeof user?.name === 'string' ? user.name : null;
+    } catch {
+      return null;
+    }
   };
+
+  const handleProfileClick = () => {
+    navigate('/profile');
+    setIsMobileMenuOpen(false);
+  };
+
+  useEffect(() => {
+    setUserName(getUserName());
+
+    const handleStorage = () => setUserName(getUserName());
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -77,12 +96,23 @@ const Navbar = () => {
                 {link.name}
               </Link>
             ))}
-            <button 
-              onClick={handleBookNow}
-              className={`px-4 sm:px-6 py-2 rounded-full font-medium text-sm sm:text-base hover:bg-bronze transition-colors duration-200 ${isScrolled ? 'bg-gold text-gray-800' : 'bg-gold text-gray-800'}`}
-            >
-              Book Now
-            </button>
+            {!userName ? (
+              <Link
+                to="/login"
+                className={`px-4 sm:px-6 py-2 rounded-full font-medium text-sm sm:text-base hover:bg-bronze transition-colors duration-200 ${isScrolled ? 'bg-gold text-gray-800' : 'bg-gold text-gray-800'}`}
+              >
+                Login
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={handleProfileClick}
+                className="h-10 w-10 rounded-full bg-gold text-gray-800 flex items-center justify-center font-bold hover:bg-bronze transition-colors duration-200"
+                aria-label="Go to profile"
+              >
+                {userName.trim().charAt(0).toUpperCase()}
+              </button>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -116,12 +146,23 @@ const Navbar = () => {
                   {link.name}
                 </Link>
               ))}
-              <button 
-                onClick={handleBookNow}
-                className="w-full mt-4 px-4 py-3 rounded-full font-medium text-base bg-gold text-gray-800 hover:bg-bronze transition-colors duration-200"
-              >
-                Book Now
-              </button>
+              {!userName ? (
+                <Link
+                  to="/login"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block w-full mt-4 px-4 py-3 rounded-full font-medium text-base bg-gold text-gray-800 hover:bg-bronze transition-colors duration-200 text-center"
+                >
+                  Login
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleProfileClick}
+                  className="w-full mt-4 px-4 py-3 rounded-full font-medium text-base bg-gold text-gray-800 hover:bg-bronze transition-colors duration-200"
+                >
+                  Profile
+                </button>
+              )}
             </div>
           </div>
         )}

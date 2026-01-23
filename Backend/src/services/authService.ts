@@ -1,0 +1,82 @@
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import { prisma } from "../prisma/client";
+import { HttpError } from "../middlewares/errorHandler";
+import { env } from "../config/env";
+
+export const authService = {
+  async signup(params: { name: string; email: string; password: string; phone?: string }) {
+    const existing = await prisma.user.findUnique({ where: { email: params.email } });
+    if (existing) throw new HttpError(409, "Email already registered");
+
+    const passwordHash = await bcrypt.hash(params.password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        name: params.name,
+        email: params.email,
+        phone: params.phone,
+        passwordHash,
+        role: "USER",
+      },
+      select: { id: true, name: true, email: true, role: true },
+    });
+
+    return user;
+  },
+
+  async login(params: { email: string; password: string }) {
+    const user = await prisma.user.findUnique({ where: { email: params.email } });
+    if (!user) throw new HttpError(401, "Invalid credentials");
+
+    const ok = await bcrypt.compare(params.password, user.passwordHash);
+    if (!ok) throw new HttpError(401, "Invalid credentials");
+
+    return { id: user.id, name: user.name, email: user.email, role: user.role };
+  },
+
+  async me(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, role: true },
+    });
+    if (!user) throw new HttpError(401, "Unauthorized");
+    return user;
+  },
+
+  async createResetToken(email: string) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return;
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+    const expiresAt = new Date(Date.now() + env.RESET_TOKEN_EXPIRES_MINUTES * 60 * 1000);
+
+    await prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+      },
+    });
+
+    return rawToken;
+  },
+
+  async resetPassword(params: { token: string; newPassword: string }) {
+    const tokenHash = crypto.createHash("sha256").update(params.token).digest("hex");
+
+    const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
+    if (!record) throw new HttpError(400, "Invalid or expired token");
+    if (record.usedAt) throw new HttpError(400, "Invalid or expired token");
+    if (record.expiresAt.getTime() < Date.now()) throw new HttpError(400, "Invalid or expired token");
+
+    const passwordHash = await bcrypt.hash(params.newPassword, 10);
+
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
+      prisma.passwordResetToken.update({ where: { tokenHash }, data: { usedAt: new Date() } }),
+    ]);
+  },
+};
