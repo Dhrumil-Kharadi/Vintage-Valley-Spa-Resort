@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 
@@ -6,6 +6,8 @@ const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [userName, setUserName] = useState<string | null>(null);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -23,6 +25,28 @@ const Navbar = () => {
   const handleProfileClick = () => {
     navigate('/profile');
     setIsMobileMenuOpen(false);
+    setIsProfileMenuOpen(false);
+  };
+
+  const toggleProfileMenu = () => {
+    setIsProfileMenuOpen((v) => !v);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch {
+    } finally {
+      localStorage.removeItem('user');
+      window.dispatchEvent(new Event('storage'));
+      setUserName(null);
+      setIsMobileMenuOpen(false);
+      setIsProfileMenuOpen(false);
+      navigate('/');
+    }
   };
 
   useEffect(() => {
@@ -32,6 +56,23 @@ const Navbar = () => {
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
+
+  useEffect(() => {
+    const onPointerDown = (e: MouseEvent | TouchEvent) => {
+      if (!isProfileMenuOpen) return;
+      const el = profileMenuRef.current;
+      if (!el) return;
+      if (e.target instanceof Node && el.contains(e.target)) return;
+      setIsProfileMenuOpen(false);
+    };
+
+    window.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('touchstart', onPointerDown);
+    return () => {
+      window.removeEventListener('mousedown', onPointerDown);
+      window.removeEventListener('touchstart', onPointerDown);
+    };
+  }, [isProfileMenuOpen]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -104,14 +145,40 @@ const Navbar = () => {
                 Login
               </Link>
             ) : (
-              <button
-                type="button"
-                onClick={handleProfileClick}
-                className="h-10 w-10 rounded-full bg-gold text-gray-800 flex items-center justify-center font-bold hover:bg-bronze transition-colors duration-200"
-                aria-label="Go to profile"
-              >
-                {userName.trim().charAt(0).toUpperCase()}
-              </button>
+              <div className="relative" ref={profileMenuRef}>
+                <button
+                  type="button"
+                  onClick={toggleProfileMenu}
+                  className="h-10 w-10 rounded-full bg-gold text-gray-800 flex items-center justify-center font-bold hover:bg-bronze transition-colors duration-200"
+                  aria-label="Open profile menu"
+                  aria-haspopup="menu"
+                  aria-expanded={isProfileMenuOpen}
+                >
+                  {userName.trim().charAt(0).toUpperCase()}
+                </button>
+                {isProfileMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-44">
+                    <div className="bg-white rounded-2xl shadow-luxury-shadow border border-gold/20 overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={handleProfileClick}
+                        className="w-full text-left px-4 py-3 text-gray-800 hover:bg-gold/10 transition-colors duration-200"
+                        role="menuitem"
+                      >
+                        Profile
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-3 text-gray-800 hover:bg-gold/10 transition-colors duration-200"
+                        role="menuitem"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
@@ -155,13 +222,22 @@ const Navbar = () => {
                   Login
                 </Link>
               ) : (
-                <button
-                  type="button"
-                  onClick={handleProfileClick}
-                  className="w-full mt-4 px-4 py-3 rounded-full font-medium text-base bg-gold text-gray-800 hover:bg-bronze transition-colors duration-200"
-                >
-                  Profile
-                </button>
+                <div className="space-y-3 mt-4">
+                  <button
+                    type="button"
+                    onClick={handleProfileClick}
+                    className="w-full px-4 py-3 rounded-full font-medium text-base bg-gold text-gray-800 hover:bg-bronze transition-colors duration-200"
+                  >
+                    Profile
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full px-4 py-3 rounded-full font-medium text-base border-2 border-gold/30 text-gray-800 hover:bg-gold/10 transition-colors duration-200"
+                  >
+                    Logout
+                  </button>
+                </div>
               )}
             </div>
           </div>

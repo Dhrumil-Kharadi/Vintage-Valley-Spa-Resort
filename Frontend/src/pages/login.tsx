@@ -20,7 +20,7 @@ const Login = () => {
     navigate('/');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     setError(null);
@@ -31,11 +31,53 @@ const Login = () => {
         return;
       }
 
-      loginUser(name.trim() ? name.trim() : 'Yagna');
+      try {
+        const res = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            name: name.trim(),
+            email: email.trim(),
+            password,
+            phone: number.trim(),
+          }),
+        });
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          setError(data?.error?.message ?? 'Signup failed');
+          return;
+        }
+
+        const userName = data?.data?.user?.name ?? name.trim() ?? 'Yagna';
+        loginUser(userName);
+      } catch {
+        setError('Signup failed');
+      }
+
       return;
     }
 
-    loginUser('Yagna');
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(data?.error?.message ?? 'Login failed');
+        return;
+      }
+
+      const userName = data?.data?.user?.name ?? 'Yagna';
+      loginUser(userName);
+    } catch {
+      setError('Login failed');
+    }
   };
 
   const handleGoogleSignIn = () => {
