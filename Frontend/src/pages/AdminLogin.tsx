@@ -1,7 +1,5 @@
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -50,69 +48,65 @@ const AdminLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-ivory">
-      <Navbar />
-
-      <section className="pt-24 pb-16 bg-gradient-to-br from-gray-800 to-gray-800/90">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="font-playfair text-5xl md:text-6xl font-bold text-ivory mb-6">Admin Login</h1>
-          <p className="text-xl text-ivory/80 max-w-2xl mx-auto">Sign in to manage rooms and bookings.</p>
-        </div>
-      </section>
-
-      <section className="section-padding">
-        <div className="max-w-2xl mx-auto">
-          <div className="bg-white rounded-3xl p-8 luxury-shadow">
-            <h2 className="font-playfair text-3xl font-bold text-gray-800 mb-6">Sign In</h2>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label htmlFor="email" className="block text-gray-800 font-medium mb-2">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
-                  placeholder="admin@email.com"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-gray-800 font-medium mb-2">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
-                  placeholder="••••••••"
-                />
-              </div>
-
-              {error && (
-                <div className="bg-gold/10 border border-gold/20 text-gray-800 px-4 py-3 rounded-2xl">{error}</div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gold text-gray-800 px-6 py-3 rounded-full font-semibold hover:bg-bronze transition-colors duration-200 disabled:opacity-60"
-              >
-                {loading ? "Signing in..." : "Login"}
-              </button>
-            </form>
+    <div className="min-h-screen bg-ivory flex items-center justify-center px-4">
+      <div className="w-full max-w-2xl">
+        <div className="bg-white rounded-3xl p-8 luxury-shadow">
+          <div className="text-center mb-8">
+            <h1 className="font-playfair text-4xl md:text-5xl font-bold text-gray-800">Admin Login</h1>
+            <p className="text-gray-800/70 mt-3">Sign in to manage rooms and bookings.</p>
           </div>
-        </div>
-      </section>
 
-      <Footer />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="email" className="block text-gray-800 font-medium mb-2">
+                Email
+              </label>
+              <input
+                type="email"
+                id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                placeholder="admin@email.com"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-gray-800 font-medium mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                placeholder="••••••••"
+              />
+            </div>
+
+            {error && (
+              <div className="bg-gold/10 border border-gold/20 text-gray-800 px-4 py-3 rounded-2xl">{error}</div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gold text-gray-800 px-6 py-3 rounded-full font-semibold hover:bg-bronze transition-colors duration-200 disabled:opacity-60"
+            >
+              {loading ? "Signing in..." : "Login"}
+            </button>
+
+            <div className="text-center text-sm text-gray-800/70">
+              <Link to="/" className="hover:text-gold transition-colors duration-200">
+                Go back to home page
+              </Link>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   );
 };

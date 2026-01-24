@@ -1,10 +1,10 @@
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import AdminLayout from "@/components/admin/AdminLayout";
+import { useEffect, useMemo, useState } from "react";
 
 const AdminDashboard = () => {
-  const navigate = useNavigate();
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [roomsLoading, setRoomsLoading] = useState(false);
+  const [roomsError, setRoomsError] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -15,6 +15,34 @@ const AdminDashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editPricePerNight, setEditPricePerNight] = useState<number>(0);
+  const [editImagesRaw, setEditImagesRaw] = useState("");
+  const [editAmenitiesRaw, setEditAmenitiesRaw] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const loadRooms = async () => {
+    setRoomsLoading(true);
+    setRoomsError(null);
+    try {
+      const res = await fetch("/admin-api/rooms", { credentials: "include" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error?.message ?? "Failed to load rooms");
+      setRooms(data?.data?.rooms ?? []);
+    } catch (e: any) {
+      setRoomsError(e?.message ?? "Failed to load rooms");
+    } finally {
+      setRoomsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRooms();
+  }, []);
 
   const parsedImages = useMemo(() => {
     return imagesRaw
@@ -30,17 +58,19 @@ const AdminDashboard = () => {
       .filter(Boolean);
   }, [amenitiesRaw]);
 
-  const handleLogout = async () => {
-    try {
-      await fetch("/admin-api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
-    } catch {
-    } finally {
-      navigate("/login");
-    }
-  };
+  const parsedEditImages = useMemo(() => {
+    return editImagesRaw
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }, [editImagesRaw]);
+
+  const parsedEditAmenities = useMemo(() => {
+    return editAmenitiesRaw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }, [editAmenitiesRaw]);
 
   const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +109,8 @@ const AdminDashboard = () => {
       setPricePerNight(0);
       setImagesRaw("");
       setAmenitiesRaw("");
+
+      await loadRooms();
     } catch {
       setError("Failed to create room");
     } finally {
@@ -86,30 +118,84 @@ const AdminDashboard = () => {
     }
   };
 
+  const startEdit = (room: any) => {
+    setEditError(null);
+    setEditingId(room.id);
+    setEditTitle(room.title ?? "");
+    setEditDescription(room.description ?? "");
+    setEditPricePerNight(Number(room.pricePerNight ?? 0));
+    setEditImagesRaw((room.images ?? []).join("\n"));
+    setEditAmenitiesRaw((room.amenities ?? []).join(", "));
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditError(null);
+    setEditLoading(false);
+  };
+
+  const saveEdit = async () => {
+    if (editingId == null) return;
+    setEditError(null);
+
+    if (parsedEditImages.length === 0) {
+      setEditError("Please add at least one image URL (one per line). ");
+      return;
+    }
+
+    setEditLoading(true);
+    try {
+      const res = await fetch(`/admin-api/rooms/${editingId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          description: editDescription.trim(),
+          pricePerNight: editPricePerNight,
+          images: parsedEditImages,
+          amenities: parsedEditAmenities,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setEditError(data?.error?.message ?? "Failed to update room");
+        return;
+      }
+
+      await loadRooms();
+      setEditingId(null);
+    } catch {
+      setEditError("Failed to update room");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const deleteRoom = async (id: number) => {
+    const ok = window.confirm("Delete this room? This cannot be undone.");
+    if (!ok) return;
+
+    try {
+      const res = await fetch(`/admin-api/rooms/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setRoomsError(data?.error?.message ?? "Failed to delete room");
+        return;
+      }
+      await loadRooms();
+    } catch {
+      setRoomsError("Failed to delete room");
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-ivory">
-      <Navbar />
-
-      <section className="pt-24 pb-10 bg-gradient-to-br from-gray-800 to-gray-800/90">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="font-playfair text-4xl md:text-5xl font-bold text-ivory">Admin Dashboard</h1>
-              <p className="text-ivory/80 mt-2">Add rooms to your inventory.</p>
-            </div>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="border-2 border-ivory/60 text-ivory px-6 py-3 rounded-full font-semibold hover:bg-ivory hover:text-gray-800 transition-colors duration-200"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section className="section-padding">
-        <div className="max-w-4xl mx-auto">
+    <AdminLayout title="Rooms" description="Add rooms to your inventory.">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div>
           <div className="bg-white rounded-3xl p-8 luxury-shadow">
             <h2 className="font-playfair text-3xl font-bold text-gray-800 mb-6">Add Room</h2>
 
@@ -206,10 +292,137 @@ const AdminDashboard = () => {
             </form>
           </div>
         </div>
-      </section>
 
-      <Footer />
-    </div>
+        <div>
+          <div className="bg-white rounded-3xl p-8 luxury-shadow">
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <h2 className="font-playfair text-3xl font-bold text-gray-800">Rooms</h2>
+              <button
+                type="button"
+                onClick={loadRooms}
+                className="px-4 py-2 rounded-full border-2 border-gold/20 text-gray-800 hover:bg-gold/10 transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
+
+            {roomsError && (
+              <div className="bg-gold/10 border border-gold/20 text-gray-800 px-4 py-3 rounded-2xl mb-4">{roomsError}</div>
+            )}
+
+            {roomsLoading ? (
+              <div className="text-gray-800/70">Loading…</div>
+            ) : rooms.length === 0 ? (
+              <div className="text-gray-800/70">No rooms found.</div>
+            ) : (
+              <div className="space-y-4">
+                {rooms.map((r) => (
+                  <div key={r.id} className="border border-gold/10 rounded-3xl p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="font-playfair text-2xl font-bold text-gray-800">{r.title}</div>
+                        <div className="text-gray-800/70 text-sm mt-1">₹{r.pricePerNight} / night • #{r.id}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => startEdit(r)}
+                          className="px-4 py-2 rounded-full bg-gold text-gray-800 font-semibold hover:bg-bronze transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteRoom(r.id)}
+                          className="px-4 py-2 rounded-full border-2 border-gold/30 text-gray-800 hover:bg-gold/10 transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="text-gray-800/80 mt-3 line-clamp-3">{r.description}</div>
+
+                    {editingId === r.id && (
+                      <div className="mt-5 bg-ivory/60 rounded-3xl p-5 border border-gold/10">
+                        <div className="grid grid-cols-1 gap-4">
+                          <div>
+                            <label className="block text-gray-800 font-medium mb-2">Title</label>
+                            <input
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-gray-800 font-medium mb-2">Description</label>
+                            <textarea
+                              value={editDescription}
+                              onChange={(e) => setEditDescription(e.target.value)}
+                              rows={4}
+                              className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-gray-800 font-medium mb-2">Price Per Night</label>
+                            <input
+                              type="number"
+                              value={Number.isFinite(editPricePerNight) ? editPricePerNight : 0}
+                              onChange={(e) => setEditPricePerNight(Number(e.target.value))}
+                              min={0}
+                              className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-gray-800 font-medium mb-2">Image URLs (one per line)</label>
+                            <textarea
+                              value={editImagesRaw}
+                              onChange={(e) => setEditImagesRaw(e.target.value)}
+                              rows={4}
+                              className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-gray-800 font-medium mb-2">Amenities (comma separated)</label>
+                            <input
+                              value={editAmenitiesRaw}
+                              onChange={(e) => setEditAmenitiesRaw(e.target.value)}
+                              className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-white"
+                            />
+                          </div>
+
+                          {editError && (
+                            <div className="bg-gold/10 border border-gold/20 text-gray-800 px-4 py-3 rounded-2xl">{editError}</div>
+                          )}
+
+                          <div className="flex flex-col sm:flex-row gap-3">
+                            <button
+                              type="button"
+                              onClick={saveEdit}
+                              disabled={editLoading}
+                              className="px-6 py-3 rounded-full bg-gold text-gray-800 font-semibold hover:bg-bronze transition-colors disabled:opacity-60"
+                            >
+                              {editLoading ? "Saving..." : "Save"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelEdit}
+                              className="px-6 py-3 rounded-full border-2 border-gold/30 text-gray-800 hover:bg-gold/10 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </AdminLayout>
   );
 };
 

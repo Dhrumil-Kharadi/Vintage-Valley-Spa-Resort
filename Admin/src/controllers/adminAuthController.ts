@@ -3,6 +3,7 @@ import { asyncHandler } from "../../../Backend/src/utils/asyncHandler";
 import { adminAuthService } from "../services/adminAuthService";
 import { signAccessToken } from "../../../Backend/src/utils/jwt";
 import { clearAuthCookie, setAuthCookie } from "../../../Backend/src/utils/cookies";
+import { AuthedRequest } from "../../../Backend/src/middlewares/auth";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -24,5 +25,9 @@ export const adminAuthController = {
   logout: asyncHandler(async (_req, res) => {
     clearAuthCookie(res);
     res.json({ ok: true });
+  }),
+
+  me: asyncHandler(async (req: AuthedRequest, res) => {
+    res.json({ ok: true, data: { user: req.user } });
   }),
 };

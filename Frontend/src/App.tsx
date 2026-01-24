@@ -8,7 +8,11 @@ import Index from "./pages/Index";
 import Rooms from "./pages/Rooms";
 import Login from "./pages/login";
 import AdminLogin from "./pages/AdminLogin";
+import AdminHome from "./pages/AdminHome";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminUsers from "./pages/AdminUsers";
+import AdminBookings from "./pages/AdminBookings";
+import AdminPayments from "./pages/AdminPayments";
 import Booking from "./pages/booking";
 import Tariff from "./pages/Tariff";
 import Facilities from "./pages/Facilities";
@@ -31,7 +35,11 @@ const App = () => (
           <Route path="/rooms" element={<Rooms />} />
           <Route path="/login" element={<Login />} />
           <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin" element={<AdminHome />} />
+          <Route path="/admin/rooms" element={<AdminDashboard />} />
+          <Route path="/admin/users" element={<AdminUsers />} />
+          <Route path="/admin/bookings" element={<AdminBookings />} />
+          <Route path="/admin/payments" element={<AdminPayments />} />
           <Route path="/booking/:id" element={<Booking />} />
           <Route path="/tariff" element={<Tariff />} />
           <Route path="/facilities" element={<Facilities />} />
