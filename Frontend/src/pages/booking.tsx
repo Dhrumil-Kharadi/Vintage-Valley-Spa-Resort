@@ -9,6 +9,7 @@ type RoomDetails = {
   title: string;
   description: string;
   pricePerNight: number;
+  person: number;
   amenities: string[];
   images: string[];
 };
@@ -29,6 +30,7 @@ const parseRoomFromRoomsData = async (id: string): Promise<RoomDetails | null> =
       title: room.title,
       description: room.description,
       pricePerNight: Number.isFinite(numeric) && numeric > 0 ? numeric : 0,
+      person: Number(room?.person ?? 2),
       amenities: (room.amenities ?? []).map((a: any) => a?.name).filter(Boolean),
       images: room.images ?? [],
     };
@@ -46,7 +48,8 @@ const Booking = () => {
 
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
-  const [guests, setGuests] = useState(2);
+  const [children5To10, setChildren5To10] = useState(0);
+  const [extraAdultsAbove10, setExtraAdultsAbove10] = useState(0);
   const [roomType, setRoomType] = useState('standard');
 
   useEffect(() => {
@@ -71,6 +74,7 @@ const Booking = () => {
           title: data?.title ?? data?.name ?? 'Suite',
           description: data?.description ?? '',
           pricePerNight: Number(data?.pricePerNight ?? data?.price ?? 0),
+          person: Number(data?.person ?? 2),
           amenities: (data?.amenities ?? []).map((a: any) => (typeof a === 'string' ? a : a?.name)).filter(Boolean),
           images: data?.images ?? [],
         };
@@ -97,10 +101,29 @@ const Booking = () => {
     return Math.ceil(ms / (1000 * 60 * 60 * 24));
   }, [checkIn, checkOut]);
 
+  const totalGuests = useMemo(() => {
+    const base = Number(room?.person ?? 2);
+    const kids = Number(children5To10 ?? 0);
+    const extraAdults = Number(extraAdultsAbove10 ?? 0);
+    const computed = base + kids + extraAdults;
+    return Number.isFinite(computed) && computed > 0 ? computed : base;
+  }, [room?.person, children5To10, extraAdultsAbove10]);
+
   const total = useMemo(() => {
     const perNight = room?.pricePerNight ?? 0;
-    return perNight * nights;
-  }, [room?.pricePerNight, nights]);
+    const base = perNight * nights;
+    const childCharge = 1200 * children5To10 * nights;
+    const extraAdultCharge = 1500 * extraAdultsAbove10 * nights;
+    return base + childCharge + extraAdultCharge;
+  }, [room?.pricePerNight, nights, children5To10, extraAdultsAbove10]);
+
+  const charges = useMemo(() => {
+    const perNight = room?.pricePerNight ?? 0;
+    const base = perNight * nights;
+    const childCharge = 1200 * children5To10 * nights;
+    const extraAdultCharge = 1500 * extraAdultsAbove10 * nights;
+    return { base, childCharge, extraAdultCharge };
+  }, [room?.pricePerNight, nights, children5To10, extraAdultsAbove10]);
 
   const formattedTotal = useMemo(() => {
     try {
@@ -166,7 +189,7 @@ const Booking = () => {
                       Selected: {roomType}
                     </div>
                     <div className="bg-gray-800/5 text-gray-800 px-4 py-2 rounded-full font-medium">
-                      Guests: {guests}
+                      Guests: {totalGuests}
                     </div>
                   </div>
 
@@ -246,17 +269,45 @@ const Booking = () => {
                 </div>
 
                 <div>
-                  <label className="block text-gray-800 font-medium mb-2" htmlFor="guests">
+                  <label className="block text-gray-800 font-medium mb-2">
                     Total guests
                   </label>
+                  <div className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 bg-ivory/50 text-gray-800 font-semibold">
+                    {totalGuests}
+                  </div>
+                  <div className="text-xs text-gray-800/60 mt-1">
+                    Auto: room capacity ({room?.person ?? 2}) + children + extra adults
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-gray-800 font-medium mb-2" htmlFor="children5To10">
+                    Children (5–10 yrs)
+                  </label>
                   <input
-                    id="guests"
+                    id="children5To10"
                     type="number"
-                    min={1}
-                    value={guests}
-                    onChange={(e) => setGuests(Number(e.target.value))}
+                    min={0}
+                    value={children5To10}
+                    onChange={(e) => setChildren5To10(Math.max(0, Number(e.target.value)))}
                     className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
                   />
+                  <div className="text-xs text-gray-800/60 mt-1">₹1200 per child (per night)</div>
+                </div>
+
+                <div>
+                  <label className="block text-gray-800 font-medium mb-2" htmlFor="extraAdultsAbove10">
+                    Extra adults (10+ yrs)
+                  </label>
+                  <input
+                    id="extraAdultsAbove10"
+                    type="number"
+                    min={0}
+                    value={extraAdultsAbove10}
+                    onChange={(e) => setExtraAdultsAbove10(Math.max(0, Number(e.target.value)))}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                  />
+                  <div className="text-xs text-gray-800/60 mt-1">₹1500 per person (per night, incl. extra mattress)</div>
                 </div>
 
                 <div>
@@ -296,12 +347,35 @@ const Booking = () => {
                   <span className="font-semibold text-gray-800">{nights}</span>
                 </div>
 
+                <div className="flex items-center justify-between text-gray-800/80">
+                  <span>Room total</span>
+                  <span className="font-semibold text-gray-800">₹{charges.base.toLocaleString('en-IN')}</span>
+                </div>
+
+                {(children5To10 > 0 || extraAdultsAbove10 > 0) && (
+                  <div className="space-y-2">
+                    {children5To10 > 0 && (
+                      <div className="flex items-center justify-between text-gray-800/80">
+                        <span>Children (5–10) × {children5To10}</span>
+                        <span className="font-semibold text-gray-800">₹{charges.childCharge.toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
+                    {extraAdultsAbove10 > 0 && (
+                      <div className="flex items-center justify-between text-gray-800/80">
+                        <span>Extra adults (10+) × {extraAdultsAbove10}</span>
+                        <span className="font-semibold text-gray-800">₹{charges.extraAdultCharge.toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="border-t border-gold/20 pt-4 flex items-center justify-between">
                   <span className="text-gray-800 font-semibold">Total</span>
                   <span className="text-gray-800 font-bold text-xl">{formattedTotal}</span>
                 </div>
 
                 <button
+                  disabled={nights === 0}
                   className="w-full bg-gold text-gray-800 px-6 py-3 rounded-full font-semibold hover:bg-bronze transition-colors duration-200"
                   onClick={() => {
                     navigate('/');

@@ -2,13 +2,112 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import FloatingContact from '@/components/FloatingContact';
 import { Wifi, Car, Tv, Bath, Users, Bed, Mountain, Coffee } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { rooms } from '../roomsData';
+
+type ApiRoom = {
+  id: number;
+  title: string;
+  description: string;
+  pricePerNight: number;
+  images: string[];
+  amenities: string[];
+};
+
+type UiRoom = {
+  id: number;
+  title: string;
+  subtitle: string;
+  images: string[];
+  description: string;
+  capacity: string;
+  bedType: string;
+  size: string;
+  pricing: {
+    weekday: string;
+    weekend: string;
+  };
+  amenities: { icon: any; name: string }[];
+};
 
 const Rooms = () => {
   const navigate = useNavigate();
   const [selectedPricing, setSelectedPricing] = useState<'weekday' | 'weekend'>('weekday');
+  const [roomsLoading, setRoomsLoading] = useState(false);
+  const [roomsError, setRoomsError] = useState<string | null>(null);
+  const [apiRooms, setApiRooms] = useState<ApiRoom[]>([]);
+
+  useEffect(() => {
+    const run = async () => {
+      setRoomsLoading(true);
+      setRoomsError(null);
+      try {
+        const res = await fetch('/api/rooms', { credentials: 'include' });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) throw new Error(data?.error?.message ?? 'Failed to load rooms');
+        setApiRooms(data?.data?.rooms ?? []);
+      } catch (e: any) {
+        setRoomsError(e?.message ?? 'Failed to load rooms');
+      } finally {
+        setRoomsLoading(false);
+      }
+    };
+
+    run();
+  }, []);
+
+  const amenityIconByName: Record<string, any> = {
+    wifi: Wifi,
+    parking: Car,
+    tv: Tv,
+    bath: Bath,
+    coffee: Coffee,
+    balcony: Mountain,
+    view: Mountain,
+  };
+
+  const toUiRooms = useMemo<UiRoom[]>(() => {
+    const fmt = (amount: number) => {
+      try {
+        return new Intl.NumberFormat('en-IN', {
+          style: 'currency',
+          currency: 'INR',
+          maximumFractionDigits: 0,
+        }).format(amount);
+      } catch {
+        return `₹${amount}`;
+      }
+    };
+
+    return (apiRooms ?? []).map((r) => {
+      const price = Number(r.pricePerNight ?? 0);
+      const images = Array.isArray(r.images) ? r.images : [];
+      const amenities = Array.isArray(r.amenities) ? r.amenities : [];
+
+      return {
+        id: r.id,
+        title: r.title,
+        subtitle: 'Elegant Comfort in Nature',
+        images: images.length ? images : ['/images/room/1.jpeg', '/images/room/4.jpeg', '/images/room/5.jpeg'],
+        description: r.description,
+        capacity: '2 Adults',
+        bedType: 'Standard Size Bed',
+        size: '—',
+        pricing: {
+          weekday: fmt(price),
+          weekend: fmt(price),
+        },
+        amenities: amenities.map((name) => {
+          const key = String(name).toLowerCase();
+          const Icon =
+            amenityIconByName[
+              Object.keys(amenityIconByName).find((k) => key.includes(k)) ?? ''
+            ] ?? Coffee;
+          return { icon: Icon, name };
+        }),
+      };
+    });
+  }, [apiRooms]);
 
   return (
     <div className="min-h-screen bg-ivory">
@@ -54,13 +153,22 @@ const Rooms = () => {
       {/* Rooms Section */}
       <section className="section-padding">
         <div className="max-w-7xl mx-auto space-y-16">
-          {rooms.map((room, index) => (
-            <div 
-              key={room.id} 
-              id={room.title.replace(/\s+/g, '-').toLowerCase()}
-              className={`grid grid-cols-1 lg:grid-cols-2 gap-12 items-center ${
-                index % 2 === 1 ? 'lg:grid-flow-col-dense' : ''
-              }`}>
+          {roomsError && (
+            <div className="bg-gold/10 border border-gold/20 text-gray-800 px-4 py-3 rounded-2xl">{roomsError}</div>
+          )}
+
+          {roomsLoading ? (
+            <div className="text-gray-800/70">Loading rooms…</div>
+          ) : toUiRooms.length === 0 ? (
+            <div className="text-gray-800/70">No rooms found.</div>
+          ) : (
+            toUiRooms.map((room, index) => (
+              <div 
+                key={room.id} 
+                id={room.title.replace(/\s+/g, '-').toLowerCase()}
+                className={`grid grid-cols-1 lg:grid-cols-2 gap-12 items-center ${
+                  index % 2 === 1 ? 'lg:grid-flow-col-dense' : ''
+                }`}>
               {/* Images */}
               <div className={`${index % 2 === 1 ? 'lg:col-start-2' : ''}`}>
                 <div className="relative">
@@ -150,8 +258,9 @@ const Rooms = () => {
                   </button>
                 </div>
               </div>
-            </div>
-          ))}
+              </div>
+            ))
+          )}
         </div>
       </section>
 

@@ -9,6 +9,7 @@ const AdminDashboard = () => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [pricePerNight, setPricePerNight] = useState<number>(0);
+  const [person, setPerson] = useState<number>(2);
   const [imagesRaw, setImagesRaw] = useState("");
   const [amenitiesRaw, setAmenitiesRaw] = useState("");
 
@@ -20,6 +21,7 @@ const AdminDashboard = () => {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editPricePerNight, setEditPricePerNight] = useState<number>(0);
+  const [editPerson, setEditPerson] = useState<number>(2);
   const [editImagesRaw, setEditImagesRaw] = useState("");
   const [editAmenitiesRaw, setEditAmenitiesRaw] = useState("");
   const [editLoading, setEditLoading] = useState(false);
@@ -92,6 +94,7 @@ const AdminDashboard = () => {
           title: title.trim(),
           description: description.trim(),
           pricePerNight,
+          person,
           images: parsedImages,
           amenities: parsedAmenities,
         }),
@@ -107,6 +110,7 @@ const AdminDashboard = () => {
       setTitle("");
       setDescription("");
       setPricePerNight(0);
+      setPerson(2);
       setImagesRaw("");
       setAmenitiesRaw("");
 
@@ -124,6 +128,7 @@ const AdminDashboard = () => {
     setEditTitle(room.title ?? "");
     setEditDescription(room.description ?? "");
     setEditPricePerNight(Number(room.pricePerNight ?? 0));
+    setEditPerson(Number(room.person ?? 2));
     setEditImagesRaw((room.images ?? []).join("\n"));
     setEditAmenitiesRaw((room.amenities ?? []).join(", "));
   };
@@ -153,6 +158,7 @@ const AdminDashboard = () => {
           title: editTitle.trim(),
           description: editDescription.trim(),
           pricePerNight: editPricePerNight,
+          person: editPerson,
           images: parsedEditImages,
           amenities: parsedEditAmenities,
         }),
@@ -247,6 +253,22 @@ const AdminDashboard = () => {
               </div>
 
               <div>
+                <label htmlFor="person" className="block text-gray-800 font-medium mb-2">
+                  Person (capacity)
+                </label>
+                <input
+                  type="number"
+                  id="person"
+                  value={Number.isFinite(person) ? person : 2}
+                  onChange={(e) => setPerson(Number(e.target.value))}
+                  min={1}
+                  required
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                  placeholder="2"
+                />
+              </div>
+
+              <div>
                 <label htmlFor="images" className="block text-gray-800 font-medium mb-2">
                   Image URLs (one per line)
                 </label>
@@ -321,7 +343,7 @@ const AdminDashboard = () => {
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <div className="font-playfair text-2xl font-bold text-gray-800">{r.title}</div>
-                        <div className="text-gray-800/70 text-sm mt-1">₹{r.pricePerNight} / night • #{r.id}</div>
+                        <div className="text-gray-800/70 text-sm mt-1">₹{r.pricePerNight} / night • {r.person ?? 2} person • #{r.id}</div>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
@@ -370,6 +392,16 @@ const AdminDashboard = () => {
                               value={Number.isFinite(editPricePerNight) ? editPricePerNight : 0}
                               onChange={(e) => setEditPricePerNight(Number(e.target.value))}
                               min={0}
+                              className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-gray-800 font-medium mb-2">Person (capacity)</label>
+                            <input
+                              type="number"
+                              value={Number.isFinite(editPerson) ? editPerson : 2}
+                              onChange={(e) => setEditPerson(Number(e.target.value))}
+                              min={1}
                               className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-white"
                             />
                           </div>

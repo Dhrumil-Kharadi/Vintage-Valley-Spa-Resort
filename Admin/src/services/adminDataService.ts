@@ -50,15 +50,19 @@ export const adminDataService = {
       orderBy: { id: "asc" },
     });
 
-    return rooms.map((r) => ({
-      id: r.id,
-      title: r.title,
-      description: r.description,
-      pricePerNight: r.pricePerNight,
-      images: r.images.map((i) => i.url),
-      amenities: r.amenities.map((a) => a.name),
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
-    }));
+    return rooms.map((room) => {
+      const r: any = room as any;
+      return {
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        pricePerNight: r.pricePerNight,
+        person: r.person,
+        images: (r.images ?? []).map((i: any) => i.url),
+        amenities: (r.amenities ?? []).map((a: any) => a.name),
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      };
+    });
   },
 };

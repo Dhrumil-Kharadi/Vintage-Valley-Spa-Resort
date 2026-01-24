@@ -6,14 +6,18 @@ export const roomController = {
   list: asyncHandler(async (_req, res) => {
     const rooms = await roomService.list();
 
-    const data = rooms.map((r) => ({
-      id: r.id,
-      title: r.title,
-      description: r.description,
-      pricePerNight: r.pricePerNight,
-      amenities: r.amenities.map((a) => a.name),
-      images: r.images.map((i) => i.url),
-    }));
+    const data = rooms.map((room) => {
+      const r: any = room as any;
+      return {
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        pricePerNight: r.pricePerNight,
+        person: r.person,
+        amenities: (r.amenities ?? []).map((a: any) => a.name),
+        images: (r.images ?? []).map((i: any) => i.url),
+      };
+    });
 
     res.json({ ok: true, data: { rooms: data } });
   }),
@@ -25,14 +29,17 @@ export const roomController = {
     const room = await roomService.getById(id);
     if (!room) throw new HttpError(404, "Room not found");
 
+    const r: any = room as any;
+
     res.json({
       ok: true,
-      id: room.id,
-      title: room.title,
-      description: room.description,
-      pricePerNight: room.pricePerNight,
-      amenities: room.amenities.map((a) => a.name),
-      images: room.images.map((i) => i.url),
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      pricePerNight: r.pricePerNight,
+      person: r.person,
+      amenities: (r.amenities ?? []).map((a: any) => a.name),
+      images: (r.images ?? []).map((i: any) => i.url),
     });
   }),
 };

@@ -6,6 +6,7 @@ const createRoomSchema = z.object({
   title: z.string().min(1),
   description: z.string().min(1),
   pricePerNight: z.coerce.number().int().nonnegative(),
+  person: z.coerce.number().int().positive().default(2),
   images: z.array(z.string().min(1)).min(1),
   amenities: z.array(z.string().min(1)).default([]),
 });
