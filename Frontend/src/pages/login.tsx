@@ -252,6 +252,14 @@ const Login = () => {
                   </svg>
                 </span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/admin/login')}
+                className="w-full border-2 border-gray-800 text-gray-800 px-6 py-3 rounded-full font-semibold hover:bg-gray-800 hover:text-ivory transition-colors duration-200"
+              >
+                Admin Login
+              </button>
             </form>
 
             {mode === 'login' ? (

@@ -13,6 +13,10 @@ export default defineConfig(({ mode }) => ({
         target: "http://localhost:5050",
         changeOrigin: true,
       },
+      "/admin-api": {
+        target: "http://localhost:5051",
+        changeOrigin: true,
+      },
     },
   },
   plugins: [

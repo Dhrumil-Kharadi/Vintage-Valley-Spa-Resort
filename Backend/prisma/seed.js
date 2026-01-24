@@ -1,4 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
+const bcrypt = require("bcryptjs");
+require("dotenv").config();
 
 const prisma = new PrismaClient();
 
@@ -6,6 +8,33 @@ const parsePrice = (value) => {
   const digits = String(value).replace(/[^0-9]/g, "");
   const n = Number(digits);
   return Number.isFinite(n) ? n : 0;
+};
+
+const ensureAdminUser = async () => {
+  const email = process.env.ADMIN_EMAIL;
+  const password = process.env.ADMIN_PASSWORD;
+
+  if (!email || !password) return;
+
+  const existing = await prisma.user.findUnique({ where: { email } });
+
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  if (!existing) {
+    await prisma.user.create({
+      data: {
+        name: "Admin",
+        email,
+        passwordHash,
+        role: "ADMIN",
+      },
+    });
+    return;
+  }
+
+  if (existing.role !== "ADMIN") {
+    await prisma.user.update({ where: { email }, data: { role: "ADMIN" } });
+  }
 };
 
 const rooms = [
@@ -91,6 +120,8 @@ const rooms = [
 ];
 
 async function main() {
+  await ensureAdminUser();
+
   for (const room of rooms) {
     await prisma.room.upsert({
       where: { id: room.id },
