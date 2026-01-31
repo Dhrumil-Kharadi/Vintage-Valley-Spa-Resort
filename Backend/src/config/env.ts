@@ -19,6 +19,10 @@ const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
 
+  GMAIL_USER: z.string().optional(),
+  GMAIL_APP_PASSWORD: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+
   RESET_TOKEN_EXPIRES_MINUTES: z.coerce.number().default(30),
 });
 

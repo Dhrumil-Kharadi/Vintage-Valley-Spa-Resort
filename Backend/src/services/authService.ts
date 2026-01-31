@@ -19,7 +19,7 @@ export const authService = {
         passwordHash,
         role: "USER",
       },
-      select: { id: true, name: true, email: true, role: true },
+      select: { id: true, name: true, email: true, phone: true, role: true },
     });
 
     return user;
@@ -32,13 +32,13 @@ export const authService = {
     const ok = await bcrypt.compare(params.password, user.passwordHash);
     if (!ok) throw new HttpError(401, "Invalid credentials");
 
-    return { id: user.id, name: user.name, email: user.email, role: user.role };
+    return { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role };
   },
 
   async me(userId: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, email: true, role: true },
+      select: { id: true, name: true, email: true, phone: true, role: true },
     });
     if (!user) throw new HttpError(401, "Unauthorized");
     return user;
@@ -78,5 +78,25 @@ export const authService = {
       prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
       prisma.passwordResetToken.update({ where: { tokenHash }, data: { usedAt: new Date() } }),
     ]);
+  },
+
+  async updateProfile(userId: string, params: { name?: string; phone?: string; password?: string }) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new HttpError(404, "User not found");
+
+    const updateData: any = {};
+    if (params.name !== undefined) updateData.name = params.name;
+    if (params.phone !== undefined) updateData.phone = params.phone;
+    if (params.password !== undefined) {
+      updateData.passwordHash = await bcrypt.hash(params.password, 10);
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: { id: true, name: true, email: true, phone: true, role: true },
+    });
+
+    return updated;
   },
 };

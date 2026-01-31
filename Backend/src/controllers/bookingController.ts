@@ -1,3 +1,4 @@
+import { RequestHandler } from "express";
 import { z } from "zod";
 import { asyncHandler } from "../utils/asyncHandler";
 import { bookingService } from "../services/bookingService";
@@ -11,7 +12,10 @@ const createSchema = z.object({
   checkIn: z.string().min(1),
   checkOut: z.string().min(1),
   guests: z.number().int().min(1),
-  roomType: z.string().optional(),
+  adults: z.number().int().min(1),
+  children: z.number().int().min(0),
+  extraAdults: z.number().int().min(0),
+  additionalInformation: z.string().nullable().optional(),
 });
 
 const verifySchema = z.object({
@@ -20,35 +24,36 @@ const verifySchema = z.object({
   razorpaySignature: z.string().min(1),
 });
 
-export const bookingController = {
+export const bookingController: Record<"me" | "create" | "verify" | "deletePending", RequestHandler> = {
+  me: asyncHandler(async (req: AuthedRequest, res) => {
+    const bookings = await bookingService.listUserBookings({ userId: req.user!.userId });
+    res.json({ ok: true, data: { bookings } });
+  }),
+
   create: asyncHandler(async (req: AuthedRequest, res) => {
     const body = createSchema.parse(req.body);
 
-    const result = await bookingService.createBookingWithOrder({
+    const result = await bookingService.createBooking({
       userId: req.user!.userId,
       roomId: body.roomId,
       checkIn: body.checkIn,
       checkOut: body.checkOut,
       guests: body.guests,
-      roomType: body.roomType,
+      adults: body.adults,
+      children: body.children,
+      extraAdults: body.extraAdults,
+      additionalInformation: body.additionalInformation ?? null,
     });
 
     res.json({
       ok: true,
       data: {
-        bookingId: result.booking.id,
-        amount: result.booking.amount,
-        currency: "INR",
+        booking: result.booking,
         razorpay: {
-          keyId: env.RAZORPAY_KEY_ID ?? null,
-          orderId: result.order.id,
-          amount: result.order.amount,
-          currency: result.order.currency,
-        },
-        room: {
-          id: result.room.id,
-          title: result.room.title,
-          pricePerNight: result.room.pricePerNight,
+          keyId: env.RAZORPAY_KEY_ID,
+          orderId: result.razorpayOrder.id,
+          amount: result.razorpayOrder.amount,
+          currency: result.razorpayOrder.currency,
         },
       },
     });
@@ -75,5 +80,11 @@ export const bookingController = {
     });
 
     res.json({ ok: true, data: updated });
+  }),
+
+  deletePending: asyncHandler(async (req: AuthedRequest, res) => {
+    const bookingId = req.params.id;
+    const result = await bookingService.deleteUserPendingBooking({ userId: req.user!.userId, bookingId });
+    res.json({ ok: true, data: result });
   }),
 };

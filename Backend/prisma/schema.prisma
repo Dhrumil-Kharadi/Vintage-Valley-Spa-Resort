@@ -85,7 +85,10 @@ model Booking {
   checkIn     DateTime
   checkOut    DateTime
   guests      Int
-  roomType    String?       @db.VarChar(50)
+  adults      Int           @default(1)
+  children    Int           @default(0)
+  extraAdults Int           @default(0)
+  additionalInformation String? @db.VarChar(500)
 
   nights      Int
   amount      Int
@@ -112,6 +115,14 @@ model Payment {
 
   currency         String        @default("INR")
   amount           Int
+
+  method           String?
+  bank             String?
+  wallet           String?
+  vpa              String?
+  cardLast4        String?       @db.VarChar(4)
+  cardNetwork      String?
+  cardType         String?
 
   razorpayOrderId  String?       @unique
   razorpayPaymentId String?

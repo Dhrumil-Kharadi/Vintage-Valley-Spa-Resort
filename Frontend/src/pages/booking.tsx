@@ -50,7 +50,20 @@ const Booking = () => {
   const [checkOut, setCheckOut] = useState('');
   const [children5To10, setChildren5To10] = useState(0);
   const [extraAdultsAbove10, setExtraAdultsAbove10] = useState(0);
-  const [roomType, setRoomType] = useState('standard');
+  const [additionalInformation, setAdditionalInformation] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        if (!res.ok) navigate('/login', { replace: true });
+      } catch {
+        navigate('/login', { replace: true });
+      }
+    };
+    run();
+  }, [navigate]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -101,6 +114,25 @@ const Booking = () => {
     return Math.ceil(ms / (1000 * 60 * 60 * 24));
   }, [checkIn, checkOut]);
 
+  const todayIso = useMemo(() => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }, []);
+
+  const checkOutMinIso = useMemo(() => {
+    if (!checkIn) return todayIso;
+    const d = new Date(checkIn);
+    if (!Number.isFinite(d.getTime())) return todayIso;
+    d.setDate(d.getDate() + 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }, [checkIn, todayIso]);
+
   const totalGuests = useMemo(() => {
     const base = Number(room?.person ?? 2);
     const kids = Number(children5To10 ?? 0);
@@ -108,6 +140,13 @@ const Booking = () => {
     const computed = base + kids + extraAdults;
     return Number.isFinite(computed) && computed > 0 ? computed : base;
   }, [room?.person, children5To10, extraAdultsAbove10]);
+
+  const adults = useMemo(() => {
+    const baseAdults = Number(room?.person ?? 2);
+    const extraAdults = Number(extraAdultsAbove10 ?? 0);
+    const computed = baseAdults + extraAdults;
+    return Number.isFinite(computed) && computed > 0 ? computed : baseAdults;
+  }, [room?.person, extraAdultsAbove10]);
 
   const total = useMemo(() => {
     const perNight = room?.pricePerNight ?? 0;
@@ -141,6 +180,159 @@ const Booking = () => {
       return String(perNight);
     }
   }, [room?.pricePerNight]);
+
+  const validate = () => {
+    if (!room) return 'Room not loaded';
+    if (!checkIn) return 'Check-in date is required';
+    if (!checkOut) return 'Check-out date is required';
+    if (!Number.isFinite(totalGuests) || totalGuests <= 0) return 'Total guests is required';
+    if (!Number.isFinite(adults) || adults <= 0) return 'Adults is required';
+    if (!Number.isFinite(children5To10) || children5To10 < 0) return 'Children is required';
+    if (!Number.isFinite(extraAdultsAbove10) || extraAdultsAbove10 < 0) return 'Extra adults is required';
+
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    if (!Number.isFinite(checkInDate.getTime())) return 'Invalid check-in date';
+    if (!Number.isFinite(checkOutDate.getTime())) return 'Invalid check-out date';
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const inDay = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
+    if (inDay.getTime() < today.getTime()) return 'Check-in date must be today or a future date';
+    if (checkOutDate.getTime() <= checkInDate.getTime()) return 'Check-out date must be after check-in date';
+
+    return null;
+  };
+
+  const loadRazorpayScript = () =>
+    new Promise<boolean>((resolve) => {
+      const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+      if (existing) return resolve(true);
+
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+
+  let cachedCheckoutLogoDataUrl: string | null = null;
+  const getCheckoutLogoDataUrl = async () => {
+    if (cachedCheckoutLogoDataUrl) return cachedCheckoutLogoDataUrl;
+
+    const res = await fetch('/favicon.png', { cache: 'force-cache' });
+    if (!res.ok) throw new Error('Failed to load logo');
+    const blob = await res.blob();
+
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Failed to read logo'));
+      reader.onload = () => resolve(String(reader.result));
+      reader.readAsDataURL(blob);
+    });
+
+    cachedCheckoutLogoDataUrl = dataUrl;
+    return dataUrl;
+  };
+
+  const submitBooking = async () => {
+    const err = validate();
+    setFormError(err);
+    if (err) return;
+
+    try {
+      const res = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          roomId: Number(id),
+          checkIn,
+          checkOut,
+          guests: totalGuests,
+          adults,
+          children: children5To10,
+          extraAdults: extraAdultsAbove10,
+          additionalInformation: additionalInformation.trim() ? additionalInformation.trim() : null,
+        }),
+      });
+
+      if (res.status === 401) {
+        navigate('/login', { replace: true });
+        return;
+      }
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setFormError(data?.error?.message ?? 'Booking failed');
+        return;
+      }
+
+      const bookingId = data?.data?.booking?.id;
+      const razorpay = data?.data?.razorpay;
+      if (!bookingId || !razorpay?.orderId || !razorpay?.keyId) {
+        setFormError('Payment initialization failed');
+        return;
+      }
+
+      const ok = await loadRazorpayScript();
+      if (!ok || !(window as any).Razorpay) {
+        setFormError('Failed to load payment gateway');
+        return;
+      }
+
+      let checkoutLogo: string | undefined = undefined;
+      try {
+        checkoutLogo = await getCheckoutLogoDataUrl();
+      } catch {
+        checkoutLogo = undefined;
+      }
+
+      const rz = new (window as any).Razorpay({
+        key: razorpay.keyId,
+        amount: razorpay.amount,
+        currency: razorpay.currency ?? 'INR',
+        name: 'VintageValley Resort',
+        description: `Booking for ${room?.title ?? 'Room'}`,
+        order_id: razorpay.orderId,
+        image: checkoutLogo,
+        theme: { color: '#3399cc' },
+        handler: async (response: any) => {
+          try {
+            const verifyRes = await fetch(`/api/bookings/${bookingId}/verify`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              }),
+            });
+
+            const verifyData = await verifyRes.json().catch(() => null);
+            if (!verifyRes.ok) {
+              setFormError(verifyData?.error?.message ?? 'Payment verification failed');
+              return;
+            }
+
+            navigate('/profile');
+          } catch {
+            setFormError('Payment verification failed');
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setFormError('Payment cancelled');
+          },
+        },
+      });
+
+      rz.open();
+    } catch {
+      setFormError('Booking failed');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-ivory">
@@ -184,9 +376,6 @@ const Booking = () => {
                   <div className="flex flex-wrap items-center gap-3 mb-6">
                     <div className="bg-gold/15 text-gray-800 px-4 py-2 rounded-full font-semibold">
                       {formattedPerNight} / night
-                    </div>
-                    <div className="bg-gray-800/5 text-gray-800 px-4 py-2 rounded-full font-medium">
-                      Selected: {roomType}
                     </div>
                     <div className="bg-gray-800/5 text-gray-800 px-4 py-2 rounded-full font-medium">
                       Guests: {totalGuests}
@@ -241,6 +430,12 @@ const Booking = () => {
                 Booking Details
               </h3>
 
+              {formError && (
+                <div className="bg-gold/10 border border-gold/20 text-gray-800 px-4 py-3 rounded-2xl mb-6">
+                  {formError}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-gray-800 font-medium mb-2" htmlFor="checkIn">
@@ -251,6 +446,8 @@ const Booking = () => {
                     type="date"
                     value={checkIn}
                     onChange={(e) => setCheckIn(e.target.value)}
+                    min={todayIso}
+                    required
                     className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
                   />
                 </div>
@@ -264,6 +461,8 @@ const Booking = () => {
                     type="date"
                     value={checkOut}
                     onChange={(e) => setCheckOut(e.target.value)}
+                    min={checkOutMinIso}
+                    required
                     className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
                   />
                 </div>
@@ -290,6 +489,7 @@ const Booking = () => {
                     min={0}
                     value={children5To10}
                     onChange={(e) => setChildren5To10(Math.max(0, Number(e.target.value)))}
+                    required
                     className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
                   />
                   <div className="text-xs text-gray-800/60 mt-1">₹1200 per child (per night)</div>
@@ -305,26 +505,23 @@ const Booking = () => {
                     min={0}
                     value={extraAdultsAbove10}
                     onChange={(e) => setExtraAdultsAbove10(Math.max(0, Number(e.target.value)))}
+                    required
                     className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
                   />
                   <div className="text-xs text-gray-800/60 mt-1">₹1500 per person (per night, incl. extra mattress)</div>
                 </div>
 
                 <div>
-                  <label className="block text-gray-800 font-medium mb-2" htmlFor="roomType">
-                    Room type selection
+                  <label className="block text-gray-800 font-medium mb-2" htmlFor="additionalInformation">
+                    Any further information
                   </label>
-                  <select
-                    id="roomType"
-                    value={roomType}
-                    onChange={(e) => setRoomType(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
-                  >
-                    <option value="standard">Standard</option>
-                    <option value="premium">Premium</option>
-                    <option value="family">Family</option>
-                    <option value="suite">Suite</option>
-                  </select>
+                  <textarea
+                    id="additionalInformation"
+                    value={additionalInformation}
+                    onChange={(e) => setAdditionalInformation(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50 min-h-[110px]"
+                    placeholder="Special requests, medical needs, late check-in, food preference…"
+                  />
                 </div>
               </div>
             </div>
@@ -378,10 +575,10 @@ const Booking = () => {
                   disabled={nights === 0}
                   className="w-full bg-gold text-gray-800 px-6 py-3 rounded-full font-semibold hover:bg-bronze transition-colors duration-200"
                   onClick={() => {
-                    navigate('/');
+                    submitBooking();
                   }}
                 >
-                  Proceed to Payment
+                  Confirm Booking
                 </button>
 
                 {nights === 0 && (

@@ -37,6 +37,20 @@ const Rooms = () => {
   const [roomsError, setRoomsError] = useState<string | null>(null);
   const [apiRooms, setApiRooms] = useState<ApiRoom[]>([]);
 
+  const goToBooking = async (roomId: number) => {
+    try {
+      const res = await fetch('/api/auth/me', { credentials: 'include' });
+      if (!res.ok) {
+        navigate('/login', { replace: true });
+        return;
+      }
+
+      navigate(`/booking/${roomId}`);
+    } catch {
+      navigate('/login', { replace: true });
+    }
+  };
+
   useEffect(() => {
     const run = async () => {
       setRoomsLoading(true);
@@ -242,7 +256,7 @@ const Rooms = () => {
                   <button
                     className="bg-gold text-gray-800 px-6 py-3 rounded-full font-semibold hover:bg-bronze transition-colors duration-200 flex-1 sm:flex-none"
                     onClick={() => {
-                      navigate(`/booking/${room.id}`);
+                      goToBooking(room.id);
                     }}
                   >
                     Book This Suite

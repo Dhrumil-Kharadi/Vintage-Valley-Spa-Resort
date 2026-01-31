@@ -1,5 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 
+import { env } from "../config/env";
+
 export class HttpError extends Error {
   statusCode: number;
 
@@ -22,8 +24,19 @@ export const errorHandler = (
     });
   }
 
+  const message = err instanceof Error ? err.message : "Internal Server Error";
+  const stack = err instanceof Error ? err.stack : undefined;
+
+  if (env.NODE_ENV !== "production") {
+    // eslint-disable-next-line no-console
+    console.error(err);
+  }
+
   return res.status(500).json({
     ok: false,
-    error: { message: "Internal Server Error" },
+    error: {
+      message: env.NODE_ENV === "production" ? "Internal Server Error" : message,
+      ...(env.NODE_ENV === "production" ? {} : { stack }),
+    },
   });
 };

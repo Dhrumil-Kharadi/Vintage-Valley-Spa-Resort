@@ -26,6 +26,12 @@ const resetSchema = z.object({
   newPassword: z.string().min(6),
 });
 
+const updateProfileSchema = z.object({
+  name: z.string().min(1).optional(),
+  phone: z.string().optional(),
+  password: z.string().min(6).optional(),
+});
+
 export const authController = {
   signup: asyncHandler(async (req, res) => {
     const body = signupSchema.parse(req.body);
@@ -68,5 +74,11 @@ export const authController = {
     const body = resetSchema.parse(req.body);
     await authService.resetPassword(body);
     res.json({ ok: true });
+  }),
+
+  updateProfile: asyncHandler(async (req: AuthedRequest, res) => {
+    const body = updateProfileSchema.parse(req.body);
+    const updated = await authService.updateProfile(req.user!.userId, body);
+    res.json({ ok: true, data: { user: updated } });
   }),
 };
