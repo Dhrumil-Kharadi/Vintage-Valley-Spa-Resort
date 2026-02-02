@@ -1,6 +1,6 @@
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
@@ -13,6 +13,20 @@ const Login = () => {
   const [number, setNumber] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        if (res.ok) {
+          navigate('/profile', { replace: true });
+        }
+      } catch {
+      }
+    };
+
+    run();
+  }, [navigate]);
 
   const loginUser = (userName: string) => {
     localStorage.setItem("user", JSON.stringify({ name: userName }));

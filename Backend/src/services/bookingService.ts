@@ -3,6 +3,7 @@ import { HttpError } from "../middlewares/errorHandler";
 import { env } from "../config/env";
 import { sendMailSafe } from "../utils/mailer";
 import { getRazorpayClient } from "../utils/razorpay";
+import { Prisma } from "@prisma/client";
 
 export const bookingService = {
   async createBooking(params: {
@@ -10,6 +11,9 @@ export const bookingService = {
     roomId: number;
     checkIn: string;
     checkOut: string;
+    checkInTime?: string | null;
+    checkOutTime?: string | null;
+    rooms?: number;
     guests: number;
     adults: number;
     children: number;
@@ -54,15 +58,28 @@ export const bookingService = {
     if (!Number.isFinite(params.children) || params.children < 0) throw new HttpError(400, "Invalid children");
     if (!Number.isFinite(params.extraAdults) || params.extraAdults < 0) throw new HttpError(400, "Invalid extra adults");
 
-    const base = room.pricePerNight * nights;
+    const rooms = Number(params.rooms ?? 1);
+    if (!Number.isFinite(rooms) || !Number.isInteger(rooms) || rooms < 1 || rooms > 10) {
+      throw new HttpError(400, "Invalid rooms");
+    }
+
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+
+    const base = room.pricePerNight * nights * rooms;
     const childCharge = 1200 * params.children * nights;
     const extraAdultCharge = 1500 * params.extraAdults * nights;
-    const amount = base + childCharge + extraAdultCharge;
+    const baseAmountNum = round2(base + childCharge + extraAdultCharge);
+    const gstAmountNum = round2(baseAmountNum * 0.05);
+    const amountNum = round2(baseAmountNum + gstAmountNum);
 
-    const amountPaise = Math.round(amount * 100);
-    if (!Number.isFinite(amount) || amount < 1 || amountPaise < 100) {
+    const amountPaise = Math.round(amountNum * 100);
+    if (!Number.isFinite(amountNum) || amountNum < 1 || amountPaise < 100) {
       throw new HttpError(400, "Invalid amount");
     }
+
+    const baseAmount = new Prisma.Decimal(baseAmountNum.toFixed(2));
+    const gstAmount = new Prisma.Decimal(gstAmountNum.toFixed(2));
+    const amount = new Prisma.Decimal(amountNum.toFixed(2));
 
     const existing: any = await (prisma.booking as any).findFirst({
       where: {
@@ -81,6 +98,23 @@ export const bookingService = {
     if (existing) {
       const existingPayment = existing.payments?.find((p: any) => p.status === "CREATED" && p.provider === "RAZORPAY");
       if (existingPayment?.razorpayOrderId) {
+        try {
+          await (prisma.booking as any).update({
+            where: { id: existing.id },
+            data: {
+              checkInTime: params.checkInTime ?? null,
+              checkOutTime: params.checkOutTime ?? null,
+              rooms,
+              nights,
+              baseAmount,
+              gstAmount,
+              amount,
+            },
+          });
+        } catch {
+          // best-effort
+        }
+
         return {
           booking: existing,
           room,
@@ -112,6 +146,11 @@ export const bookingService = {
             extraAdults: params.extraAdults,
             additionalInformation: params.additionalInformation ?? null,
             nights,
+            checkInTime: params.checkInTime ?? null,
+            checkOutTime: params.checkOutTime ?? null,
+            rooms,
+            baseAmount,
+            gstAmount,
             amount,
             payments: {
               create: {
@@ -134,12 +173,17 @@ export const bookingService = {
             roomId: params.roomId,
             checkIn: checkInDate,
             checkOut: checkOutDate,
+            checkInTime: params.checkInTime ?? null,
+            checkOutTime: params.checkOutTime ?? null,
+            rooms,
             guests: params.guests,
             adults: params.adults,
             children: params.children,
             extraAdults: params.extraAdults,
             additionalInformation: params.additionalInformation ?? null,
             nights,
+            baseAmount,
+            gstAmount,
             amount,
             status: "PENDING",
             payments: {
@@ -260,9 +304,12 @@ export const bookingService = {
       });
 
       if (fullBooking?.user?.email) {
-        const base = (fullBooking.room?.pricePerNight ?? 0) * (fullBooking.nights ?? 0);
+        const rooms = Number(fullBooking.rooms ?? 1);
+        const roomTotal = (fullBooking.room?.pricePerNight ?? 0) * (fullBooking.nights ?? 0) * (Number.isFinite(rooms) && rooms > 0 ? rooms : 1);
         const childCharge = 1200 * (fullBooking.children ?? 0) * (fullBooking.nights ?? 0);
         const extraAdultCharge = 1500 * (fullBooking.extraAdults ?? 0) * (fullBooking.nights ?? 0);
+        const baseAmount = Number(fullBooking.baseAmount ?? roomTotal + childCharge + extraAdultCharge);
+        const gstAmount = Number(fullBooking.gstAmount ?? Math.round(baseAmount * 0.05));
         const fmt = (n: number) => `₹${Number(n ?? 0).toLocaleString("en-IN")}`;
         const subject = `Booking Confirmed - ${fullBooking.id}`;
         const html = `
@@ -295,13 +342,16 @@ export const bookingService = {
                 <div>Adults: <strong>${fullBooking.adults}</strong></div>
                 <div>Children (5–10): <strong>${fullBooking.children}</strong></div>
                 <div>Extra adults (10+): <strong>${fullBooking.extraAdults}</strong></div>
+                <div>Rooms: <strong>${rooms}</strong></div>
               </div>
 
               <div style="border-top:1px dashed #e5e7eb;padding-top:16px;margin-top:16px;">
                 <h3 style="margin:0 0 8px 0;">Price Breakdown</h3>
-                <div style="display:flex;justify-content:space-between;gap:12px;"><span>Room total</span><strong>${fmt(base)}</strong></div>
+                <div style="display:flex;justify-content:space-between;gap:12px;"><span>Room total</span><strong>${fmt(roomTotal)}</strong></div>
                 <div style="display:flex;justify-content:space-between;gap:12px;"><span>Children charge</span><strong>${fmt(childCharge)}</strong></div>
                 <div style="display:flex;justify-content:space-between;gap:12px;"><span>Extra adults charge</span><strong>${fmt(extraAdultCharge)}</strong></div>
+                <div style="display:flex;justify-content:space-between;gap:12px;"><span>Base amount</span><strong>${fmt(baseAmount)}</strong></div>
+                <div style="display:flex;justify-content:space-between;gap:12px;"><span>GST (5%)</span><strong>${fmt(gstAmount)}</strong></div>
                 <div style="border-top:1px solid #e5e7eb;margin-top:10px;padding-top:10px;display:flex;justify-content:space-between;gap:12px;font-size:18px;">
                   <span><strong>Total</strong></span>
                   <span><strong>${fmt(fullBooking.amount)}</strong></span>
@@ -334,5 +384,22 @@ export const bookingService = {
     }
 
     return updated;
+  },
+
+  async getUserInvoiceData(params: { userId: string; bookingId: string }) {
+    const booking: any = await (prisma.booking as any).findUnique({
+      where: { id: params.bookingId },
+      include: {
+        room: true,
+        user: { select: { id: true, name: true, email: true, phone: true } },
+        payments: true,
+      },
+    });
+
+    if (!booking) throw new HttpError(404, "Booking not found");
+    if (booking.userId !== params.userId) throw new HttpError(403, "Forbidden");
+    if (booking.status !== "CONFIRMED") throw new HttpError(400, "Invoice available only for confirmed bookings");
+
+    return booking;
   },
 };

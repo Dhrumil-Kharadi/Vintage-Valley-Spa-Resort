@@ -9,3 +9,4 @@ bookingRouter.get("/me", requireAuth, bookingController.me);
 bookingRouter.post("/", requireAuth, bookingController.create);
 bookingRouter.post("/:id/verify", requireAuth, bookingController.verify);
 bookingRouter.delete("/:id", requireAuth, bookingController.deletePending);
+bookingRouter.get("/:id/invoice", requireAuth, bookingController.invoice);

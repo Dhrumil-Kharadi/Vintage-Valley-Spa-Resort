@@ -1,5 +1,7 @@
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import FloatingContact from '@/components/FloatingContact';
+import { downloadBookingInvoicePdf } from '@/lib/invoicePdf';
 import { useEffect, useMemo, useState } from 'react';
 
 type Booking = {
@@ -35,6 +37,22 @@ const Profile = () => {
   const [retryingBookingId, setRetryingBookingId] = useState<string | null>(null);
   const [deletingBookingId, setDeletingBookingId] = useState<string | null>(null);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
+
+  const formatInr = (value: any) => {
+    const n = Number(value ?? 0);
+    if (!Number.isFinite(n)) return String(value ?? '0');
+    const hasFraction = Math.abs(n % 1) > 0.000001;
+    try {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: hasFraction ? 2 : 0,
+        maximumFractionDigits: hasFraction ? 2 : 0,
+      }).format(n);
+    } catch {
+      return String(n);
+    }
+  };
 
   // User info state
   const [user, setUser] = useState<{ id: string; name: string; email: string; phone?: string | null } | null>(null);
@@ -226,6 +244,25 @@ const Profile = () => {
       alert(e?.message ?? 'Failed to delete booking');
     } finally {
       setDeletingBookingId(null);
+    }
+  };
+
+  const handleDownloadInvoice = async (booking: Booking) => {
+    if (booking.status !== 'CONFIRMED') return;
+
+    try {
+      const res = await fetch(`/api/bookings/${booking.id}/invoice`, { credentials: 'include' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error?.message ?? 'Failed to load invoice');
+      const fullBooking = data?.data?.booking;
+      if (!fullBooking) throw new Error('Failed to load invoice');
+      const fullName = String(fullBooking?.user?.name ?? '').trim();
+      const fileName = fullName
+        ? `Invoice-${fullName}_${String(fullBooking.id ?? booking.id)}.pdf`
+        : `invoice_${String(fullBooking.id ?? booking.id)}.pdf`;
+      await downloadBookingInvoicePdf(fullBooking, { fileName });
+    } catch (e: any) {
+      alert(e?.message ?? 'Failed to load invoice');
     }
   };
 
@@ -453,7 +490,7 @@ const Profile = () => {
                           </div>
                           <div className="bg-white/70 rounded-2xl p-4">
                             <div className="text-gray-800/60 text-xs">Total</div>
-                            <div className="text-gray-800 font-semibold">₹{Number(b.amount ?? 0).toLocaleString('en-IN')}</div>
+                            <div className="text-gray-800 font-semibold">{formatInr(b.amount)}</div>
                           </div>
                         </div>
                       </div>
@@ -493,7 +530,17 @@ const Profile = () => {
                           </div>
                           <div className="bg-white/70 rounded-2xl p-4">
                             <div className="text-gray-800/60 text-xs">Total</div>
-                            <div className="text-gray-800 font-semibold">₹{Number(b.amount ?? 0).toLocaleString('en-IN')}</div>
+                            <div className="flex items-end justify-between gap-3">
+                              <div className="text-gray-800 font-semibold">{formatInr(b.amount)}</div>
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadInvoice(b)}
+                                disabled={b.status !== 'CONFIRMED'}
+                                className="text-sm text-gray-800/70 hover:text-gray-800 underline underline-offset-4 disabled:opacity-50 disabled:hover:text-gray-800/70"
+                              >
+                                Invoice
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>

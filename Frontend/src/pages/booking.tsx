@@ -48,6 +48,9 @@ const Booking = () => {
 
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
+  const [checkInTime, setCheckInTime] = useState('13:00');
+  const [checkOutTime, setCheckOutTime] = useState('11:00');
+  const [rooms, setRooms] = useState(1);
   const [children5To10, setChildren5To10] = useState(0);
   const [extraAdultsAbove10, setExtraAdultsAbove10] = useState(0);
   const [additionalInformation, setAdditionalInformation] = useState('');
@@ -148,29 +151,38 @@ const Booking = () => {
     return Number.isFinite(computed) && computed > 0 ? computed : baseAdults;
   }, [room?.person, extraAdultsAbove10]);
 
-  const total = useMemo(() => {
-    const perNight = room?.pricePerNight ?? 0;
-    const base = perNight * nights;
-    const childCharge = 1200 * children5To10 * nights;
-    const extraAdultCharge = 1500 * extraAdultsAbove10 * nights;
-    return base + childCharge + extraAdultCharge;
-  }, [room?.pricePerNight, nights, children5To10, extraAdultsAbove10]);
+  const formatInr = (value: any) => {
+    const n = Number(value ?? 0);
+    if (!Number.isFinite(n)) return String(value ?? '0');
+    const hasFraction = Math.abs(n % 1) > 0.000001;
+    try {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: hasFraction ? 2 : 0,
+        maximumFractionDigits: hasFraction ? 2 : 0,
+      }).format(n);
+    } catch {
+      return String(n);
+    }
+  };
 
-  const charges = useMemo(() => {
+  const priceBreakdown = useMemo(() => {
+    const round2 = (n: number) => Math.round(n * 100) / 100;
     const perNight = room?.pricePerNight ?? 0;
-    const base = perNight * nights;
-    const childCharge = 1200 * children5To10 * nights;
-    const extraAdultCharge = 1500 * extraAdultsAbove10 * nights;
-    return { base, childCharge, extraAdultCharge };
-  }, [room?.pricePerNight, nights, children5To10, extraAdultsAbove10]);
+    const safeRooms = Number.isFinite(rooms) && rooms > 0 ? rooms : 1;
+    const roomTotal = round2(perNight * nights * safeRooms);
+    const childCharge = round2(1200 * children5To10 * nights);
+    const extraAdultCharge = round2(1500 * extraAdultsAbove10 * nights);
+    const baseAmount = round2(roomTotal + childCharge + extraAdultCharge);
+    const gstAmount = round2(baseAmount * 0.05);
+    const totalAmount = round2(baseAmount + gstAmount);
+    return { roomTotal, childCharge, extraAdultCharge, baseAmount, gstAmount, totalAmount };
+  }, [room?.pricePerNight, nights, rooms, children5To10, extraAdultsAbove10]);
 
   const formattedTotal = useMemo(() => {
-    try {
-      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(total);
-    } catch {
-      return String(total);
-    }
-  }, [total]);
+    return formatInr(priceBreakdown.totalAmount);
+  }, [priceBreakdown.totalAmount]);
 
   const formattedPerNight = useMemo(() => {
     const perNight = room?.pricePerNight ?? 0;
@@ -185,6 +197,9 @@ const Booking = () => {
     if (!room) return 'Room not loaded';
     if (!checkIn) return 'Check-in date is required';
     if (!checkOut) return 'Check-out date is required';
+    if (!checkInTime) return 'Check-in time is required';
+    if (!checkOutTime) return 'Check-out time is required';
+    if (!Number.isFinite(rooms) || rooms < 1) return 'Number of rooms is required';
     if (!Number.isFinite(totalGuests) || totalGuests <= 0) return 'Total guests is required';
     if (!Number.isFinite(adults) || adults <= 0) return 'Adults is required';
     if (!Number.isFinite(children5To10) || children5To10 < 0) return 'Children is required';
@@ -249,6 +264,9 @@ const Booking = () => {
           roomId: Number(id),
           checkIn,
           checkOut,
+          checkInTime,
+          checkOutTime,
+          rooms,
           guests: totalGuests,
           adults,
           children: children5To10,
@@ -453,6 +471,20 @@ const Booking = () => {
                 </div>
 
                 <div>
+                  <label className="block text-gray-800 font-medium mb-2" htmlFor="checkInTime">
+                    Check-in time
+                  </label>
+                  <input
+                    id="checkInTime"
+                    type="time"
+                    value={checkInTime}
+                    onChange={(e) => setCheckInTime(e.target.value)}
+                    required
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                  />
+                </div>
+
+                <div>
                   <label className="block text-gray-800 font-medium mb-2" htmlFor="checkOut">
                     Check-out date
                   </label>
@@ -462,6 +494,36 @@ const Booking = () => {
                     value={checkOut}
                     onChange={(e) => setCheckOut(e.target.value)}
                     min={checkOutMinIso}
+                    required
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-800 font-medium mb-2" htmlFor="checkOutTime">
+                    Check-out time
+                  </label>
+                  <input
+                    id="checkOutTime"
+                    type="time"
+                    value={checkOutTime}
+                    onChange={(e) => setCheckOutTime(e.target.value)}
+                    required
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-800 font-medium mb-2" htmlFor="rooms">
+                    Number of rooms
+                  </label>
+                  <input
+                    id="rooms"
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={rooms}
+                    onChange={(e) => setRooms(Math.max(1, Math.min(10, Number(e.target.value))))}
                     required
                     className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
                   />
@@ -546,7 +608,7 @@ const Booking = () => {
 
                 <div className="flex items-center justify-between text-gray-800/80">
                   <span>Room total</span>
-                  <span className="font-semibold text-gray-800">₹{charges.base.toLocaleString('en-IN')}</span>
+                  <span className="font-semibold text-gray-800">{formatInr(priceBreakdown.roomTotal)}</span>
                 </div>
 
                 {(children5To10 > 0 || extraAdultsAbove10 > 0) && (
@@ -554,17 +616,27 @@ const Booking = () => {
                     {children5To10 > 0 && (
                       <div className="flex items-center justify-between text-gray-800/80">
                         <span>Children (5–10) × {children5To10}</span>
-                        <span className="font-semibold text-gray-800">₹{charges.childCharge.toLocaleString('en-IN')}</span>
+                        <span className="font-semibold text-gray-800">{formatInr(priceBreakdown.childCharge)}</span>
                       </div>
                     )}
                     {extraAdultsAbove10 > 0 && (
                       <div className="flex items-center justify-between text-gray-800/80">
                         <span>Extra adults (10+) × {extraAdultsAbove10}</span>
-                        <span className="font-semibold text-gray-800">₹{charges.extraAdultCharge.toLocaleString('en-IN')}</span>
+                        <span className="font-semibold text-gray-800">{formatInr(priceBreakdown.extraAdultCharge)}</span>
                       </div>
                     )}
                   </div>
                 )}
+
+                <div className="flex items-center justify-between text-gray-800/80">
+                  <span>Base amount</span>
+                  <span className="font-semibold text-gray-800">{formatInr(priceBreakdown.baseAmount)}</span>
+                </div>
+
+                <div className="flex items-center justify-between text-gray-800/80">
+                  <span>GST (5%)</span>
+                  <span className="font-semibold text-gray-800">{formatInr(priceBreakdown.gstAmount)}</span>
+                </div>
 
                 <div className="border-t border-gold/20 pt-4 flex items-center justify-between">
                   <span className="text-gray-800 font-semibold">Total</span>

@@ -24,6 +24,11 @@ enum PaymentStatus {
   FAILED
 }
 
+enum InquiryStatus {
+  UNREAD
+  READ
+}
+
 model User {
   id            String   @id @default(cuid())
   name          String
@@ -84,6 +89,10 @@ model Booking {
 
   checkIn     DateTime
   checkOut    DateTime
+  checkInTime String?       @db.VarChar(5)
+  checkOutTime String?      @db.VarChar(5)
+  rooms       Int           @default(1)
+
   guests      Int
   adults      Int           @default(1)
   children    Int           @default(0)
@@ -91,7 +100,9 @@ model Booking {
   additionalInformation String? @db.VarChar(500)
 
   nights      Int
-  amount      Int
+  baseAmount  Decimal       @default(0) @db.Decimal(10, 2)
+  gstAmount   Decimal       @default(0) @db.Decimal(10, 2)
+  amount      Decimal       @db.Decimal(10, 2)
   status      BookingStatus @default(PENDING)
 
   payments    Payment[]
@@ -106,6 +117,21 @@ model Booking {
   @@index([roomId])
 }
 
+model Inquiry {
+  id        String        @id @default(cuid())
+  name      String
+  email     String
+  phone     String?       @db.VarChar(30)
+  message   String        @db.Text
+  status    InquiryStatus @default(UNREAD)
+
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
 model Payment {
   id               String        @id @default(cuid())
   bookingId        String
@@ -114,7 +140,7 @@ model Payment {
   status           PaymentStatus @default(CREATED)
 
   currency         String        @default("INR")
-  amount           Int
+  amount           Decimal       @db.Decimal(10, 2)
 
   method           String?
   bank             String?

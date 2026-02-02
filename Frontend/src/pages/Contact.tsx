@@ -17,6 +17,10 @@ const Contact = () => {
     message: ''
   });
 
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
@@ -24,10 +28,55 @@ const Contact = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
-    // Handle form submission here
+
+    setSubmitting(true);
+    setSubmitError(null);
+    setSubmitSuccess(null);
+
+    try {
+      const meta = [
+        formData.checkIn ? `Check-in: ${formData.checkIn}` : null,
+        formData.checkOut ? `Check-out: ${formData.checkOut}` : null,
+        formData.guests ? `Guests: ${formData.guests}` : null,
+        formData.roomType ? `Room type: ${formData.roomType}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const message = [meta, String(formData.message ?? "").trim()].filter((s) => String(s).trim()).join("\n\n");
+
+      const res = await fetch('/api/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim() || null,
+          message,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error?.message ?? 'Failed to send inquiry');
+
+      setSubmitSuccess('Inquiry sent successfully. Our team will contact you soon.');
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        checkIn: '',
+        checkOut: '',
+        guests: '2',
+        roomType: 'deluxe',
+        message: ''
+      });
+    } catch (e: any) {
+      setSubmitError(e?.message ?? 'Failed to send inquiry');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -148,6 +197,18 @@ const Contact = () => {
             </h3>
             
             <form onSubmit={handleSubmit} className="space-y-6">
+              {submitError && (
+                <div className="bg-gold/10 border border-gold/20 text-gray-800 px-4 py-3 rounded-2xl">
+                  {submitError}
+                </div>
+              )}
+
+              {submitSuccess && (
+                <div className="bg-green-100 border border-green-200 text-green-800 px-4 py-3 rounded-2xl">
+                  {submitSuccess}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="name" className="block text-gray-800 font-medium mb-2">
@@ -280,10 +341,11 @@ const Contact = () => {
 
               <button
                 type="submit"
+                disabled={submitting}
                 className="w-full bg-gradient-to-r from-gold to-bronze text-gray-800 py-4 rounded-xl font-semibold text-lg hover:shadow-lg transform hover:scale-[1.02] transition-all duration-300 flex items-center justify-center space-x-2"
               >
                 <Send className="h-5 w-5" />
-                <span>Send Inquiry</span>
+                <span>{submitting ? 'Sending…' : 'Send Inquiry'}</span>
               </button>
             </form>
 

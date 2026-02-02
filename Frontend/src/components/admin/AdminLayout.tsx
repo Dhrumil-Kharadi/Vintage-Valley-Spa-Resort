@@ -1,6 +1,6 @@
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, BedDouble, Users, CalendarDays, CreditCard, LogOut } from "lucide-react";
+import { LayoutDashboard, BedDouble, Users, CalendarDays, CreditCard, LogOut, Mail } from "lucide-react";
 
 import {
   Sidebar,
@@ -27,11 +27,13 @@ const navItems = [
   { label: "Users", to: "/admin/users", icon: Users },
   { label: "Bookings", to: "/admin/bookings", icon: CalendarDays },
   { label: "Payments", to: "/admin/payments", icon: CreditCard },
+  { label: "Inquiries", to: "/admin/inquiries", icon: Mail, badgeKey: "inquiries" as const },
 ];
 
 const AdminLayout = ({ title, description, children }: AdminLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [unreadInquiries, setUnreadInquiries] = useState<number>(0);
 
   useEffect(() => {
     const run = async () => {
@@ -47,6 +49,21 @@ const AdminLayout = ({ title, description, children }: AdminLayoutProps) => {
 
     run();
   }, [navigate]);
+
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const res = await fetch("/api/admin/inquiries/unread-count", { credentials: "include" });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) return;
+        const count = Number(data?.data?.count ?? 0);
+        setUnreadInquiries(Number.isFinite(count) && count > 0 ? count : 0);
+      } catch {
+      }
+    };
+
+    run();
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     try {
@@ -80,12 +97,18 @@ const AdminLayout = ({ title, description, children }: AdminLayoutProps) => {
             {navItems.map((item) => {
               const active = location.pathname === item.to;
               const Icon = item.icon;
+              const badge = item.badgeKey === "inquiries" ? unreadInquiries : 0;
               return (
                 <SidebarMenuItem key={item.to}>
                   <SidebarMenuButton asChild isActive={active}>
                     <Link to={item.to}>
                       <Icon />
                       <span>{item.label}</span>
+                      {badge > 0 && (
+                        <span className="ml-auto rounded-full bg-gold text-gray-800 text-xs font-bold px-2 py-0.5">
+                          {badge}
+                        </span>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

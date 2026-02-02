@@ -11,6 +11,17 @@ const createSchema = z.object({
   roomId: z.number().int(),
   checkIn: z.string().min(1),
   checkOut: z.string().min(1),
+  checkInTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .optional()
+    .nullable(),
+  checkOutTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .optional()
+    .nullable(),
+  rooms: z.number().int().min(1).max(10).optional(),
   guests: z.number().int().min(1),
   adults: z.number().int().min(1),
   children: z.number().int().min(0),
@@ -24,7 +35,7 @@ const verifySchema = z.object({
   razorpaySignature: z.string().min(1),
 });
 
-export const bookingController: Record<"me" | "create" | "verify" | "deletePending", RequestHandler> = {
+export const bookingController: Record<"me" | "create" | "verify" | "deletePending" | "invoice", RequestHandler> = {
   me: asyncHandler(async (req: AuthedRequest, res) => {
     const bookings = await bookingService.listUserBookings({ userId: req.user!.userId });
     res.json({ ok: true, data: { bookings } });
@@ -38,6 +49,9 @@ export const bookingController: Record<"me" | "create" | "verify" | "deletePendi
       roomId: body.roomId,
       checkIn: body.checkIn,
       checkOut: body.checkOut,
+      checkInTime: body.checkInTime ?? null,
+      checkOutTime: body.checkOutTime ?? null,
+      rooms: body.rooms,
       guests: body.guests,
       adults: body.adults,
       children: body.children,
@@ -86,5 +100,11 @@ export const bookingController: Record<"me" | "create" | "verify" | "deletePendi
     const bookingId = req.params.id;
     const result = await bookingService.deleteUserPendingBooking({ userId: req.user!.userId, bookingId });
     res.json({ ok: true, data: result });
+  }),
+
+  invoice: asyncHandler(async (req: AuthedRequest, res) => {
+    const bookingId = req.params.id;
+    const invoice = await bookingService.getUserInvoiceData({ userId: req.user!.userId, bookingId });
+    res.json({ ok: true, data: { booking: invoice } });
   }),
 };
