@@ -4,6 +4,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import Index from "./pages/Index";
 import Rooms from "./pages/Rooms";
 import Login from "./pages/login";
@@ -30,6 +32,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <ToastContainer position="top-right" autoClose={2500} hideProgressBar={false} newestOnTop closeOnClick pauseOnHover />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />

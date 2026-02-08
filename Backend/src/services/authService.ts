@@ -35,6 +35,31 @@ export const authService = {
     return { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role };
   },
 
+  async findOrCreateFromGoogle(params: { email: string; name: string }) {
+    const email = params.email.trim().toLowerCase();
+    if (!email) throw new HttpError(400, "Invalid email");
+
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return { id: existing.id, name: existing.name, email: existing.email, phone: existing.phone, role: existing.role };
+    }
+
+    const randomPassword = crypto.randomBytes(32).toString("hex");
+    const passwordHash = await bcrypt.hash(randomPassword, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        name: params.name?.trim() ? params.name.trim() : "Guest",
+        email,
+        passwordHash,
+        role: "USER",
+      },
+      select: { id: true, name: true, email: true, phone: true, role: true },
+    });
+
+    return user;
+  },
+
   async me(userId: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId },

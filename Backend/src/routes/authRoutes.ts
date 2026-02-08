@@ -7,6 +7,8 @@ export const authRouter = Router();
 authRouter.post("/signup", authController.signup);
 authRouter.post("/login", authController.login);
 authRouter.post("/logout", authController.logout);
+authRouter.get("/google", authController.googleStart);
+authRouter.get("/google/callback", authController.googleCallback);
 authRouter.get("/me", requireAuth, authController.me);
 authRouter.post("/forgot-password", authController.forgotPassword);
 authRouter.post("/reset-password", authController.resetPassword);

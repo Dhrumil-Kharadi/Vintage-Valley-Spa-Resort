@@ -1,5 +1,6 @@
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "react-toastify";
 
 type Inquiry = {
   id: string;
@@ -54,7 +55,7 @@ const AdminInquiries = () => {
         await load();
       }
     } catch (e: any) {
-      alert(e?.message ?? "Failed to mark as read");
+      toast.error(e?.message ?? "Failed to mark as read");
     } finally {
       setMarkingId(null);
     }

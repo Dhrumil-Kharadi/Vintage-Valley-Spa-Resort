@@ -1,5 +1,7 @@
 import { prisma } from "../prisma/client";
+import { HttpError } from "../middlewares/errorHandler";
 import { getRazorpayClient } from "../utils/razorpay";
+import { Prisma } from "@prisma/client";
 
 export const adminService = {
   async listUsers() {
@@ -80,6 +82,98 @@ export const adminService = {
     }
 
     return bookings;
+  },
+
+  async createManualBooking(params: {
+    userId: string;
+    roomId: number;
+    checkIn: string;
+    checkOut: string;
+    checkInTime?: string | null;
+    checkOutTime?: string | null;
+    rooms?: number;
+    guests: number;
+    adults: number;
+    children: number;
+    extraAdults: number;
+    additionalInformation?: string | null;
+  }) {
+    const user = await prisma.user.findUnique({ where: { id: params.userId }, select: { id: true } });
+    if (!user) throw new HttpError(404, "User not found");
+
+    const room = await prisma.room.findUnique({ where: { id: params.roomId } });
+    if (!room) throw new HttpError(404, "Room not found");
+
+    const checkInDate = new Date(params.checkIn);
+    const checkOutDate = new Date(params.checkOut);
+
+    if (!Number.isFinite(checkInDate.getTime()) || !Number.isFinite(checkOutDate.getTime())) {
+      throw new HttpError(400, "Invalid dates");
+    }
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const inDay = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
+    if (inDay.getTime() < today.getTime()) throw new HttpError(400, "Check-in date must be today or a future date");
+
+    const ms = checkOutDate.getTime() - checkInDate.getTime();
+    if (ms <= 0) throw new HttpError(400, "Check-out must be after check-in");
+    const nights = Math.ceil(ms / (1000 * 60 * 60 * 24));
+
+    if (!Number.isFinite(params.guests) || params.guests <= 0) throw new HttpError(400, "Invalid guests");
+    if (!Number.isFinite(params.adults) || params.adults <= 0) throw new HttpError(400, "Invalid adults");
+    if (!Number.isFinite(params.children) || params.children < 0) throw new HttpError(400, "Invalid children");
+    if (!Number.isFinite(params.extraAdults) || params.extraAdults < 0) throw new HttpError(400, "Invalid extra adults");
+
+    const rooms = Number(params.rooms ?? 1);
+    if (!Number.isFinite(rooms) || !Number.isInteger(rooms) || rooms < 1 || rooms > 10) {
+      throw new HttpError(400, "Invalid rooms");
+    }
+
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    const base = room.pricePerNight * nights * rooms;
+    const childCharge = 1200 * params.children * nights;
+    const extraAdultCharge = 1500 * params.extraAdults * nights;
+    const baseAmountNum = round2(base + childCharge + extraAdultCharge);
+    const gstAmountNum = round2(baseAmountNum * 0.05);
+    const amountNum = round2(baseAmountNum + gstAmountNum);
+    if (!Number.isFinite(amountNum) || amountNum < 1) throw new HttpError(400, "Invalid amount");
+
+    const baseAmount = new Prisma.Decimal(baseAmountNum.toFixed(2));
+    const gstAmount = new Prisma.Decimal(gstAmountNum.toFixed(2));
+    const amount = new Prisma.Decimal(amountNum.toFixed(2));
+
+    try {
+      const booking = await (prisma.booking as any).create({
+        data: {
+          userId: params.userId,
+          roomId: params.roomId,
+          checkIn: checkInDate,
+          checkOut: checkOutDate,
+          checkInTime: params.checkInTime ?? null,
+          checkOutTime: params.checkOutTime ?? null,
+          rooms,
+          guests: params.guests,
+          adults: params.adults,
+          children: params.children,
+          extraAdults: params.extraAdults,
+          additionalInformation: params.additionalInformation ?? null,
+          nights,
+          baseAmount,
+          gstAmount,
+          amount,
+          status: "CONFIRMED",
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true, phone: true, role: true } },
+          room: true,
+          payments: true,
+        },
+      });
+      return booking;
+    } catch {
+      throw new HttpError(500, "Failed to create booking. Please run database migration.");
+    }
   },
 
   async listPayments() {

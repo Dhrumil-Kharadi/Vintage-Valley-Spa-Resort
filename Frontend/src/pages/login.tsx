@@ -96,7 +96,9 @@ const Login = () => {
 
   const handleGoogleSignIn = () => {
     setError(null);
-    loginUser('Yagna');
+    const redirect = mode === 'signup' ? '/profile' : '/profile';
+    const url = `/api/auth/google?redirect=${encodeURIComponent(redirect)}`;
+    window.location.href = url;
   };
 
   return (

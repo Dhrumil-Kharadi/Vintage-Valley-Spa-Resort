@@ -3,6 +3,7 @@ import Footer from '@/components/Footer';
 import FloatingContact from '@/components/FloatingContact';
 import { downloadBookingInvoicePdf } from '@/lib/invoicePdf';
 import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'react-toastify';
 
 type Booking = {
   id: string;
@@ -167,7 +168,7 @@ const Profile = () => {
 
       const RazorpayCtor = (window as Window & { Razorpay?: unknown }).Razorpay;
       if (typeof RazorpayCtor !== 'function' || !razorpayLoaded) {
-        alert('Payment gateway is loading. Please wait a moment and try again.');
+        toast.info('Payment gateway is loading. Please wait a moment and try again.');
         return;
       }
 
@@ -205,8 +206,9 @@ const Profile = () => {
             const reloadRes = await fetch('/api/bookings/me', { credentials: 'include' });
             const reloadData = await reloadRes.json().catch(() => null);
             if (reloadRes.ok) setBookings(reloadData?.data?.bookings ?? []);
+            toast.success('Payment verified. Booking confirmed.');
           } catch (e: any) {
-            alert(e?.message ?? 'Payment verification failed');
+            toast.error(e?.message ?? 'Payment verification failed');
           }
         },
         modal: {
@@ -220,7 +222,7 @@ const Profile = () => {
       });
       rzp.open();
     } catch (e: any) {
-      alert(e?.message ?? 'Failed to retry payment');
+      toast.error(e?.message ?? 'Failed to retry payment');
     } finally {
       setRetryingBookingId(null);
     }
@@ -240,8 +242,9 @@ const Profile = () => {
       if (!res.ok) throw new Error(data?.error?.message ?? 'Failed to delete booking');
 
       setBookings((prev) => prev.filter((b) => b.id !== booking.id));
+      toast.success('Pending booking deleted.');
     } catch (e: any) {
-      alert(e?.message ?? 'Failed to delete booking');
+      toast.error(e?.message ?? 'Failed to delete booking');
     } finally {
       setDeletingBookingId(null);
     }
@@ -261,8 +264,9 @@ const Profile = () => {
         ? `Invoice-${fullName}_${String(fullBooking.id ?? booking.id)}.pdf`
         : `invoice_${String(fullBooking.id ?? booking.id)}.pdf`;
       await downloadBookingInvoicePdf(fullBooking, { fileName });
+      toast.success('Invoice downloaded.');
     } catch (e: any) {
-      alert(e?.message ?? 'Failed to load invoice');
+      toast.error(e?.message ?? 'Failed to load invoice');
     }
   };
 

@@ -1,0 +1,26 @@
+# Server
+PORT=5051
+NODE_ENV=development
+
+# CORS / client
+CLIENT_URL=http://localhost:8080
+
+# Database (Prisma expects DATABASE_URL)
+DATABASE_URL="mysql://root:Hello@localhost:3306/client"
+
+# Auth
+JWT_SECRET=CHANGE_MECHANGE_MECHANGE_MECHANGE_ME
+JWT_EXPIRES_IN=7d
+JWT_COOKIE_NAME=token
+COOKIE_SECURE=false
+
+# Default admin user (created by prisma seed)
+ADMIN_EMAIL=admin@vintagevalley.com
+ADMIN_PASSWORD=admin@anidhru
+
+# Razorpay (Test Mode)
+RAZORPAY_KEY_ID=rzp_test_xxxxx
+RAZORPAY_KEY_SECRET=xxxxx
+
+# Password reset
+RESET_TOKEN_EXPIRES_MINUTES=30

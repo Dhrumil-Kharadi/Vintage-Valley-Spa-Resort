@@ -1,8 +1,9 @@
 import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
-import FloatingContact from '@/components/FloatingContact';
-import { useEffect, useMemo, useState } from 'react';
+import Footer from '../components/Footer';
+import FloatingContact from '../components/FloatingContact';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'react-toastify';
 
 type RoomDetails = {
   id: string | number;
@@ -253,7 +254,10 @@ const Booking = () => {
   const submitBooking = async () => {
     const err = validate();
     setFormError(err);
-    if (err) return;
+    if (err) {
+      toast.error(err);
+      return;
+    }
 
     try {
       const res = await fetch('/api/bookings', {
@@ -282,7 +286,9 @@ const Booking = () => {
 
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setFormError(data?.error?.message ?? 'Booking failed');
+        const msg = data?.error?.message ?? 'Booking failed';
+        setFormError(msg);
+        toast.error(msg);
         return;
       }
 
@@ -290,12 +296,14 @@ const Booking = () => {
       const razorpay = data?.data?.razorpay;
       if (!bookingId || !razorpay?.orderId || !razorpay?.keyId) {
         setFormError('Payment initialization failed');
+        toast.error('Payment initialization failed');
         return;
       }
 
       const ok = await loadRazorpayScript();
       if (!ok || !(window as any).Razorpay) {
         setFormError('Failed to load payment gateway');
+        toast.error('Failed to load payment gateway');
         return;
       }
 
@@ -330,18 +338,23 @@ const Booking = () => {
 
             const verifyData = await verifyRes.json().catch(() => null);
             if (!verifyRes.ok) {
-              setFormError(verifyData?.error?.message ?? 'Payment verification failed');
+              const msg = verifyData?.error?.message ?? 'Payment verification failed';
+              setFormError(msg);
+              toast.error(msg);
               return;
             }
 
+            toast.success('Payment successful. Booking confirmed.');
             navigate('/profile');
           } catch {
             setFormError('Payment verification failed');
+            toast.error('Payment verification failed');
           }
         },
         modal: {
           ondismiss: () => {
             setFormError('Payment cancelled');
+            toast.info('Payment cancelled');
           },
         },
       });
@@ -349,6 +362,7 @@ const Booking = () => {
       rz.open();
     } catch {
       setFormError('Booking failed');
+      toast.error('Booking failed');
     }
   };
 

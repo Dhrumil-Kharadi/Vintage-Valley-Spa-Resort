@@ -10,6 +10,7 @@ adminRouter.use(requireAuth, requireAdmin);
 adminRouter.get("/users", adminController.users);
 adminRouter.get("/rooms", adminController.rooms);
 adminRouter.get("/bookings", adminController.bookings);
+adminRouter.post("/bookings/manual", adminController.createManualBooking);
 adminRouter.get("/payments", adminController.payments);
 
 adminRouter.get("/inquiries", inquiryController.list);

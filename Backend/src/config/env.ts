@@ -24,6 +24,10 @@ const envSchema = z.object({
   EMAIL_FROM: z.string().optional(),
 
   RESET_TOKEN_EXPIRES_MINUTES: z.coerce.number().default(30),
+
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REDIRECT_URL: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);
