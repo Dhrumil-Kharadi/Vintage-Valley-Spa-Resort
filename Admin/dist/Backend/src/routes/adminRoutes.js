@@ -1,0 +1,17 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.adminRouter = void 0;
+const express_1 = require("express");
+const adminController_1 = require("../controllers/adminController");
+const inquiryController_1 = require("../controllers/inquiryController");
+const auth_1 = require("../middlewares/auth");
+exports.adminRouter = (0, express_1.Router)();
+exports.adminRouter.use(auth_1.requireAuth, auth_1.requireAdmin);
+exports.adminRouter.get("/users", adminController_1.adminController.users);
+exports.adminRouter.get("/rooms", adminController_1.adminController.rooms);
+exports.adminRouter.get("/bookings", adminController_1.adminController.bookings);
+exports.adminRouter.post("/bookings/manual", adminController_1.adminController.createManualBooking);
+exports.adminRouter.get("/payments", adminController_1.adminController.payments);
+exports.adminRouter.get("/inquiries", inquiryController_1.inquiryController.list);
+exports.adminRouter.get("/inquiries/unread-count", inquiryController_1.inquiryController.unreadCount);
+exports.adminRouter.patch("/inquiries/:id/read", inquiryController_1.inquiryController.markRead);

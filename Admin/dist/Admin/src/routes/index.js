@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.adminApiRouter = void 0;
+const express_1 = require("express");
+const adminAuthRoutes_1 = require("./adminAuthRoutes");
+const adminDataRoutes_1 = require("./adminDataRoutes");
+const adminRoomRoutes_1 = require("./adminRoomRoutes");
+exports.adminApiRouter = (0, express_1.Router)();
+exports.adminApiRouter.use("/auth", adminAuthRoutes_1.adminAuthRouter);
+exports.adminApiRouter.use(adminDataRoutes_1.adminDataRouter);
+exports.adminApiRouter.use("/rooms", adminRoomRoutes_1.adminRoomRouter);

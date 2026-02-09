@@ -1,6 +1,8 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../../Admin/node_modules/.prisma/client"
 }
+
 
 datasource db {
   provider = "mysql"

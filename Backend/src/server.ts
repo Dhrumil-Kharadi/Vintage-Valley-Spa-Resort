@@ -21,6 +21,11 @@ export const createServer = () => {
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
 
+  // ✅ ADD HERE
+  app.get("/", (_req, res) => {
+    res.json({ message: "Vintage Backend Running 🚀" });
+  });
+
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true });
   });
@@ -32,3 +37,4 @@ export const createServer = () => {
 
   return app;
 };
+
