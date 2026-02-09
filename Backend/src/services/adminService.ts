@@ -174,8 +174,11 @@ export const adminService = {
         },
       });
       return booking;
-    } catch {
-      throw new HttpError(500, "Failed to create booking. Please run database migration.");
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("BOOKING ERROR >>>", error);
+      const msg = error instanceof Error && error.message ? error.message : "Booking failed";
+      throw new HttpError(500, msg);
     }
   },
 
