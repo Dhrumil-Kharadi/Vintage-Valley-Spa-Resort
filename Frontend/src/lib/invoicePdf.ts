@@ -30,11 +30,14 @@ export const downloadBookingInvoicePdf = async (b: any, opts?: { fileName?: stri
 
   const totalAmount = Number(b.amount ?? 0);
   const baseAmount = Number.isFinite(Number(b.baseAmount)) ? Number(b.baseAmount) : null;
+  const convenienceFeeAmount = Number.isFinite(Number(b.convenienceFeeAmount)) ? Number(b.convenienceFeeAmount) : null;
   const gstAmount = Number.isFinite(Number(b.gstAmount)) ? Number(b.gstAmount) : null;
+  const mealPlanCpAmount = Number.isFinite(Number(b.mealPlanCpAmount)) ? Number(b.mealPlanCpAmount) : 0;
 
   // Display-friendly computation (supports decimals if total is decimal)
-  const computedBase = baseAmount ?? (Number.isFinite(totalAmount) ? totalAmount / 1.05 : 0);
-  const computedGst = gstAmount ?? Math.max(0, (Number.isFinite(totalAmount) ? totalAmount : 0) - computedBase);
+  const computedBase = baseAmount ?? (Number.isFinite(totalAmount) ? totalAmount / 1.07 : 0);
+  const computedConvenience = convenienceFeeAmount ?? Math.max(0, computedBase * 0.02);
+  const computedGst = gstAmount ?? Math.max(0, computedBase * 0.05);
 
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
@@ -190,6 +193,12 @@ export const downloadBookingInvoicePdf = async (b: any, opts?: { fileName?: stri
     y
   );
 
+  if (mealPlanCpAmount > 0.000001) {
+    y = drawKV("Meal Plan", "CP (day-wise)", y);
+  } else {
+    y = drawKV("Meal Plan", "EP/MAP", y);
+  }
+
   y += 10;
   drawDivider(y);
   y += 18;
@@ -200,6 +209,22 @@ export const downloadBookingInvoicePdf = async (b: any, opts?: { fileName?: stri
   doc.setTextColor(71, 85, 105);
   doc.text("Base Amount", left + 14, y);
   drawMoneyRight(y, computedBase, { muted: true });
+  y += 16;
+
+  if (mealPlanCpAmount > 0.000001) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(71, 85, 105);
+    doc.text("CP Plan Charge", left + 14, y);
+    drawMoneyRight(y, mealPlanCpAmount, { muted: true });
+    y += 16;
+  }
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(71, 85, 105);
+  doc.text("Convenience Fee (2%)", left + 14, y);
+  drawMoneyRight(y, computedConvenience, { muted: true });
   y += 16;
 
   doc.setFont("helvetica", "normal");
@@ -251,6 +276,81 @@ export const downloadBookingInvoicePdf = async (b: any, opts?: { fileName?: stri
     const text = String(b.additionalInformation);
     const lines = doc.splitTextToSize(text, contentW - 28);
     doc.text(lines, left + 14, y + 6);
+  }
+
+  // Terms & Conditions
+  {
+    const addPageIfNeeded = (nextY: number) => {
+      if (nextY <= pageH - 72) return;
+      doc.addPage();
+      y = 60;
+    };
+
+    y += 14;
+    drawDivider(y);
+    y += 22;
+    addPageIfNeeded(y + 20);
+    y = drawSectionTitle("Terms & Conditions", y);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(15, 23, 42);
+
+    const terms = [
+      "Last updated: June 15, 2024",
+      "",
+      "1. Acceptance of Terms",
+      "By accessing and using the services of Vintage Valley Resort, you accept and agree to be bound by the terms and provisions of this agreement. If you do not agree to abide by the above, please do not use this service.",
+      "",
+      "2. Reservation and Cancellation Policy",
+      "Reservations must be guaranteed with a valid credit card at the time of booking.",
+      "Cancellations made 48 hours or more before the scheduled arrival date will receive a full refund.",
+      "Cancellations made less than 48 hours before the scheduled arrival date will be charged for one night's stay.",
+      "Early departures will be charged for the entire reserved stay.",
+      "",
+      "3. Check-in and Check-out",
+      "Check-in time is 1:00 PM. Early check-in is subject to availability.",
+      "Check-out time is 11:00 AM. Late check-out may result in additional charges.",
+      "A valid government-issued photo ID is required at check-in.",
+      "",
+      "4. Resort Rules",
+      "Smoking is prohibited in all indoor areas of the resort.",
+      "Pets are not allowed unless specifically stated as a pet-friendly room.",
+      "Quiet hours are from 10:00 PM to 7:00 AM.",
+      "The resort is not responsible for any loss or damage to personal belongings.",
+      "Guests are liable for any damage caused to resort property during their stay.",
+      "",
+      "5. Child and Extra Person Policy",
+      "Children below 5 years of age stay free when using existing bedding.",
+      "Children between 5 to 12 years are charged ₹1200 per night.",
+      "Extra person charges (above 12 years) are ₹1500 per night.",
+      "Maximum occupancy per room varies by room type.",
+      "",
+      "6. Facility Usage",
+      "Use of resort facilities is at the guest's own risk.",
+      "Children must be supervised at all times, especially in the pool area.",
+      "The resort reserves the right to close any facility for maintenance without prior notice.",
+      "Operating hours for facilities are subject to change.",
+      "",
+      "7. Limitation of Liability",
+      "Vintage Valley Resort shall not be liable for any direct, indirect, incidental, special, or consequential damages resulting from the use or inability to use the services or for the cost of procurement of substitute services.",
+      "",
+      "8. Governing Law",
+      "These terms and conditions are governed by and construed in accordance with the laws of India, and you irrevocably submit to the exclusive jurisdiction of the courts in Maharashtra, India.",
+      "",
+      "9. Contact Information",
+      "For questions or concerns regarding these terms and conditions, please contact us at:",
+      "Email: vintagevalleyresort@gmail.com",
+      "Phone: +91 9371179888",
+      "Address: Mumbai - Nashik Expy, opp. Parveen Industry, Talegaon, Igatpuri, Maharashtra 422402.",
+    ].join("\n");
+
+    const lines = doc.splitTextToSize(terms, contentW - 28);
+    for (const line of lines) {
+      addPageIfNeeded(y + 14);
+      doc.text(String(line), left + 14, y);
+      y += 12;
+    }
   }
 
   doc.setFontSize(9);

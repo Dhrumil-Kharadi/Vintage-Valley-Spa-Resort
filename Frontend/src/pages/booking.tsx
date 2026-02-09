@@ -15,6 +15,8 @@ type RoomDetails = {
   images: string[];
 };
 
+type MealPlan = 'EP' | 'CP' | 'MAP';
+
 const parseRoomFromRoomsData = async (id: string): Promise<RoomDetails | null> => {
   try {
     const mod = await import('../roomsData');
@@ -57,17 +59,78 @@ const Booking = () => {
   const [additionalInformation, setAdditionalInformation] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountAmount: number } | null>(null);
+  const [promoLoading, setPromoLoading] = useState(false);
+
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+
+  const [mealPlanByDate, setMealPlanByDate] = useState<Record<string, MealPlan>>({});
+
+  const pendingKey = useMemo(() => (id ? `pending_booking:${id}` : ''), [id]);
+
+  const savePendingBooking = () => {
+    if (!pendingKey) return;
+    try {
+      sessionStorage.setItem(
+        pendingKey,
+        JSON.stringify({
+          checkIn,
+          checkOut,
+          checkInTime,
+          checkOutTime,
+          rooms,
+          children5To10,
+          extraAdultsAbove10,
+          additionalInformation,
+          promoInput,
+          appliedPromo,
+          termsAccepted,
+          mealPlanByDate,
+        })
+      );
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
-    const run = async () => {
-      try {
-        const res = await fetch('/api/auth/me', { credentials: 'include' });
-        if (!res.ok) navigate('/login', { replace: true });
-      } catch {
-        navigate('/login', { replace: true });
+    if (!pendingKey) return;
+    try {
+      sessionStorage.setItem('last_booking_redirect', `/booking/${id ?? ''}`);
+    } catch {
+      // ignore
+    }
+    try {
+      const raw = sessionStorage.getItem(pendingKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (typeof parsed?.checkIn === 'string') setCheckIn(parsed.checkIn);
+      if (typeof parsed?.checkOut === 'string') setCheckOut(parsed.checkOut);
+      if (typeof parsed?.checkInTime === 'string') setCheckInTime(parsed.checkInTime);
+      if (typeof parsed?.checkOutTime === 'string') setCheckOutTime(parsed.checkOutTime);
+      if (Number.isFinite(Number(parsed?.rooms))) setRooms(Number(parsed.rooms));
+      if (Number.isFinite(Number(parsed?.children5To10))) setChildren5To10(Number(parsed.children5To10));
+      if (Number.isFinite(Number(parsed?.extraAdultsAbove10))) setExtraAdultsAbove10(Number(parsed.extraAdultsAbove10));
+      if (typeof parsed?.additionalInformation === 'string') setAdditionalInformation(parsed.additionalInformation);
+      if (typeof parsed?.promoInput === 'string') setPromoInput(parsed.promoInput);
+      if (parsed?.appliedPromo && typeof parsed?.appliedPromo?.code === 'string') {
+        const d = Number(parsed?.appliedPromo?.discountAmount ?? 0);
+        setAppliedPromo({
+          code: parsed.appliedPromo.code,
+          discountAmount: Number.isFinite(d) ? d : 0,
+        });
       }
-    };
-    run();
-  }, [navigate]);
+      if (typeof parsed?.termsAccepted === 'boolean') setTermsAccepted(parsed.termsAccepted);
+      if (parsed?.mealPlanByDate && typeof parsed.mealPlanByDate === 'object') {
+        setMealPlanByDate(parsed.mealPlanByDate as any);
+      }
+      toast.info('Continue your booking and proceed to payment.');
+    } catch {
+      // ignore
+    }
+  }, [pendingKey]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -118,6 +181,43 @@ const Booking = () => {
     return Math.ceil(ms / (1000 * 60 * 60 * 24));
   }, [checkIn, checkOut]);
 
+  const nightDates = useMemo(() => {
+    if (!checkIn || nights <= 0) return [] as string[];
+    const start = new Date(checkIn);
+    if (!Number.isFinite(start.getTime())) return [] as string[];
+    const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const out: string[] = [];
+    for (let i = 0; i < nights; i++) {
+      const yyyy = cursor.getFullYear();
+      const mm = String(cursor.getMonth() + 1).padStart(2, '0');
+      const dd = String(cursor.getDate()).padStart(2, '0');
+      out.push(`${yyyy}-${mm}-${dd}`);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return out;
+  }, [checkIn, nights]);
+
+  useEffect(() => {
+    if (!nightDates.length) return;
+    setMealPlanByDate((prev) => {
+      const next: Record<string, MealPlan> = {};
+      for (const d of nightDates) {
+        const plan = prev[d];
+        next[d] = plan === 'EP' || plan === 'CP' || plan === 'MAP' ? plan : 'EP';
+      }
+      return next;
+    });
+  }, [nightDates]);
+
+  const cpNights = useMemo(() => {
+    let c = 0;
+    for (const d of nightDates) {
+      const plan = mealPlanByDate[d] ?? 'EP';
+      if (plan === 'CP') c += 1;
+    }
+    return c;
+  }, [mealPlanByDate, nightDates]);
+
   const todayIso = useMemo(() => {
     const now = new Date();
     const yyyy = now.getFullYear();
@@ -144,6 +244,12 @@ const Booking = () => {
     const computed = base + kids + extraAdults;
     return Number.isFinite(computed) && computed > 0 ? computed : base;
   }, [room?.person, children5To10, extraAdultsAbove10]);
+
+  const cpPlanCharge = useMemo(() => {
+    const guests = Number(totalGuests ?? 0);
+    if (!Number.isFinite(guests) || guests <= 0) return 0;
+    return 500 * guests * cpNights;
+  }, [cpNights, totalGuests]);
 
   const adults = useMemo(() => {
     const baseAdults = Number(room?.person ?? 2);
@@ -175,15 +281,27 @@ const Booking = () => {
     const roomTotal = round2(perNight * nights * safeRooms);
     const childCharge = round2(1200 * children5To10 * nights);
     const extraAdultCharge = round2(1500 * extraAdultsAbove10 * nights);
-    const baseAmount = round2(roomTotal + childCharge + extraAdultCharge);
+    const baseAmount = round2(roomTotal + childCharge + extraAdultCharge + round2(cpPlanCharge));
+    const convenienceFeeAmount = round2(baseAmount * 0.02);
     const gstAmount = round2(baseAmount * 0.05);
-    const totalAmount = round2(baseAmount + gstAmount);
-    return { roomTotal, childCharge, extraAdultCharge, baseAmount, gstAmount, totalAmount };
-  }, [room?.pricePerNight, nights, rooms, children5To10, extraAdultsAbove10]);
+    const totalAmount = round2(baseAmount + convenienceFeeAmount + gstAmount);
+    return { roomTotal, childCharge, extraAdultCharge, cpPlanCharge: round2(cpPlanCharge), baseAmount, convenienceFeeAmount, gstAmount, totalAmount };
+  }, [room?.pricePerNight, nights, rooms, children5To10, extraAdultsAbove10, cpPlanCharge]);
+
+  const discounted = useMemo(() => {
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    const base = Number(priceBreakdown.baseAmount ?? 0);
+    const discount = round2(Math.max(0, Math.min(base, Number(appliedPromo?.discountAmount ?? 0))));
+    const baseAfterDiscount = round2(Math.max(0, base - discount));
+    const convenienceFee = round2(baseAfterDiscount * 0.02);
+    const gst = round2(baseAfterDiscount * 0.05);
+    const total = round2(baseAfterDiscount + convenienceFee + gst);
+    return { discount, baseAfterDiscount, convenienceFee, gst, total };
+  }, [priceBreakdown.baseAmount, appliedPromo?.discountAmount]);
 
   const formattedTotal = useMemo(() => {
-    return formatInr(priceBreakdown.totalAmount);
-  }, [priceBreakdown.totalAmount]);
+    return formatInr(appliedPromo ? discounted.total : priceBreakdown.totalAmount);
+  }, [appliedPromo, discounted.total, priceBreakdown.totalAmount]);
 
   const formattedPerNight = useMemo(() => {
     const perNight = room?.pricePerNight ?? 0;
@@ -216,6 +334,8 @@ const Booking = () => {
     const inDay = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
     if (inDay.getTime() < today.getTime()) return 'Check-in date must be today or a future date';
     if (checkOutDate.getTime() <= checkInDate.getTime()) return 'Check-out date must be after check-in date';
+
+    if (!termsAccepted) return 'Please accept Terms & Conditions to proceed';
 
     return null;
   };
@@ -276,11 +396,14 @@ const Booking = () => {
           children: children5To10,
           extraAdults: extraAdultsAbove10,
           additionalInformation: additionalInformation.trim() ? additionalInformation.trim() : null,
+          promoCode: appliedPromo?.code ?? null,
+          mealPlanByDate: nightDates.map((d) => ({ date: d, plan: mealPlanByDate[d] ?? 'EP' })),
         }),
       });
 
       if (res.status === 401) {
-        navigate('/login', { replace: true });
+        savePendingBooking();
+        navigate(`/login?redirect=${encodeURIComponent(`/booking/${id ?? ''}`)}`, { replace: true });
         return;
       }
 
@@ -345,6 +468,12 @@ const Booking = () => {
             }
 
             toast.success('Payment successful. Booking confirmed.');
+            if (pendingKey) {
+              try {
+                sessionStorage.removeItem(pendingKey);
+              } catch {
+              }
+            }
             navigate('/profile');
           } catch {
             setFormError('Payment verification failed');
@@ -555,6 +684,38 @@ const Booking = () => {
                   </div>
                 </div>
 
+                <div className="sm:col-span-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-gray-800 font-medium">
+                      Meal plan (day-wise)
+                    </label>
+                    <div className="text-xs text-gray-800/60">EP: no meals, CP: +₹500/guest/night, MAP: included</div>
+                  </div>
+                  {nightDates.length === 0 ? (
+                    <div className="text-sm text-gray-800/60">Select valid dates to choose plan day-wise.</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {nightDates.map((d) => (
+                        <div key={d} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                          <div className="text-sm text-gray-800/80 sm:w-44">{new Date(d).toLocaleDateString('en-IN')}</div>
+                          <select
+                            value={mealPlanByDate[d] ?? 'EP'}
+                            onChange={(e) => {
+                              const v = e.target.value as MealPlan;
+                              setMealPlanByDate((prev) => ({ ...prev, [d]: v }));
+                            }}
+                            className="w-full sm:w-52 px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                          >
+                            <option value="EP">EP</option>
+                            <option value="CP">CP</option>
+                            <option value="MAP">MAP</option>
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div>
                   <label className="block text-gray-800 font-medium mb-2" htmlFor="children5To10">
                     Children (5–10 yrs)
@@ -642,15 +803,132 @@ const Booking = () => {
                   </div>
                 )}
 
+                {priceBreakdown.cpPlanCharge > 0 && (
+                  <div className="flex items-center justify-between text-gray-800/80">
+                    <span>CP Plan ({cpNights} night{cpNights === 1 ? '' : 's'})</span>
+                    <span className="font-semibold text-gray-800">{formatInr(priceBreakdown.cpPlanCharge)}</span>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between text-gray-800/80">
                   <span>Base amount</span>
                   <span className="font-semibold text-gray-800">{formatInr(priceBreakdown.baseAmount)}</span>
                 </div>
 
                 <div className="flex items-center justify-between text-gray-800/80">
-                  <span>GST (5%)</span>
-                  <span className="font-semibold text-gray-800">{formatInr(priceBreakdown.gstAmount)}</span>
+                  <span>Convenience Fee (2%)</span>
+                  <span className="font-semibold text-gray-800">{formatInr(appliedPromo ? discounted.convenienceFee : priceBreakdown.convenienceFeeAmount)}</span>
                 </div>
+
+                <div className="pt-2">
+                  <div className="text-gray-800 font-semibold mb-2">Promo code</div>
+                  {!appliedPromo ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={promoInput}
+                        onChange={(e) => setPromoInput(e.target.value)}
+                        placeholder="Enter promo code"
+                        className="flex-1 px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                      />
+                      <button
+                        type="button"
+                        disabled={promoLoading || !promoInput.trim() || nights === 0}
+                        onClick={async () => {
+                          const code = promoInput.trim();
+                          if (!code) return;
+                          if (nights === 0) {
+                            toast.error('Select valid dates first');
+                            return;
+                          }
+                          setPromoLoading(true);
+                          try {
+                            const res = await fetch('/api/promos/validate', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              credentials: 'include',
+                              body: JSON.stringify({ code, baseAmount: Number(priceBreakdown.baseAmount ?? 0) }),
+                            });
+                            const data = await res.json().catch(() => null);
+                            if (!res.ok) {
+                              toast.error('Invalid Promocode');
+                              return;
+                            }
+                            const discountAmount = Number(data?.data?.discountAmount ?? 0);
+                            const promoCode = String(data?.data?.promo?.code ?? code).trim();
+                            if (!promoCode) {
+                              toast.error('Invalid promo code');
+                              return;
+                            }
+                            setAppliedPromo({ code: promoCode, discountAmount: Number.isFinite(discountAmount) ? discountAmount : 0 });
+                            toast.success('Promo applied');
+                          } catch {
+                            toast.error('Failed to apply promo code');
+                          } finally {
+                            setPromoLoading(false);
+                          }
+                        }}
+                        className="px-4 py-3 rounded-xl font-semibold bg-gold text-gray-800 hover:bg-bronze transition-colors disabled:opacity-60"
+                      >
+                        {promoLoading ? 'Applying…' : 'Apply'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between bg-gold/10 border border-gold/20 rounded-2xl px-4 py-3">
+                      <div className="text-gray-800/80">
+                        <div className="font-semibold text-gray-800">{appliedPromo.code}</div>
+                        <div className="text-sm text-gray-800/70">Discount: {formatInr(discounted.discount)}</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAppliedPromo(null);
+                          toast.info('Promo removed');
+                        }}
+                        className="px-4 py-2 rounded-full border-2 border-gold/30 text-gray-800 hover:bg-gold/10 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-gray-800/80">
+                  <span>GST (5%)</span>
+                  <span className="font-semibold text-gray-800">{formatInr(appliedPromo ? discounted.gst : priceBreakdown.gstAmount)}</span>
+                </div>
+
+                <div className="pt-4">
+                  <div className="text-gray-800 font-semibold mb-2">Terms & Conditions</div>
+                  <div className="flex items-start justify-between gap-3">
+                    <label className="flex items-start gap-3 text-gray-800/80 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={termsAccepted}
+                        onChange={(e) => setTermsAccepted(e.target.checked)}
+                        className="mt-1 h-4 w-4 accent-gray-800"
+                      />
+                      <span>
+                        I accept Terms & Conditions
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowTerms(true)}
+                      className="h-9 w-9 rounded-full border border-gold/20 text-gray-800 hover:bg-gold/10 transition-colors"
+                      aria-label="Read Terms & Conditions"
+                      title="Read Terms & Conditions"
+                    >
+                      i
+                    </button>
+                  </div>
+                </div>
+
+                {appliedPromo && discounted.discount > 0 && (
+                  <div className="flex items-center justify-between text-gray-800/80">
+                    <span>Discount</span>
+                    <span className="font-semibold text-gray-800">- {formatInr(discounted.discount)}</span>
+                  </div>
+                )}
 
                 <div className="border-t border-gold/20 pt-4 flex items-center justify-between">
                   <span className="text-gray-800 font-semibold">Total</span>
@@ -658,7 +936,7 @@ const Booking = () => {
                 </div>
 
                 <button
-                  disabled={nights === 0}
+                  disabled={nights === 0 || !termsAccepted}
                   className="w-full bg-gold text-gray-800 px-6 py-3 rounded-full font-semibold hover:bg-bronze transition-colors duration-200"
                   onClick={() => {
                     submitBooking();

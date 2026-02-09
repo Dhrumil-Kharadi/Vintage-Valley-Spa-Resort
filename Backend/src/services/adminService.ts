@@ -135,11 +135,13 @@ export const adminService = {
     const childCharge = 1200 * params.children * nights;
     const extraAdultCharge = 1500 * params.extraAdults * nights;
     const baseAmountNum = round2(base + childCharge + extraAdultCharge);
+    const convenienceFeeAmountNum = round2(baseAmountNum * 0.02);
     const gstAmountNum = round2(baseAmountNum * 0.05);
-    const amountNum = round2(baseAmountNum + gstAmountNum);
+    const amountNum = round2(baseAmountNum + convenienceFeeAmountNum + gstAmountNum);
     if (!Number.isFinite(amountNum) || amountNum < 1) throw new HttpError(400, "Invalid amount");
 
     const baseAmount = new Prisma.Decimal(baseAmountNum.toFixed(2));
+    const convenienceFeeAmount = new Prisma.Decimal(convenienceFeeAmountNum.toFixed(2));
     const gstAmount = new Prisma.Decimal(gstAmountNum.toFixed(2));
     const amount = new Prisma.Decimal(amountNum.toFixed(2));
 
@@ -160,6 +162,7 @@ export const adminService = {
           additionalInformation: params.additionalInformation ?? null,
           nights,
           baseAmount,
+          convenienceFeeAmount,
           gstAmount,
           amount,
           status: "CONFIRMED",

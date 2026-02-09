@@ -27,6 +27,16 @@ const createSchema = z.object({
   children: z.number().int().min(0),
   extraAdults: z.number().int().min(0),
   additionalInformation: z.string().nullable().optional(),
+  promoCode: z.string().min(1).optional().nullable(),
+  mealPlanByDate: z
+    .array(
+      z.object({
+        date: z.string().min(1),
+        plan: z.enum(["EP", "CP", "MAP"]),
+      })
+    )
+    .optional()
+    .nullable(),
 });
 
 const verifySchema = z.object({
@@ -57,6 +67,8 @@ export const bookingController: Record<"me" | "create" | "verify" | "deletePendi
       children: body.children,
       extraAdults: body.extraAdults,
       additionalInformation: body.additionalInformation ?? null,
+      promoCode: body.promoCode ? String(body.promoCode) : null,
+      mealPlanByDate: body.mealPlanByDate ?? null,
     });
 
     res.json({

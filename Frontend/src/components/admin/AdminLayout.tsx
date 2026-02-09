@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, BedDouble, Users, CalendarDays, CreditCard, LogOut, Mail } from "lucide-react";
+import { LayoutDashboard, BedDouble, Users, CalendarDays, CreditCard, LogOut, Mail, TicketPercent } from "lucide-react";
 
 import {
   Sidebar,
@@ -27,6 +27,7 @@ const navItems = [
   { label: "Users", to: "/admin/users", icon: Users },
   { label: "Bookings", to: "/admin/bookings", icon: CalendarDays },
   { label: "Payments", to: "/admin/payments", icon: CreditCard },
+  { label: "Promo Codes", to: "/admin/promos", icon: TicketPercent },
   { label: "Inquiries", to: "/admin/inquiries", icon: Mail, badgeKey: "inquiries" as const },
 ];
 

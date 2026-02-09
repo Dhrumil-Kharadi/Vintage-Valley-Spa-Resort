@@ -1,10 +1,11 @@
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,24 +15,36 @@ const Login = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  const redirect = (() => {
+    const params = new URLSearchParams(location.search);
+    const raw = params.get('redirect') ?? '';
+    if (raw && raw.startsWith('/')) return raw;
+    try {
+      const last = sessionStorage.getItem('last_booking_redirect') ?? '';
+      if (last && last.startsWith('/booking/')) return last;
+    } catch {
+    }
+    return '/rooms';
+  })();
+
   useEffect(() => {
     const run = async () => {
       try {
         const res = await fetch('/api/auth/me', { credentials: 'include' });
         if (res.ok) {
-          navigate('/profile', { replace: true });
+          navigate(redirect, { replace: true });
         }
       } catch {
       }
     };
 
     run();
-  }, [navigate]);
+  }, [navigate, redirect]);
 
   const loginUser = (userName: string) => {
     localStorage.setItem("user", JSON.stringify({ name: userName }));
     window.dispatchEvent(new Event('storage'));
-    navigate('/');
+    navigate(redirect);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -96,7 +109,6 @@ const Login = () => {
 
   const handleGoogleSignIn = () => {
     setError(null);
-    const redirect = mode === 'signup' ? '/profile' : '/profile';
     const url = `/api/auth/google?redirect=${encodeURIComponent(redirect)}`;
     window.location.href = url;
   };

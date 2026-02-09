@@ -37,18 +37,8 @@ const Rooms = () => {
   const [roomsError, setRoomsError] = useState<string | null>(null);
   const [apiRooms, setApiRooms] = useState<ApiRoom[]>([]);
 
-  const goToBooking = async (roomId: number) => {
-    try {
-      const res = await fetch('/api/auth/me', { credentials: 'include' });
-      if (!res.ok) {
-        navigate('/login', { replace: true });
-        return;
-      }
-
-      navigate(`/booking/${roomId}`);
-    } catch {
-      navigate('/login', { replace: true });
-    }
+  const goToBooking = (roomId: number) => {
+    navigate(`/booking/${roomId}`);
   };
 
   useEffect(() => {

@@ -52,6 +52,23 @@ const Navbar = () => {
   useEffect(() => {
     setUserName(getUserName());
 
+    const syncFromCookie = async () => {
+      try {
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null);
+        const name = data?.data?.user?.name;
+        if (typeof name === 'string' && name.trim()) {
+          localStorage.setItem('user', JSON.stringify({ name }));
+          window.dispatchEvent(new Event('storage'));
+          setUserName(name);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    syncFromCookie();
+
     const handleStorage = () => setUserName(getUserName());
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
@@ -90,7 +107,7 @@ const Navbar = () => {
     { name: 'Facilities', path: '/facilities' },
     { name: 'Attractions', path: '/attractions' },
     { name: 'Gallery', path: '/gallery' },
-    { name: 'Contact', path: '/contact' },
+    { name: 'Book Now', path: '/rooms' },
   ];
 
   return (
@@ -125,17 +142,29 @@ const Navbar = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-4 sm:space-x-8">
             {navLinks.map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                className={`font-medium transition-colors duration-200 ${
-                  location.pathname === link.path
-                    ? 'text-gold border-b-2 border-gold'
-                    : isScrolled ? 'text-gray-800 hover:text-gold' : 'text-white hover:text-gold'
-                }`}
-              >
-                {link.name}
-              </Link>
+              link.name === 'Book Now' ? (
+                <Link
+                  key={`${link.path}:${link.name}`}
+                  to={link.path}
+                  className={`px-5 py-2.5 rounded-full font-semibold text-sm sm:text-base transition-all duration-200 border border-gold/30 shadow-sm hover:shadow-md active:scale-[0.99] ${
+                    isScrolled ? 'bg-gold text-gray-800 hover:bg-bronze' : 'bg-gold text-gray-800 hover:bg-bronze'
+                  }`}
+                >
+                  {link.name}
+                </Link>
+              ) : (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  className={`font-medium transition-colors duration-200 ${
+                    location.pathname === link.path
+                      ? 'text-gold border-b-2 border-gold'
+                      : isScrolled ? 'text-gray-800 hover:text-gold' : 'text-white hover:text-gold'
+                  }`}
+                >
+                  {link.name}
+                </Link>
+              )
             ))}
             {!userName ? (
               <Link
@@ -200,18 +229,29 @@ const Navbar = () => {
           <div className="md:hidden bg-white/95 backdrop-blur-md border-t border-gold/20">
             <div className="px-2 pt-2 pb-3 space-y-1">
               {navLinks.map((link) => (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  className={`block px-3 py-3 rounded-md text-base font-medium transition-colors duration-200 ${
-                    location.pathname === link.path
-                      ? 'text-gold bg-gold/10'
-                      : 'text-gray-800 hover:text-gold hover:bg-gold/5'
-                  }`}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  {link.name}
-                </Link>
+                link.name === 'Book Now' ? (
+                  <Link
+                    key={`${link.path}:${link.name}`}
+                    to={link.path}
+                    className="block w-full px-4 py-3 rounded-full font-semibold text-base bg-gold text-gray-800 hover:bg-bronze transition-colors duration-200 text-center mt-2"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    {link.name}
+                  </Link>
+                ) : (
+                  <Link
+                    key={link.path}
+                    to={link.path}
+                    className={`block px-3 py-3 rounded-md text-base font-medium transition-colors duration-200 ${
+                      location.pathname === link.path
+                        ? 'text-gold bg-gold/10'
+                        : 'text-gray-800 hover:text-gold hover:bg-gold/5'
+                    }`}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    {link.name}
+                  </Link>
+                )
               ))}
               {!userName ? (
                 <Link

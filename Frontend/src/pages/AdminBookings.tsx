@@ -8,6 +8,9 @@ const AdminBookings = () => {
   const [error, setError] = useState<string | null>(null);
   const [bookings, setBookings] = useState<any[]>([]);
 
+  const [users, setUsers] = useState<any[]>([]);
+  const [roomsList, setRoomsList] = useState<any[]>([]);
+
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [createOk, setCreateOk] = useState<string | null>(null);
@@ -75,7 +78,7 @@ const AdminBookings = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/admin/bookings", { credentials: "include" });
+        const res = await fetch("/admin-api/bookings", { credentials: "include" });
         const data = await res.json().catch(() => null);
         if (!res.ok) throw new Error(data?.error?.message ?? "Failed to load bookings");
         setBookings(data?.data?.bookings ?? []);
@@ -88,6 +91,27 @@ const AdminBookings = () => {
 
   useEffect(() => {
     loadBookings();
+
+    const loadMeta = async () => {
+      try {
+        const [uRes, rRes] = await Promise.all([
+          fetch("/admin-api/users", { credentials: "include" }),
+          fetch("/admin-api/rooms", { credentials: "include" }),
+        ]);
+
+        const [uData, rData] = await Promise.all([
+          uRes.json().catch(() => null),
+          rRes.json().catch(() => null),
+        ]);
+
+        if (uRes.ok) setUsers(uData?.data?.users ?? []);
+        if (rRes.ok) setRoomsList(rData?.data?.rooms ?? []);
+      } catch {
+        // ignore
+      }
+    };
+
+    loadMeta();
   }, []);
 
   const submitManualBooking = async () => {
@@ -142,8 +166,8 @@ const AdminBookings = () => {
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error?.message ?? "Failed to create booking");
 
-      setCreateOk("Booking created (CONFIRMED) without payment.");
-      toast.success("Booking created (CONFIRMED) without payment.");
+      setCreateOk("Booking created (CONFIRMED) with Cash/UPI/Reception payment.");
+      toast.success("Booking created");
       await loadBookings();
     } catch (e: any) {
       setCreateError(e?.message ?? "Failed to create booking");
@@ -157,7 +181,7 @@ const AdminBookings = () => {
     <AdminLayout title="Bookings" description="View and manage bookings.">
       <div className="bg-white rounded-3xl p-8 luxury-shadow">
         <div className="mb-8">
-          <div className="text-gray-900 font-semibold mb-3">Manual booking (no payment)</div>
+          <div className="text-gray-900 font-semibold mb-3">Cash/UPI/Reception Payment</div>
 
           {createError && (
             <div className="bg-gold/10 border border-gold/20 text-gray-800 px-4 py-3 rounded-2xl mb-4">{createError}</div>
@@ -167,18 +191,30 @@ const AdminBookings = () => {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <input
+            <select
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
-              placeholder="User ID"
               className="px-4 py-3 rounded-2xl border border-gold/20 focus:outline-none focus:ring-2 focus:ring-gold/30"
-            />
-            <input
+            >
+              <option value="">Select user</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name} ({u.email})
+                </option>
+              ))}
+            </select>
+            <select
               value={roomId}
               onChange={(e) => setRoomId(e.target.value)}
-              placeholder="Room ID"
               className="px-4 py-3 rounded-2xl border border-gold/20 focus:outline-none focus:ring-2 focus:ring-gold/30"
-            />
+            >
+              <option value="">Select room</option>
+              {roomsList.map((r) => (
+                <option key={r.id} value={String(r.id)}>
+                  {r.title}
+                </option>
+              ))}
+            </select>
             <input
               value={String(rooms)}
               onChange={(e) => setRooms(Math.max(1, Math.min(10, Number(e.target.value || 1))))}
