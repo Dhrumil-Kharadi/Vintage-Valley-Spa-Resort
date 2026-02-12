@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.adminPromoRouter = void 0;
+const express_1 = require("express");
+const auth_1 = require("../../../Backend/src/middlewares/auth");
+const adminPromoController_1 = require("../controllers/adminPromoController");
+exports.adminPromoRouter = (0, express_1.Router)();
+exports.adminPromoRouter.use(auth_1.requireAuth, auth_1.requireAdmin);
+exports.adminPromoRouter.get("/", adminPromoController_1.adminPromoController.list);
+exports.adminPromoRouter.post("/", adminPromoController_1.adminPromoController.create);
+exports.adminPromoRouter.patch("/:id/active", adminPromoController_1.adminPromoController.setActive);

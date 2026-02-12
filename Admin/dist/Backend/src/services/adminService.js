@@ -124,11 +124,13 @@ exports.adminService = {
         const childCharge = 1200 * params.children * nights;
         const extraAdultCharge = 1500 * params.extraAdults * nights;
         const baseAmountNum = round2(base + childCharge + extraAdultCharge);
+        const convenienceFeeAmountNum = round2(baseAmountNum * 0.02);
         const gstAmountNum = round2(baseAmountNum * 0.05);
-        const amountNum = round2(baseAmountNum + gstAmountNum);
+        const amountNum = round2(baseAmountNum + convenienceFeeAmountNum + gstAmountNum);
         if (!Number.isFinite(amountNum) || amountNum < 1)
             throw new errorHandler_1.HttpError(400, "Invalid amount");
         const baseAmount = new client_2.Prisma.Decimal(baseAmountNum.toFixed(2));
+        const convenienceFeeAmount = new client_2.Prisma.Decimal(convenienceFeeAmountNum.toFixed(2));
         const gstAmount = new client_2.Prisma.Decimal(gstAmountNum.toFixed(2));
         const amount = new client_2.Prisma.Decimal(amountNum.toFixed(2));
         try {
@@ -148,6 +150,7 @@ exports.adminService = {
                     additionalInformation: params.additionalInformation ?? null,
                     nights,
                     baseAmount,
+                    convenienceFeeAmount,
                     gstAmount,
                     amount,
                     status: "CONFIRMED",
@@ -160,8 +163,11 @@ exports.adminService = {
             });
             return booking;
         }
-        catch {
-            throw new errorHandler_1.HttpError(500, "Failed to create booking. Please run database migration.");
+        catch (error) {
+            // eslint-disable-next-line no-console
+            console.error("BOOKING ERROR >>>", error);
+            const msg = error instanceof Error && error.message ? error.message : "Booking failed";
+            throw new errorHandler_1.HttpError(500, msg);
         }
     },
     async listPayments() {

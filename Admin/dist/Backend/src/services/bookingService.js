@@ -7,6 +7,7 @@ const env_1 = require("../config/env");
 const mailer_1 = require("../utils/mailer");
 const razorpay_1 = require("../utils/razorpay");
 const client_2 = require("@prisma/client");
+const promoService_1 = require("./promoService");
 exports.bookingService = {
     async createBooking(params) {
         const user = await client_1.prisma.user.findUnique({
@@ -48,19 +49,67 @@ exports.bookingService = {
             throw new errorHandler_1.HttpError(400, "Invalid rooms");
         }
         const round2 = (n) => Math.round(n * 100) / 100;
+        const normalizeDateKey = (d) => {
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, "0");
+            const dd = String(d.getDate()).padStart(2, "0");
+            return `${yyyy}-${mm}-${dd}`;
+        };
+        const dayPlansRaw = Array.isArray(params.mealPlanByDate) ? params.mealPlanByDate : [];
+        const planMap = new Map();
+        for (const item of dayPlansRaw) {
+            if (!item)
+                continue;
+            const key = String(item.date ?? "").trim();
+            const plan = String(item.plan ?? "").trim().toUpperCase();
+            if (!key)
+                continue;
+            if (plan !== "EP" && plan !== "CP" && plan !== "MAP")
+                continue;
+            planMap.set(key, plan);
+        }
+        let cpNights = 0;
+        const mealPlanByDate = [];
+        {
+            const cursor = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
+            for (let i = 0; i < nights; i++) {
+                const key = normalizeDateKey(cursor);
+                const plan = planMap.get(key) ?? "EP";
+                if (plan === "CP")
+                    cpNights += 1;
+                mealPlanByDate.push({ date: key, plan });
+                cursor.setDate(cursor.getDate() + 1);
+            }
+        }
         const base = room.pricePerNight * nights * rooms;
         const childCharge = 1200 * params.children * nights;
         const extraAdultCharge = 1500 * params.extraAdults * nights;
-        const baseAmountNum = round2(base + childCharge + extraAdultCharge);
-        const gstAmountNum = round2(baseAmountNum * 0.05);
-        const amountNum = round2(baseAmountNum + gstAmountNum);
+        const cpAmountNum = round2(500 * Number(params.guests) * cpNights);
+        const originalBaseAmountNum = round2(base + childCharge + extraAdultCharge + cpAmountNum);
+        let promoToAttach = null;
+        let discountAmountNum = 0;
+        if (params.promoCode && String(params.promoCode).trim()) {
+            const validated = await promoService_1.promoService.validateForBaseAmount({
+                code: String(params.promoCode),
+                baseAmount: originalBaseAmountNum,
+            });
+            promoToAttach = { id: validated.promo.id, code: validated.promo.code };
+            discountAmountNum = round2(validated.discountAmount);
+        }
+        const discountedBaseAmountNum = round2(Math.max(0, originalBaseAmountNum - discountAmountNum));
+        const convenienceFeeAmountNum = round2(discountedBaseAmountNum * 0.02);
+        const gstAmountNum = round2(discountedBaseAmountNum * 0.05);
+        const amountNum = round2(discountedBaseAmountNum + convenienceFeeAmountNum + gstAmountNum);
         const amountPaise = Math.round(amountNum * 100);
         if (!Number.isFinite(amountNum) || amountNum < 1 || amountPaise < 100) {
             throw new errorHandler_1.HttpError(400, "Invalid amount");
         }
-        const baseAmount = new client_2.Prisma.Decimal(baseAmountNum.toFixed(2));
+        const baseAmount = new client_2.Prisma.Decimal(discountedBaseAmountNum.toFixed(2));
+        const mealPlanCpAmount = new client_2.Prisma.Decimal(cpAmountNum.toFixed(2));
+        const convenienceFeeAmount = new client_2.Prisma.Decimal(convenienceFeeAmountNum.toFixed(2));
         const gstAmount = new client_2.Prisma.Decimal(gstAmountNum.toFixed(2));
         const amount = new client_2.Prisma.Decimal(amountNum.toFixed(2));
+        const discountAmount = new client_2.Prisma.Decimal(round2(discountAmountNum).toFixed(2));
         const existing = await client_1.prisma.booking.findFirst({
             where: {
                 userId: params.userId,
@@ -85,7 +134,13 @@ exports.bookingService = {
                             checkOutTime: params.checkOutTime ?? null,
                             rooms,
                             nights,
+                            promoCodeId: promoToAttach?.id ?? null,
+                            promoCode: promoToAttach?.code ?? null,
+                            discountAmount,
+                            mealPlanByDate,
+                            mealPlanCpAmount,
                             baseAmount,
+                            convenienceFeeAmount,
                             gstAmount,
                             amount,
                         },
@@ -115,74 +170,107 @@ exports.bookingService = {
         let booking;
         try {
             if (existing) {
-                booking = await client_1.prisma.booking.update({
-                    where: { id: existing.id },
-                    data: {
-                        guests: params.guests,
-                        adults: params.adults,
-                        children: params.children,
-                        extraAdults: params.extraAdults,
-                        additionalInformation: params.additionalInformation ?? null,
-                        nights,
-                        checkInTime: params.checkInTime ?? null,
-                        checkOutTime: params.checkOutTime ?? null,
-                        rooms,
-                        baseAmount,
-                        gstAmount,
-                        amount,
-                        payments: {
-                            create: {
-                                provider: "RAZORPAY",
-                                status: "CREATED",
-                                currency: "INR",
-                                amount,
-                                razorpayOrderId: razorpayOrder.id,
+                booking = await client_1.prisma.$transaction(async (tx) => {
+                    const updated = await tx.booking.update({
+                        where: { id: existing.id },
+                        data: {
+                            guests: params.guests,
+                            adults: params.adults,
+                            children: params.children,
+                            extraAdults: params.extraAdults,
+                            additionalInformation: params.additionalInformation ?? null,
+                            nights,
+                            checkInTime: params.checkInTime ?? null,
+                            checkOutTime: params.checkOutTime ?? null,
+                            rooms,
+                            promoCodeId: promoToAttach?.id ?? null,
+                            promoCode: promoToAttach?.code ?? null,
+                            discountAmount,
+                            mealPlanByDate,
+                            mealPlanCpAmount,
+                            baseAmount,
+                            convenienceFeeAmount,
+                            gstAmount,
+                            amount,
+                            payments: {
+                                create: {
+                                    provider: "RAZORPAY",
+                                    status: "CREATED",
+                                    currency: "INR",
+                                    amount,
+                                    razorpayOrderId: razorpayOrder.id,
+                                },
                             },
                         },
-                    },
-                    include: {
-                        room: { select: { id: true, title: true, pricePerNight: true } },
-                    },
+                        include: {
+                            room: { select: { id: true, title: true, pricePerNight: true } },
+                        },
+                    });
+                    if (promoToAttach?.id) {
+                        await tx.promoCode.update({
+                            where: { id: promoToAttach.id },
+                            data: { usedCount: { increment: 1 } },
+                        });
+                    }
+                    return updated;
                 });
             }
             else {
-                booking = await client_1.prisma.booking.create({
-                    data: {
-                        userId: params.userId,
-                        roomId: params.roomId,
-                        checkIn: checkInDate,
-                        checkOut: checkOutDate,
-                        checkInTime: params.checkInTime ?? null,
-                        checkOutTime: params.checkOutTime ?? null,
-                        rooms,
-                        guests: params.guests,
-                        adults: params.adults,
-                        children: params.children,
-                        extraAdults: params.extraAdults,
-                        additionalInformation: params.additionalInformation ?? null,
-                        nights,
-                        baseAmount,
-                        gstAmount,
-                        amount,
-                        status: "PENDING",
-                        payments: {
-                            create: {
-                                provider: "RAZORPAY",
-                                status: "CREATED",
-                                currency: "INR",
-                                amount,
-                                razorpayOrderId: razorpayOrder.id,
+                booking = await client_1.prisma.$transaction(async (tx) => {
+                    const created = await tx.booking.create({
+                        data: {
+                            userId: params.userId,
+                            roomId: params.roomId,
+                            promoCodeId: promoToAttach?.id ?? null,
+                            promoCode: promoToAttach?.code ?? null,
+                            discountAmount,
+                            mealPlanByDate,
+                            mealPlanCpAmount,
+                            checkIn: checkInDate,
+                            checkOut: checkOutDate,
+                            checkInTime: params.checkInTime ?? null,
+                            checkOutTime: params.checkOutTime ?? null,
+                            rooms,
+                            guests: params.guests,
+                            adults: params.adults,
+                            children: params.children,
+                            extraAdults: params.extraAdults,
+                            additionalInformation: params.additionalInformation ?? null,
+                            nights,
+                            baseAmount,
+                            convenienceFeeAmount,
+                            gstAmount,
+                            amount,
+                            status: "PENDING",
+                            payments: {
+                                create: {
+                                    provider: "RAZORPAY",
+                                    status: "CREATED",
+                                    currency: "INR",
+                                    amount,
+                                    razorpayOrderId: razorpayOrder.id,
+                                },
                             },
                         },
-                    },
-                    include: {
-                        room: { select: { id: true, title: true, pricePerNight: true } },
-                    },
+                        include: {
+                            room: { select: { id: true, title: true, pricePerNight: true } },
+                        },
+                    });
+                    if (promoToAttach?.id) {
+                        await tx.promoCode.update({
+                            where: { id: promoToAttach.id },
+                            data: { usedCount: { increment: 1 } },
+                        });
+                    }
+                    return created;
                 });
             }
         }
-        catch {
-            throw new errorHandler_1.HttpError(500, "Failed to create booking. Please run database migration.");
+        catch (error) {
+            // eslint-disable-next-line no-console
+            console.error("BOOKING ERROR >>>", error);
+            const msg = error instanceof Error && error.message ? error.message : "Booking failed";
+            throw new errorHandler_1.HttpError(500, msg);
         }
         return {
             booking,

@@ -27,6 +27,14 @@ const createSchema = zod_1.z.object({
     children: zod_1.z.number().int().min(0),
     extraAdults: zod_1.z.number().int().min(0),
     additionalInformation: zod_1.z.string().nullable().optional(),
+    promoCode: zod_1.z.string().min(1).optional().nullable(),
+    mealPlanByDate: zod_1.z
+        .array(zod_1.z.object({
+        date: zod_1.z.string().min(1),
+        plan: zod_1.z.enum(["EP", "CP", "MAP"]),
+    }))
+        .optional()
+        .nullable(),
 });
 const verifySchema = zod_1.z.object({
     razorpayOrderId: zod_1.z.string().min(1),
@@ -53,6 +61,8 @@ exports.bookingController = {
             children: body.children,
             extraAdults: body.extraAdults,
             additionalInformation: body.additionalInformation ?? null,
+            promoCode: body.promoCode ? String(body.promoCode) : null,
+            mealPlanByDate: body.mealPlanByDate ?? null,
         });
         res.json({
             ok: true,
