@@ -22,6 +22,13 @@ const envSchema = z.object({
   GMAIL_USER: z.string().optional(),
   GMAIL_APP_PASSWORD: z.string().optional(),
   EMAIL_FROM: z.string().optional(),
+  EMAIL_REPLY_TO: z.string().optional(),
+
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().optional(),
+  SMTP_SECURE: z.coerce.boolean().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
 
   RESET_TOKEN_EXPIRES_MINUTES: z.coerce.number().default(30),
 

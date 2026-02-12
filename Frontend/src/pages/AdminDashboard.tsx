@@ -1,5 +1,6 @@
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "react-toastify";
 
 const AdminDashboard = () => {
   const [rooms, setRooms] = useState<any[]>([]);
@@ -80,7 +81,9 @@ const AdminDashboard = () => {
     setSuccess(null);
 
     if (parsedImages.length === 0) {
-      setError("Please add at least one image URL (one per line). ");
+      const msg = "Please add at least one image URL (one per line). ";
+      setError(msg);
+      toast.error(msg);
       return;
     }
 
@@ -102,11 +105,14 @@ const AdminDashboard = () => {
 
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error?.message ?? "Failed to create room");
+        const msg = data?.error?.message ?? "Failed to create room";
+        setError(msg);
+        toast.error(msg);
         return;
       }
 
       setSuccess("Room created successfully");
+      toast.success("Room created successfully");
       setTitle("");
       setDescription("");
       setPricePerNight(0);
@@ -116,7 +122,9 @@ const AdminDashboard = () => {
 
       await loadRooms();
     } catch {
-      setError("Failed to create room");
+      const msg = "Failed to create room";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -202,7 +210,7 @@ const AdminDashboard = () => {
     <AdminLayout title="Rooms" description="Add rooms to your inventory.">
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div>
-          <div className="bg-white rounded-3xl p-8 luxury-shadow">
+          <div className="bg-white rounded-3xl p-4 sm:p-8 luxury-shadow">
             <h2 className="font-playfair text-3xl font-bold text-gray-800 mb-6">Add Room</h2>
 
             <form onSubmit={handleCreateRoom} className="space-y-6">
@@ -316,8 +324,8 @@ const AdminDashboard = () => {
         </div>
 
         <div>
-          <div className="bg-white rounded-3xl p-8 luxury-shadow">
-            <div className="flex items-center justify-between gap-4 mb-6">
+          <div className="bg-white rounded-3xl p-4 sm:p-8 luxury-shadow">
+            <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
               <h2 className="font-playfair text-3xl font-bold text-gray-800">Rooms</h2>
               <button
                 type="button"
@@ -340,12 +348,12 @@ const AdminDashboard = () => {
               <div className="space-y-4">
                 {rooms.map((r) => (
                   <div key={r.id} className="border border-gold/10 rounded-3xl p-5">
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
                       <div>
                         <div className="font-playfair text-2xl font-bold text-gray-800">{r.title}</div>
                         <div className="text-gray-800/70 text-sm mt-1">₹{r.pricePerNight} / night • {r.person ?? 2} person • #{r.id}</div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <button
                           type="button"
                           onClick={() => startEdit(r)}

@@ -35,7 +35,7 @@ const AdminPayments = () => {
 
   return (
     <AdminLayout title="Payments" description="Track payments and Razorpay orders.">
-      <div className="bg-white rounded-3xl p-8 luxury-shadow">
+      <div className="bg-white rounded-3xl p-4 sm:p-8 luxury-shadow">
         {error && (
           <div className="bg-gold/10 border border-gold/20 text-gray-800 px-4 py-3 rounded-2xl mb-4">{error}</div>
         )}
@@ -45,8 +45,8 @@ const AdminPayments = () => {
         ) : paidPayments.length === 0 ? (
           <div className="text-gray-800/70">No PAID payments found.</div>
         ) : (
-          <div className="overflow-auto">
-            <table className="w-full text-left">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] text-left">
               <thead>
                 <tr className="text-gray-800/60 text-sm">
                   <th className="py-3 pr-4">Payment ID</th>

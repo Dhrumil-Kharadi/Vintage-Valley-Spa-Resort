@@ -1,9 +1,10 @@
 import Navbar from '@/components/Navbar';
 import Footer from '../components/Footer';
 import FloatingContact from '../components/FloatingContact';
-import { useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { usePolicyModals } from '@/components/PolicyModals';
 
 type RoomDetails = {
   id: string | number;
@@ -64,7 +65,7 @@ const Booking = () => {
   const [promoLoading, setPromoLoading] = useState(false);
 
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
+  const { openTerms } = usePolicyModals();
 
   const [mealPlanByDate, setMealPlanByDate] = useState<Record<string, MealPlan>>({});
 
@@ -218,6 +219,15 @@ const Booking = () => {
     return c;
   }, [mealPlanByDate, nightDates]);
 
+  const mapNights = useMemo(() => {
+    let c = 0;
+    for (const d of nightDates) {
+      const plan = mealPlanByDate[d] ?? 'EP';
+      if (plan === 'MAP') c += 1;
+    }
+    return c;
+  }, [mealPlanByDate, nightDates]);
+
   const todayIso = useMemo(() => {
     const now = new Date();
     const yyyy = now.getFullYear();
@@ -251,6 +261,20 @@ const Booking = () => {
     return 500 * guests * cpNights;
   }, [cpNights, totalGuests]);
 
+  const mapPlanCharge = useMemo(() => {
+    const guests = Number(totalGuests ?? 0);
+    if (!Number.isFinite(guests) || guests <= 0) return 0;
+
+    const title = String(room?.title ?? '').toLowerCase();
+    const ratePerGuestPerNight = title.includes('lotus') || title.includes('presidential')
+      ? 2000
+      : title.includes('deluxe') || title.includes('edge')
+      ? 1000
+      : 0;
+
+    return ratePerGuestPerNight * guests * mapNights;
+  }, [mapNights, room?.title, totalGuests]);
+
   const adults = useMemo(() => {
     const baseAdults = Number(room?.person ?? 2);
     const extraAdults = Number(extraAdultsAbove10 ?? 0);
@@ -281,12 +305,22 @@ const Booking = () => {
     const roomTotal = round2(perNight * nights * safeRooms);
     const childCharge = round2(1200 * children5To10 * nights);
     const extraAdultCharge = round2(1500 * extraAdultsAbove10 * nights);
-    const baseAmount = round2(roomTotal + childCharge + extraAdultCharge + round2(cpPlanCharge));
+    const baseAmount = round2(roomTotal + childCharge + extraAdultCharge + round2(cpPlanCharge) + round2(mapPlanCharge));
     const convenienceFeeAmount = round2(baseAmount * 0.02);
     const gstAmount = round2(baseAmount * 0.05);
     const totalAmount = round2(baseAmount + convenienceFeeAmount + gstAmount);
-    return { roomTotal, childCharge, extraAdultCharge, cpPlanCharge: round2(cpPlanCharge), baseAmount, convenienceFeeAmount, gstAmount, totalAmount };
-  }, [room?.pricePerNight, nights, rooms, children5To10, extraAdultsAbove10, cpPlanCharge]);
+    return {
+      roomTotal,
+      childCharge,
+      extraAdultCharge,
+      cpPlanCharge: round2(cpPlanCharge),
+      mapPlanCharge: round2(mapPlanCharge),
+      baseAmount,
+      convenienceFeeAmount,
+      gstAmount,
+      totalAmount,
+    };
+  }, [room?.pricePerNight, nights, rooms, children5To10, extraAdultsAbove10, cpPlanCharge, mapPlanCharge]);
 
   const discounted = useMemo(() => {
     const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -811,9 +845,16 @@ const Booking = () => {
                 )}
 
                 <div className="flex items-center justify-between text-gray-800/80">
-                  <span>Base amount</span>
+                  <span>Base (room + addons + meals)</span>
                   <span className="font-semibold text-gray-800">{formatInr(priceBreakdown.baseAmount)}</span>
                 </div>
+
+                {appliedPromo && (
+                  <div className="flex items-center justify-between text-green-600">
+                    <span>Promo Code: {appliedPromo.code}</span>
+                    <span className="font-semibold">-{formatInr(discounted.discount)}</span>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between text-gray-800/80">
                   <span>Convenience Fee (2%)</span>
@@ -913,7 +954,7 @@ const Booking = () => {
                     </label>
                     <button
                       type="button"
-                      onClick={() => setShowTerms(true)}
+                      onClick={openTerms}
                       className="h-9 w-9 rounded-full border border-gold/20 text-gray-800 hover:bg-gold/10 transition-colors"
                       aria-label="Read Terms & Conditions"
                       title="Read Terms & Conditions"

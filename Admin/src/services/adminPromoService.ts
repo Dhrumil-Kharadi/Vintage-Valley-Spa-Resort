@@ -1,8 +1,20 @@
-import { Prisma } from "@prisma/client";
 import { prisma } from "../../../Backend/src/prisma/client";
 import { HttpError } from "../../../Backend/src/middlewares/errorHandler";
 
 const normalizeCode = (code: string) => code.trim().toUpperCase();
+
+const parseDateTimeLocal = (value: string) => {
+  const s = String(value ?? "").trim();
+  if (!s) return null;
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if (!m) return new Date(s);
+  const yyyy = Number(m[1]);
+  const mm = Number(m[2]);
+  const dd = Number(m[3]);
+  const hh = Number(m[4]);
+  const mi = Number(m[5]);
+  return new Date(yyyy, mm - 1, dd, hh, mi, 0, 0);
+};
 
 export const adminPromoService = {
   async list() {
@@ -22,6 +34,17 @@ export const adminPromoService = {
     }));
   },
 
+  async delete(params: { id: string }) {
+    const id = String(params.id ?? "").trim();
+    if (!id) throw new HttpError(400, "Invalid promo id");
+
+    const existing: any = await (prisma as any).promoCode.findUnique({ where: { id }, select: { id: true } });
+    if (!existing) throw new HttpError(404, "Promo not found");
+
+    await (prisma as any).promoCode.delete({ where: { id } });
+    return true;
+  },
+
   async create(params: {
     code: string;
     type: "PERCENT" | "FLAT";
@@ -39,8 +62,8 @@ export const adminPromoService = {
 
     if (params.type === "PERCENT" && valueNum > 100) throw new HttpError(400, "Percent discount cannot exceed 100");
 
-    const startsAt = params.startsAt ? new Date(params.startsAt) : null;
-    const expiresAt = params.expiresAt ? new Date(params.expiresAt) : null;
+    const startsAt = params.startsAt ? parseDateTimeLocal(params.startsAt) : null;
+    const expiresAt = params.expiresAt ? parseDateTimeLocal(params.expiresAt) : null;
 
     if (startsAt && !Number.isFinite(startsAt.getTime())) throw new HttpError(400, "Invalid startsAt");
     if (expiresAt && !Number.isFinite(expiresAt.getTime())) throw new HttpError(400, "Invalid expiresAt");
@@ -56,7 +79,7 @@ export const adminPromoService = {
         data: {
           code,
           type: params.type,
-          value: new Prisma.Decimal(valueNum.toFixed(2)),
+          value: valueNum.toFixed(2),
           isActive: params.isActive ?? true,
           startsAt,
           expiresAt,

@@ -1,4 +1,5 @@
 import { prisma } from "../../../Backend/src/prisma/client";
+import { HttpError } from "../../../Backend/src/middlewares/errorHandler";
 
 export const adminRoomService = {
   async listRooms() {
@@ -34,24 +35,32 @@ export const adminRoomService = {
     images: string[];
     amenities: string[];
   }) {
-    const room = await (prisma.room as any).create({
-      data: {
-        title: params.title,
-        description: params.description,
-        pricePerNight: params.pricePerNight,
-        person: params.person,
-        images: {
-          create: params.images.map((url, idx) => ({ url, sortOrder: idx })),
+    let room: any;
+    try {
+      room = await (prisma.room as any).create({
+        data: {
+          title: params.title,
+          description: params.description,
+          pricePerNight: params.pricePerNight,
+          person: params.person,
+          images: {
+            create: params.images.map((url, idx) => ({ url, sortOrder: idx })),
+          },
+          amenities: {
+            create: params.amenities.map((name) => ({ name })),
+          },
         },
-        amenities: {
-          create: params.amenities.map((name) => ({ name })),
+        include: {
+          images: { orderBy: { sortOrder: "asc" } },
+          amenities: true,
         },
-      },
-      include: {
-        images: { orderBy: { sortOrder: "asc" } },
-        amenities: true,
-      },
-    });
+      });
+    } catch (e: any) {
+      if (e?.code === "P2000" && String(e?.meta?.column_name ?? "").toLowerCase().includes("url")) {
+        throw new HttpError(400, "Image URL is too long. Please use a shorter URL.");
+      }
+      throw e;
+    }
 
     const r: any = room as any;
 
@@ -79,27 +88,35 @@ export const adminRoomService = {
       amenities: string[];
     }
   ) {
-    const room = await (prisma.room as any).update({
-      where: { id },
-      data: {
-        title: params.title,
-        description: params.description,
-        pricePerNight: params.pricePerNight,
-        person: params.person,
-        images: {
-          deleteMany: {},
-          create: params.images.map((url, idx) => ({ url, sortOrder: idx })),
+    let room: any;
+    try {
+      room = await (prisma.room as any).update({
+        where: { id },
+        data: {
+          title: params.title,
+          description: params.description,
+          pricePerNight: params.pricePerNight,
+          person: params.person,
+          images: {
+            deleteMany: {},
+            create: params.images.map((url, idx) => ({ url, sortOrder: idx })),
+          },
+          amenities: {
+            deleteMany: {},
+            create: params.amenities.map((name) => ({ name })),
+          },
         },
-        amenities: {
-          deleteMany: {},
-          create: params.amenities.map((name) => ({ name })),
+        include: {
+          images: { orderBy: { sortOrder: "asc" } },
+          amenities: true,
         },
-      },
-      include: {
-        images: { orderBy: { sortOrder: "asc" } },
-        amenities: true,
-      },
-    });
+      });
+    } catch (e: any) {
+      if (e?.code === "P2000" && String(e?.meta?.column_name ?? "").toLowerCase().includes("url")) {
+        throw new HttpError(400, "Image URL is too long. Please use a shorter URL.");
+      }
+      throw e;
+    }
 
     const r: any = room as any;
 

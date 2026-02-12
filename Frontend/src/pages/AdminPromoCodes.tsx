@@ -1,6 +1,7 @@
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
+import { Trash2 } from "lucide-react";
 
 type Promo = {
   id: string;
@@ -40,6 +41,30 @@ const AdminPromoCodes = () => {
       setError(e?.message ?? "Failed to load promo codes");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deletePromo = async (promoId: string) => {
+    const id = String(promoId ?? "").trim();
+    if (!id) return;
+
+    const ok = window.confirm("Delete this promo code? This cannot be undone.");
+    if (!ok) return;
+
+    try {
+      const res = await fetch(`/admin-api/promos/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.error?.message ?? "Failed to delete promo");
+        return;
+      }
+      toast.success("Promo deleted");
+      await load();
+    } catch {
+      toast.error("Failed to delete promo");
     }
   };
 
@@ -117,7 +142,7 @@ const AdminPromoCodes = () => {
 
   return (
     <AdminLayout title="Promo Codes" description="Create and manage discount codes.">
-      <div className="bg-white rounded-3xl p-8 luxury-shadow">
+      <div className="bg-white rounded-3xl p-4 sm:p-8 luxury-shadow">
         {error && <div className="bg-gold/10 border border-gold/20 text-gray-800 px-4 py-3 rounded-2xl mb-4">{error}</div>}
 
         <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
@@ -168,8 +193,8 @@ const AdminPromoCodes = () => {
         ) : sorted.length === 0 ? (
           <div className="text-gray-800/70">No promo codes found.</div>
         ) : (
-          <div className="overflow-auto">
-            <table className="w-full text-left">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] text-left">
               <thead>
                 <tr className="text-gray-800/60 text-sm">
                   <th className="py-3 pr-4">Code</th>
@@ -178,6 +203,7 @@ const AdminPromoCodes = () => {
                   <th className="py-3 pr-4">Uses</th>
                   <th className="py-3 pr-4">Active</th>
                   <th className="py-3">Action</th>
+                  <th className="py-3">Delete</th>
                 </tr>
               </thead>
               <tbody>
@@ -191,6 +217,16 @@ const AdminPromoCodes = () => {
                     <td className="py-3">
                       <button type="button" onClick={() => toggleActive(p)} className="px-4 py-2 rounded-full border-2 border-gold/30 text-gray-800 hover:bg-gold/10 transition-colors">
                         {p.isActive ? "Disable" : "Enable"}
+                      </button>
+                    </td>
+                    <td className="py-3">
+                      <button
+                        type="button"
+                        onClick={() => deletePromo(p.id)}
+                        className="p-2 rounded-full border border-gold/20 text-gray-800/80 hover:bg-gold/10 transition-colors"
+                        title="Delete promo"
+                      >
+                        <Trash2 size={18} />
                       </button>
                     </td>
                   </tr>

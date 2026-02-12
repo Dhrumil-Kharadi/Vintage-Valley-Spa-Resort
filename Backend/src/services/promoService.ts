@@ -21,8 +21,8 @@ export const promoService = {
     if (!promo.isActive) throw new HttpError(400, "Invalid Promocode");
 
     const now = new Date();
-    if (promo.startsAt && now < new Date(promo.startsAt)) throw new HttpError(400, "Invalid Promocode");
-    if (promo.expiresAt && now > new Date(promo.expiresAt)) throw new HttpError(400, "Invalid Promocode");
+    if (promo.startsAt && now < promo.startsAt) throw new HttpError(400, "Invalid Promocode");
+    if (promo.expiresAt && now > promo.expiresAt) throw new HttpError(400, "Invalid Promocode");
 
     if (promo.maxUses != null && Number.isFinite(Number(promo.maxUses))) {
       const maxUses = Number(promo.maxUses);

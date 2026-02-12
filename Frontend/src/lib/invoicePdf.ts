@@ -43,10 +43,10 @@ export const downloadBookingInvoicePdf = async (b: any, opts?: { fileName?: stri
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
 
-  const left = 48;
-  const right = pageW - 48;
+  const left = 36;
+  const right = pageW - 36;
   const contentW = right - left;
-  let y = 48;
+  let y = 36;
 
   const formatMoney = (v: any) => {
     const n = Number(v ?? 0);
@@ -68,6 +68,9 @@ export const downloadBookingInvoicePdf = async (b: any, opts?: { fileName?: stri
 
   const invoiceNo = `INV-${String(b.id ?? "").slice(0, 8).toUpperCase()}`;
   const invoiceDate = new Date();
+
+  const bookingRefRaw = (b as any)?.bookingReference ?? (b as any)?.referenceNo ?? (b as any)?.reference ?? b.id;
+  const bookingRef = String(bookingRefRaw ?? "").trim() || "—";
 
   const drawDivider = (yy: number) => {
     doc.setDrawColor(226, 232, 240);
@@ -133,230 +136,407 @@ export const downloadBookingInvoicePdf = async (b: any, opts?: { fileName?: stri
     doc.text(currency, right - 14 - valueW - 6, yy, { align: "right" });
   };
 
-  doc.setFillColor(17, 24, 39);
-  doc.rect(0, 0, pageW, 120, "F");
+  {
+    const boxX = left;
+    const boxY = 32;
+    const boxW = right - left;
+    const boxH = 132;
 
-  try {
-    const logo = await getLogoDataUrl();
-    doc.addImage(logo, "PNG", left, 28, 44, 44);
-  } catch {
+    // Outer border
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(2);
+    doc.rect(boxX, boxY, boxW, boxH);
+
+    // Inner border
+    doc.setLineWidth(1);
+    doc.rect(boxX + 4, boxY + 4, boxW - 8, boxH - 8);
+
+    const innerLeft = boxX + 14;
+    const innerRight = boxX + boxW - 14;
+    const colGap = 24;
+    const colW = (boxW - 28 - colGap) / 2;
+    const leftColX = innerLeft;
+    const rightColX = innerLeft + colW + colGap;
+    const topY = boxY + 26;
+
+    // Left column
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("CONFIRM BOOKING", leftColX, topY);
+
+    doc.setFontSize(12);
+    doc.text("BOOKING REFERENCE", leftColX, topY + 16);
+
+    doc.setFontSize(14);
+    const refText = `NO :${bookingRef}`;
+    const refLines = doc.splitTextToSize(refText, colW);
+    doc.text(refLines, leftColX, topY + 32);
+
+    const refLineH = 14;
+    const refEndY = topY + 32 + (refLines.length - 1) * refLineH;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    const leftNote = "Kindly print this confirmation and\nhave it\nready upon check-in at the Hotel";
+    const leftNoteY = refEndY + 24;
+    doc.text(leftNote.split("\n"), leftColX, leftNoteY);
+
+    // Right column
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.text("RVJ ENTERPRISES-VINTAGE", rightColX + colW, topY, { align: "right" });
+    doc.setFontSize(18);
+    doc.text("VALLEY RESORT", rightColX + colW, topY + 18, { align: "right" });
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    const address =
+      "Mumbai-Nashik Highway,Opp Pravin\nIndustries,Talegaon,Igatpuri,\nIgatpuri,Nashik - 422403,Maharashtra,India";
+    const addrLines = doc.splitTextToSize(address, colW);
+    const addrStartY = topY + 36;
+    doc.text(addrLines, rightColX + colW, addrStartY, { align: "right" });
+
+    const addrLineH = 12;
+    const addrEndY = addrStartY + (addrLines.length - 1) * addrLineH;
+
+    // Email (underlined)
+    const email = "vintagevalleyresort@gmail.com";
+    let emailY = addrEndY + 16;
+    let phoneY = emailY + 18;
+
+    const safeBottomY = boxY + boxH - 14;
+    if (phoneY > safeBottomY) {
+      const shiftUp = phoneY - safeBottomY;
+      emailY -= shiftUp;
+      phoneY -= shiftUp;
+    }
+
+    doc.text(email, rightColX + colW, emailY, { align: "right" });
+    const emailW = doc.getTextWidth(email);
+    doc.setLineWidth(0.8);
+    doc.line(innerRight - emailW, emailY + 2, innerRight, emailY + 2);
+
+    doc.text("Phone : +919371169888", rightColX + colW, phoneY, { align: "right" });
+
+    y = boxY + boxH + 18;
   }
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.text("VintageValley Resort", left + 56, 52);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.text("Invoice", left + 56, 72);
-
-  const status = String(b.status ?? "—");
-  const pillW = Math.min(170, doc.getTextWidth(status) + 44);
-  const pillX = right - pillW;
-  const pillY = 40;
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(pillX, pillY, pillW, 28, 14, 14, "F");
-  doc.setTextColor(17, 24, 39);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.text(status, pillX + pillW / 2, pillY + 18, { align: "center" });
-
-  y = 150;
   doc.setTextColor(15, 23, 42);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text("Booking Invoice", left + 14, y);
+  // Start content directly below header
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`Invoice No: ${invoiceNo}`, right - 14, y, { align: "right" });
-  y += 14;
-  doc.text(`Invoice Date: ${invoiceDate.toLocaleDateString("en-IN")}`, right - 14, y, { align: "right" });
+  const addPageIfNeeded = (nextY: number) => {
+    if (nextY <= pageH - 60) return;
+    doc.addPage();
+    y = 48;
+  };
 
-  y += 14;
-  drawDivider(y);
-  y += 18;
+  const drawPara = (text: string, x: number, yy: number, maxW: number, lineH: number) => {
+    const lines = doc.splitTextToSize(text, maxW);
+    doc.text(lines, x, yy);
+    return yy + lines.length * lineH;
+  };
 
-  y = drawSectionTitle("Summary", y);
-  y = drawKV("Booking ID", String(b.id ?? "—"), y);
-  y = drawKV("Room", String(b.room?.title ?? "—"), y);
-  y = drawKV(
-    "Dates",
-    `${formatDate(b.checkIn)} ${b.checkInTime ? `(${String(b.checkInTime)})` : ""} - ${formatDate(b.checkOut)} ${b.checkOutTime ? `(${String(b.checkOutTime)})` : ""}`.trim(),
-    y
-  );
-  y = drawKV("Rooms", String(b.rooms ?? 1), y);
-  y = drawKV(
-    "Guest Summary",
-    `${String(b.guests ?? "—")} total (A:${String(b.adults ?? "—")}, C:${String(b.children ?? "—")}, Extra:${String(b.extraAdults ?? "—")})`,
-    y
-  );
+  const drawLabelColonValue = (label: string, value: string, yy: number) => {
+    const x = left + 14;
+    const labelW = 120;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    doc.text(label, x, yy);
+    doc.text(":", x + labelW, yy);
+    doc.text(String(value ?? ""), x + labelW + 10, yy);
+    return yy + 16;
+  };
 
-  if (mealPlanCpAmount > 0.000001) {
-    y = drawKV("Meal Plan", "CP (day-wise)", y);
-  } else {
-    y = drawKV("Meal Plan", "EP/MAP", y);
-  }
+  const drawTableHeaderBox = (
+    yy: number,
+    headers: { text: string; x: number; align?: "left" | "right" | "center"; maxWidth?: number }[]
+  ) => {
+    const x = left + 14;
+    const w = contentW - 28;
+    const h = 22;
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(1.2);
+    doc.rect(x, yy, w, h);
+    doc.setLineWidth(0.6);
+    doc.rect(x + 2, yy + 2, w - 4, h - 4);
 
-  y += 10;
-  drawDivider(y);
-  y += 18;
-
-  // Price summary (print/PDF friendly)
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(71, 85, 105);
-  doc.text("Base Amount", left + 14, y);
-  drawMoneyRight(y, computedBase, { muted: true });
-  y += 16;
-
-  if (mealPlanCpAmount > 0.000001) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.setTextColor(71, 85, 105);
-    doc.text("CP Plan Charge", left + 14, y);
-    drawMoneyRight(y, mealPlanCpAmount, { muted: true });
-    y += 16;
-  }
+    doc.setTextColor(0, 0, 0);
+    const textY = yy + 15;
+    for (const hd of headers) {
+      const opts: any = { align: hd.align ?? "left" };
+      if (typeof hd.maxWidth === "number") opts.maxWidth = hd.maxWidth;
+      doc.text(hd.text, hd.x, textY, opts);
+    }
+    return yy + h + 14;
+  };
 
+  // Greeting + intro
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(71, 85, 105);
-  doc.text("Convenience Fee (2%)", left + 14, y);
-  drawMoneyRight(y, computedConvenience, { muted: true });
-  y += 16;
+  doc.setFontSize(12);
+  doc.setTextColor(0, 0, 0);
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(71, 85, 105);
-  doc.text("GST (5%)", left + 14, y);
-  drawMoneyRight(y, computedGst, { muted: true });
+  const guestName = String(b.user?.name ?? "").trim() || "Guest";
+  y = drawPara(`Dear ${guestName},`, left + 14, y, contentW - 28, 16);
+  y += 6;
+  y = drawPara(
+    "Thank you for choosing RVJ ENTERPRISES-VINTAGE VALLEY RESORT for your stay. We are pleased to inform\nyou that your reservation request is CONFIRMED and your reservation details are as follows.",
+    left + 14,
+    y,
+    contentW - 28,
+    16
+  );
+  y += 18;
+
+  // Booking Details
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text("Booking Details", left + 14, y);
+  y += 18;
+
+  const bookingDate = (b as any)?.createdAt ? formatDate((b as any).createdAt) : formatDate(invoiceDate);
+  const checkInDate = formatDate(b.checkIn);
+  const checkOutDate = formatDate(b.checkOut);
+  const nights = String((b as any)?.nights ?? "—");
+  const arrivalTime = String((b as any)?.checkInTime ?? "").trim() || "—";
+  const checkoutTime = String((b as any)?.checkOutTime ?? "").trim() || "—";
+  const specialRequest = String((b as any)?.additionalInformation ?? "").trim();
+
+  y = drawLabelColonValue("Booking Date", bookingDate, y);
+  y = drawLabelColonValue("Check In Date", checkInDate, y);
+  y = drawLabelColonValue("Check Out Date", `${checkOutDate} ${checkoutTime !== "—" ? checkoutTime : ""}`.trim(), y);
+  y = drawLabelColonValue("Nights", nights, y);
+  y = drawLabelColonValue("Arrival Time", arrivalTime, y);
+  y = drawLabelColonValue("Special Request", specialRequest, y);
   y += 12;
 
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.5);
-  doc.line(left + 14, y, right - 14, y);
+  // Your Details
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text("Your Details", left + 14, y);
+  y += 18;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(11);
+  doc.text(guestName, left + 14, y);
   y += 16;
+  doc.text("Email ID", left + 14, y);
+  doc.text(":", left + 14 + 120, y);
+  doc.text(String(b.user?.email ?? ""), left + 14 + 130, y);
+  y += 22;
+
+  // Rooms Details
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text("Rooms Details", left + 14, y);
+  y += 12;
+  addPageIfNeeded(y + 70);
+
+  const tableX = left + 14;
+  const tableW = contentW - 28;
+  const col1 = tableX + 6;
+  const col2 = tableX + tableW * 0.34;
+  const col3 = tableX + tableW * 0.50;
+  const col4 = tableX + tableW * 0.70;
+  const col5 = tableX + tableW - 6;
+
+  y = drawTableHeaderBox(y, [
+    { text: "Room Type", x: col1, align: "left" },
+    { text: "Guest(s)", x: col2, align: "left" },
+    { text: "No of rooms", x: col3, align: "left" },
+    { text: "Package if any", x: col4, align: "left", maxWidth: Math.max(40, col5 - col4 - 10) },
+    { text: "Promotion if any", x: col5, align: "right" },
+  ]);
+
+  const roomTitle = String(b.room?.title ?? "—");
+  const adults = Number(b.adults ?? 0);
+  const children = Number(b.children ?? 0);
+  const guestSummary = `${adults} adult & ${children}\nchild`;
+  const noOfRooms = String(b.rooms ?? 1);
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(15, 23, 42);
-  doc.text("Total Amount", left + 14, y);
-  drawMoneyRight(y, b.amount, { strong: true });
+  doc.setFontSize(11);
+  const roomTitleLines = doc.splitTextToSize(roomTitle, (col2 - col1) - 8);
+  doc.text(roomTitleLines, col1, y);
+  doc.setFont("helvetica", "normal");
+  const guestLines = guestSummary.split("\n");
+  doc.text(guestLines, col2, y);
+  doc.text(noOfRooms, col3, y);
+  doc.text("None", col4, y);
+  doc.text("None", col5, y, { align: "right" } as any);
+
+  const rowLineH = 12;
+  const rowH = Math.max(roomTitleLines.length * rowLineH, guestLines.length * rowLineH, 14);
+  y += rowH + 6;
+  doc.setFont("helvetica", "bold");
+  doc.text("Description", tableX, y);
+  doc.setFont("helvetica", "normal");
+  doc.text(`: ${roomTitle}`, tableX + 70, y);
   y += 14;
+  doc.text("- AP", tableX, y);
+  y += 18;
 
-  drawDivider(y);
-  y += 22;
+  // Rates Details
+  addPageIfNeeded(y + 180);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text("Rates Details", left + 14, y);
+  y += 12;
 
-  y = drawSectionTitle("Customer", y);
-  y = drawKV("Name", String(b.user?.name ?? "—"), y);
-  y = drawKV("Email", String(b.user?.email ?? "—"), y);
-  y = drawKV("Phone", String(b.user?.phone ?? "—"), y);
+  const ratesHeaderY = y;
+  y = drawTableHeaderBox(ratesHeaderY, [
+    { text: "Details", x: tableX + 6, align: "left" },
+    { text: "Rates (Rs)", x: tableX + tableW - 6, align: "right" },
+  ]);
 
-  y += 14;
-  drawDivider(y);
-  y += 22;
+  const totalRoomCharges = Number.isFinite(Number(b.baseAmount)) ? Number(b.baseAmount) : computedBase;
+  const roomChargesTax = Number.isFinite(Number(b.gstAmount))
+    ? Number(b.gstAmount)
+    : Math.max(0, Number(b.amount ?? 0) - totalRoomCharges);
+  const inclusions = 0;
+  const extraCharges = 0;
+  const roundOff = 0;
+  const grandTotal = Number(b.amount ?? 0);
+  const totalPaid = Array.isArray((b as any)?.payments)
+    ? (b as any).payments
+        .filter((p: any) => String(p?.status ?? "").toUpperCase() === "PAID")
+        .reduce((sum: number, p: any) => sum + (Number.isFinite(Number(p?.amount)) ? Number(p.amount) : 0), 0)
+    : Number(paid?.amount ?? 0);
+  const dueAtCheckIn = Math.max(0, grandTotal - totalPaid);
 
-  y = drawSectionTitle("Payment", y);
-  y = drawKV("Booking Status", String(b.status ?? "—"), y);
-  y = drawKV("Payment Status", String(paid?.status ?? "—"), y);
-  y = drawKV("Method", formatMethod(paid?.method), y);
-  y = drawKV("Razorpay Order", String(paid?.razorpayOrderId ?? "—"), y);
-  y = drawKV("Razorpay Payment", String(paid?.razorpayPaymentId ?? "—"), y);
-
-  if (b.additionalInformation) {
-    y += 14;
-    drawDivider(y);
-    y += 22;
-    y = drawSectionTitle("Additional Information", y);
+  const drawRateRow = (label: string, amount: any) => {
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(15, 23, 42);
-    const text = String(b.additionalInformation);
-    const lines = doc.splitTextToSize(text, contentW - 28);
-    doc.text(lines, left + 14, y + 6);
-  }
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    doc.text(label, tableX + 6, y);
+    doc.text(formatMoney(amount), tableX + tableW - 6, y, { align: "right" } as any);
+    y += 16;
+  };
 
-  // Terms & Conditions
+  drawRateRow("Total Room Charges", totalRoomCharges);
+  drawRateRow("Room Charges Tax", roomChargesTax);
+  drawRateRow("Inclusions Including Tax", inclusions);
+  drawRateRow("Extra Charges Including Discount and Tax", extraCharges);
+  drawRateRow("Round Off", roundOff);
+  y += 2;
+  drawRateRow("Grand Total", grandTotal);
+  drawRateRow("Total Paid", totalPaid);
+  drawRateRow("Amount due at time of check in", dueAtCheckIn);
+
+  y += 12;
+
+  // BOOKING AMOUNT box
   {
-    const addPageIfNeeded = (nextY: number) => {
-      if (nextY <= pageH - 72) return;
-      doc.addPage();
-      y = 60;
-    };
-
-    y += 14;
-    drawDivider(y);
-    y += 22;
-    addPageIfNeeded(y + 20);
-    y = drawSectionTitle("Terms & Conditions", y);
+    const boxW = 210;
+    const boxH = 56;
+    const boxX = left + 14;
+    const boxY = y;
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(1);
+    doc.rect(boxX, boxY, boxW, boxH);
+    doc.setLineWidth(0.6);
+    doc.rect(boxX + 3, boxY + 3, boxW - 6, boxH - 6);
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(15, 23, 42);
-
-    const terms = [
-      "Last updated: June 15, 2024",
-      "",
-      "1. Acceptance of Terms",
-      "By accessing and using the services of Vintage Valley Resort, you accept and agree to be bound by the terms and provisions of this agreement. If you do not agree to abide by the above, please do not use this service.",
-      "",
-      "2. Reservation and Cancellation Policy",
-      "Reservations must be guaranteed with a valid credit card at the time of booking.",
-      "Cancellations made 48 hours or more before the scheduled arrival date will receive a full refund.",
-      "Cancellations made less than 48 hours before the scheduled arrival date will be charged for one night's stay.",
-      "Early departures will be charged for the entire reserved stay.",
-      "",
-      "3. Check-in and Check-out",
-      "Check-in time is 1:00 PM. Early check-in is subject to availability.",
-      "Check-out time is 11:00 AM. Late check-out may result in additional charges.",
-      "A valid government-issued photo ID is required at check-in.",
-      "",
-      "4. Resort Rules",
-      "Smoking is prohibited in all indoor areas of the resort.",
-      "Pets are not allowed unless specifically stated as a pet-friendly room.",
-      "Quiet hours are from 10:00 PM to 7:00 AM.",
-      "The resort is not responsible for any loss or damage to personal belongings.",
-      "Guests are liable for any damage caused to resort property during their stay.",
-      "",
-      "5. Child and Extra Person Policy",
-      "Children below 5 years of age stay free when using existing bedding.",
-      "Children between 5 to 12 years are charged ₹1200 per night.",
-      "Extra person charges (above 12 years) are ₹1500 per night.",
-      "Maximum occupancy per room varies by room type.",
-      "",
-      "6. Facility Usage",
-      "Use of resort facilities is at the guest's own risk.",
-      "Children must be supervised at all times, especially in the pool area.",
-      "The resort reserves the right to close any facility for maintenance without prior notice.",
-      "Operating hours for facilities are subject to change.",
-      "",
-      "7. Limitation of Liability",
-      "Vintage Valley Resort shall not be liable for any direct, indirect, incidental, special, or consequential damages resulting from the use or inability to use the services or for the cost of procurement of substitute services.",
-      "",
-      "8. Governing Law",
-      "These terms and conditions are governed by and construed in accordance with the laws of India, and you irrevocably submit to the exclusive jurisdiction of the courts in Maharashtra, India.",
-      "",
-      "9. Contact Information",
-      "For questions or concerns regarding these terms and conditions, please contact us at:",
-      "Email: vintagevalleyresort@gmail.com",
-      "Phone: +91 9371179888",
-      "Address: Mumbai - Nashik Expy, opp. Parveen Industry, Talegaon, Igatpuri, Maharashtra 422402.",
-    ].join("\n");
-
-    const lines = doc.splitTextToSize(terms, contentW - 28);
-    for (const line of lines) {
-      addPageIfNeeded(y + 14);
-      doc.text(String(line), left + 14, y);
-      y += 12;
-    }
+    doc.setFontSize(16);
+    doc.text("BOOKING AMOUNT", boxX + boxW / 2, boxY + 24, { align: "center" } as any);
+    doc.setFontSize(13);
+    doc.text(`Rs ${formatMoney(grandTotal)} (INR)`, boxX + boxW / 2, boxY + 44, { align: "center" } as any);
+    y = boxY + boxH + 22;
   }
 
-  doc.setFontSize(9);
-  doc.setTextColor(71, 85, 105);
-  doc.text("This invoice is system generated and valid without signature.", left, pageH - 56);
-  doc.text("VintageValley Resort", right, pageH - 56, { align: "right" });
+  // Keep Rates Details + Booking Amount on page 1
+  // Move remaining sections to the next page to match the provided design
+  doc.addPage();
+  y = 48;
+
+  // Booked & Payable By (right side)
+  {
+    addPageIfNeeded(y + 60);
+    const rightX = right - 14;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Booked & Payable By", rightX, y, { align: "right" } as any);
+    y += 16;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    const nameLines = doc.splitTextToSize(guestName, 180);
+    doc.text(nameLines, rightX, y, { align: "right" } as any);
+    y += nameLines.length * 14;
+    y += 18;
+  }
+
+  // Conditions & Policies
+  addPageIfNeeded(y + 240);
+  {
+    const headerY = y;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+
+    // Header box
+    const x = left + 14;
+    const w = contentW - 28;
+    const h = 22;
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(1.2);
+    doc.rect(x, headerY, w, h);
+    doc.setLineWidth(0.6);
+    doc.rect(x + 2, headerY + 2, w - 4, h - 4);
+    doc.text("Conditions & Policies", x + 6, headerY + 15);
+    y = headerY + h + 14;
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Cancellation Policy", x, y);
+    y += 16;
+    doc.setFont("helvetica", "normal");
+    const cancelText =
+      "0-07 DAYS PRIOR TO STAY -NO REFUND. 08-15 DAYS PRIOR TO STAY -25% REFUND. 15-30 DAYS PRIOR TO STAY- 50% REFUND. MORE THAN 30 DAYS PRIOR TO STAY- 75% REFUND. ALL NO SHOWS WILL BE CHARGED AS PER THE BOOKING DETAILS. ALL REFUNDS WILL BE ATTRACT A 10% ADMINISTRATIVE CHARGES AND IT WOULD TAKE A MININUM OF 10 WORKING DAYS";
+    y = drawPara(cancelText, x, y, w, 14);
+    y += 10;
+    doc.setFont("helvetica", "bold");
+    doc.text("Hotel Policy", x, y);
+    y += 18;
+    doc.setFont("helvetica", "bold");
+    doc.text("Hotel Check in Time", x, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(": 01:00 PM", x + 130, y);
+    y += 16;
+    doc.setFont("helvetica", "bold");
+    doc.text("Hotel Check out Time", x, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(": 11:00 AM", x + 130, y);
+    y += 22;
+
+    doc.setFont("helvetica", "bold");
+    doc.text("This email has been sent from an automated system - please do not reply to it.", x + w / 2, y, { align: "center" } as any);
+    y += 10;
+    doc.setDrawColor(120, 120, 120);
+    doc.setLineWidth(0.8);
+    doc.line(x, y + 8, x + w, y + 8);
+    y += 26;
+
+    doc.setFont("helvetica", "normal");
+    doc.text("**** FOR ANY FURTHER QUERY ****", x, y);
+    y += 16;
+    doc.text("Contact us by Email Id", x, y);
+    doc.text("vintagevalleyresort@gmail.com", x + 140, y);
+    y += 14;
+    doc.text("Phone NO  : +919371169888", x, y);
+    y += 14;
+    const addr = "Mumbai-Nashik Highway,Opp Pravin Industries,Talegaon,Igatpuri,Igatpuri,Nashik-422403,Maharashtra,India";
+    const addrLines = doc.splitTextToSize(addr, w);
+    doc.text(addrLines, x, y);
+    y += addrLines.length * 14;
+    y += 6;
+    doc.setDrawColor(120, 120, 120);
+    doc.setLineWidth(0.8);
+    doc.line(x, y, x + w, y);
+  }
 
   const rawFileName = opts?.fileName?.trim();
   const safeFileName = rawFileName

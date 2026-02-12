@@ -1,10 +1,10 @@
-import { prisma } from "../prisma/client";
-import { HttpError } from "../middlewares/errorHandler";
-import { env } from "../config/env";
-import { sendMailSafe } from "../utils/mailer";
-import { getRazorpayClient } from "../utils/razorpay";
 import { Prisma } from "@prisma/client";
+import { prisma } from "../config/db";
+import { env } from "../config/env";
+import { HttpError } from "../middlewares/errorHandler";
+import { getRazorpayClient } from "../utils/razorpay";
 import { promoService } from "./promoService";
+import { sendMailSafe } from "../utils/mailer";
 
 export const bookingService = {
   async createBooking(params: {
@@ -87,6 +87,7 @@ export const bookingService = {
     }
 
     let cpNights = 0;
+    let mapNights = 0;
     const mealPlanByDate: Array<{ date: string; plan: "EP" | "CP" | "MAP" }> = [];
     {
       const cursor = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
@@ -94,16 +95,25 @@ export const bookingService = {
         const key = normalizeDateKey(cursor);
         const plan = planMap.get(key) ?? "EP";
         if (plan === "CP") cpNights += 1;
+        if (plan === "MAP") mapNights += 1;
         mealPlanByDate.push({ date: key, plan });
         cursor.setDate(cursor.getDate() + 1);
       }
     }
 
+    const title = String(room?.title ?? "").toLowerCase();
+    const mapRatePerGuestPerNight = title.includes("lotus") || title.includes("presidential")
+      ? 2000
+      : title.includes("deluxe") || title.includes("edge")
+      ? 1000
+      : 0;
+
     const base = room.pricePerNight * nights * rooms;
     const childCharge = 1200 * params.children * nights;
     const extraAdultCharge = 1500 * params.extraAdults * nights;
     const cpAmountNum = round2(500 * Number(params.guests) * cpNights);
-    const originalBaseAmountNum = round2(base + childCharge + extraAdultCharge + cpAmountNum);
+    const mapAmountNum = round2(mapRatePerGuestPerNight * Number(params.guests) * mapNights);
+    const originalBaseAmountNum = round2(base + childCharge + extraAdultCharge + cpAmountNum + mapAmountNum);
 
     let promoToAttach: { id: string; code: string } | null = null;
     let discountAmountNum = 0;
@@ -395,6 +405,7 @@ export const bookingService = {
         include: {
           room: { select: { id: true, title: true, pricePerNight: true } },
           user: { select: { id: true, name: true, email: true } },
+          payments: true,
         },
       });
 
@@ -406,12 +417,107 @@ export const bookingService = {
         const baseAmount = Number(fullBooking.baseAmount ?? roomTotal + childCharge + extraAdultCharge);
         const gstAmount = Number(fullBooking.gstAmount ?? Math.round(baseAmount * 0.05));
         const fmt = (n: number) => `₹${Number(n ?? 0).toLocaleString("en-IN")}`;
-        const subject = `Booking Confirmed - ${fullBooking.id}`;
+        const subject = `Payment Successful • Booking Confirmed - ${fullBooking.id}`;
+
+        const paidAmount = Array.isArray(fullBooking.payments)
+          ? fullBooking.payments
+              .filter((p: any) => p?.status === "PAID")
+              .reduce((sum: number, p: any) => sum + Number(p?.amount ?? 0), 0)
+          : 0;
+
+        const invoiceHtml = `
+          <div style="font-family:Arial,Helvetica,sans-serif;max-width:760px;margin:0 auto;padding:24px;background:#ffffff;color:#111827;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid #e5e7eb;border-radius:16px;padding:18px 18px 14px;">
+              <div>
+                <div style="font-size:18px;font-weight:800;">Vintage Valley</div>
+                <div style="font-size:12px;color:#6b7280;">Invoice / Booking Confirmation</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:12px;color:#6b7280;">Booking ID</div>
+                <div style="font-size:14px;font-weight:800;">${fullBooking.id}</div>
+              </div>
+            </div>
+
+            <div style="margin-top:14px;border:1px solid #e5e7eb;border-radius:16px;padding:18px;">
+              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+                <div style="background:#fef3c7;border-radius:999px;padding:8px 12px;font-weight:700;">Status: CONFIRMED</div>
+                <div style="background:#ecfdf5;border-radius:999px;padding:8px 12px;font-weight:700;">Paid: ${fmt(paidAmount || fullBooking.amount)}</div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                  <div style="font-size:12px;color:#6b7280;">Guest</div>
+                  <div style="font-weight:700;">${String(fullBooking.user?.name ?? "Guest")}</div>
+                  <div style="font-size:12px;color:#6b7280;">${String(fullBooking.user?.email ?? "")}</div>
+                </div>
+                <div>
+                  <div style="font-size:12px;color:#6b7280;">Room</div>
+                  <div style="font-weight:700;">${String(fullBooking.room?.title ?? "Room")}</div>
+                  <div style="font-size:12px;color:#6b7280;">${fmt(fullBooking.room?.pricePerNight ?? 0)} / night</div>
+                </div>
+              </div>
+
+              <div style="border-top:1px dashed #e5e7eb;margin-top:14px;padding-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                  <div style="font-size:12px;color:#6b7280;">Check-in</div>
+                  <div style="font-weight:700;">${new Date(fullBooking.checkIn).toLocaleDateString()}</div>
+                </div>
+                <div>
+                  <div style="font-size:12px;color:#6b7280;">Check-out</div>
+                  <div style="font-weight:700;">${new Date(fullBooking.checkOut).toLocaleDateString()}</div>
+                </div>
+                <div>
+                  <div style="font-size:12px;color:#6b7280;">Nights</div>
+                  <div style="font-weight:700;">${Number(fullBooking.nights ?? 0)}</div>
+                </div>
+                <div>
+                  <div style="font-size:12px;color:#6b7280;">Rooms</div>
+                  <div style="font-weight:700;">${Number.isFinite(rooms) && rooms > 0 ? rooms : 1}</div>
+                </div>
+              </div>
+
+              <div style="border-top:1px dashed #e5e7eb;margin-top:14px;padding-top:14px;">
+                <div style="font-weight:800;margin-bottom:8px;">Price Breakdown</div>
+                <table style="width:100%;border-collapse:collapse;">
+                  <tbody>
+                    <tr>
+                      <td style="padding:6px 0;color:#374151;">Room total</td>
+                      <td style="padding:6px 0;text-align:right;font-weight:700;">${fmt(roomTotal)}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;color:#374151;">Children charge</td>
+                      <td style="padding:6px 0;text-align:right;font-weight:700;">${fmt(childCharge)}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;color:#374151;">Extra adults charge</td>
+                      <td style="padding:6px 0;text-align:right;font-weight:700;">${fmt(extraAdultCharge)}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;color:#374151;">Base amount</td>
+                      <td style="padding:6px 0;text-align:right;font-weight:700;">${fmt(baseAmount)}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;color:#374151;">GST (5%)</td>
+                      <td style="padding:6px 0;text-align:right;font-weight:700;">${fmt(gstAmount)}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:10px 0;border-top:1px solid #e5e7eb;font-size:16px;font-weight:900;">Total</td>
+                      <td style="padding:10px 0;border-top:1px solid #e5e7eb;text-align:right;font-size:16px;font-weight:900;">${fmt(fullBooking.amount)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div style="margin-top:12px;color:#6b7280;font-size:12px;">This invoice is generated automatically. Please keep it for your records.</div>
+            </div>
+          </div>
+        `;
+
         const html = `
           <div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:0 auto;padding:24px;background:#ffffff;color:#1f2937;">
             <div style="border:1px solid #e5e7eb;border-radius:16px;padding:20px;">
-              <h2 style="margin:0 0 8px 0;">Booking Confirmation</h2>
-              <div style="color:#6b7280;margin-bottom:16px;">Thank you, ${fullBooking.user.name}. Your booking is confirmed.</div>
+              <h2 style="margin:0 0 8px 0;">Payment Successful</h2>
+              <div style="color:#6b7280;margin-bottom:16px;">Thank you, ${fullBooking.user.name}. Your booking is confirmed. Your invoice is attached.</div>
 
               <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
                 <div style="background:#fef3c7;border-radius:999px;padding:8px 12px;font-weight:700;">Booking ID: ${fullBooking.id}</div>
@@ -470,8 +576,21 @@ export const bookingService = {
           subject,
           html,
           from: env.EMAIL_FROM,
+          replyTo: fullBooking.user.email,
           gmailUser: env.GMAIL_USER,
           gmailAppPassword: env.GMAIL_APP_PASSWORD,
+          smtpHost: env.SMTP_HOST,
+          smtpPort: env.SMTP_PORT,
+          smtpSecure: env.SMTP_SECURE,
+          smtpUser: env.SMTP_USER,
+          smtpPass: env.SMTP_PASS,
+          attachments: [
+            {
+              filename: `Invoice-${fullBooking.id}.html`,
+              content: invoiceHtml,
+              contentType: "text/html",
+            },
+          ],
         });
       }
     } catch {

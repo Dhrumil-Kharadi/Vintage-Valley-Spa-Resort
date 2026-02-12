@@ -8,4 +8,5 @@ adminPromoRouter.use(requireAuth, requireAdmin);
 
 adminPromoRouter.get("/", adminPromoController.list);
 adminPromoRouter.post("/", adminPromoController.create);
+adminPromoRouter.delete("/:id", adminPromoController.delete);
 adminPromoRouter.patch("/:id/active", adminPromoController.setActive);

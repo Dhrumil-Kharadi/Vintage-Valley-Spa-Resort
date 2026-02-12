@@ -1,11 +1,9 @@
 
 import { Phone, Mail, MapPin, Facebook, Instagram, Twitter } from 'lucide-react';
-import { useState } from 'react';
-import PolicyModals from './PolicyModals';
+import { usePolicyModals } from './PolicyModals';
 
 const Footer = () => {
-  const [privacyOpen, setPrivacyOpen] = useState(false);
-  const [termsOpen, setTermsOpen] = useState(false);
+  const { openPrivacy, openTerms } = usePolicyModals();
   return (
     <footer className="bg-gray-800 text-ivory">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-8 sm:py-12 lg:py-16">
@@ -109,14 +107,14 @@ const Footer = () => {
         <div className="border-t border-ivory/20 mt-8 sm:mt-12 pt-6 sm:pt-8 text-center">
           <div className="flex justify-center space-x-4 mb-3">
             <button 
-              onClick={() => setPrivacyOpen(true)} 
+              onClick={openPrivacy} 
               className="text-ivory/60 text-xs sm:text-sm hover:text-gold transition-colors duration-200"
             >
               Privacy Policy
             </button>
             <span className="text-ivory/60">|</span>
             <button 
-              onClick={() => setTermsOpen(true)} 
+              onClick={openTerms} 
               className="text-ivory/60 text-xs sm:text-sm hover:text-gold transition-colors duration-200"
             >
               Terms & Conditions
@@ -127,13 +125,6 @@ const Footer = () => {
           </p>
         </div>
         
-        {/* Policy Modals */}
-        <PolicyModals 
-          privacyOpen={privacyOpen}
-          termsOpen={termsOpen}
-          onPrivacyOpenChange={setPrivacyOpen}
-          onTermsOpenChange={setTermsOpen}
-        />
       </div>
     </footer>
   );

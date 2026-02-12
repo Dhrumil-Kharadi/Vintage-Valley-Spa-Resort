@@ -143,7 +143,9 @@ const AdminLayout = ({ title, description, children }: AdminLayoutProps) => {
           </div>
         </div>
 
-        <main className="p-4 sm:p-6">{children}</main>
+        <main className="p-3 sm:p-6 max-w-full overflow-x-hidden">
+          <div className="max-w-full overflow-x-auto">{children}</div>
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );

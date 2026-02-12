@@ -63,7 +63,7 @@ const AdminInquiries = () => {
 
   return (
     <AdminLayout title="Inquiries" description="Reservation inquiries submitted from the Contact page.">
-      <div className="bg-white rounded-3xl p-8 luxury-shadow">
+      <div className="bg-white rounded-3xl p-4 sm:p-8 luxury-shadow">
         {error && (
           <div className="bg-gold/10 border border-gold/20 text-gray-800 px-4 py-3 rounded-2xl mb-4">{error}</div>
         )}
@@ -113,7 +113,7 @@ const AdminInquiries = () => {
                     </div>
                   </div>
 
-                  <div className="mt-4 whitespace-pre-wrap text-gray-800/80 text-sm">{i.message}</div>
+                  <div className="mt-4 whitespace-pre-wrap break-words text-gray-800/80 text-sm">{i.message}</div>
                 </div>
               ))}
             </div>

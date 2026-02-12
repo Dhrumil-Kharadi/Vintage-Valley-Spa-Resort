@@ -1,6 +1,19 @@
-import { useState } from 'react';
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { X } from 'lucide-react';
+
+type PolicyModalsContextValue = {
+  openPrivacy: () => void;
+  openTerms: () => void;
+};
+
+const PolicyModalsContext = createContext<PolicyModalsContextValue | null>(null);
+
+export const usePolicyModals = () => {
+  const ctx = useContext(PolicyModalsContext);
+  if (!ctx) throw new Error('usePolicyModals must be used within PolicyModalsProvider');
+  return ctx;
+};
 
 interface PolicyModalsProps {
   privacyOpen: boolean;
@@ -215,6 +228,31 @@ const PolicyModals = ({
         </DialogContent>
       </Dialog>
     </>
+  );
+};
+
+export const PolicyModalsProvider = ({ children }: { children: ReactNode }) => {
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
+
+  const value = useMemo(
+    () => ({
+      openPrivacy: () => setPrivacyOpen(true),
+      openTerms: () => setTermsOpen(true),
+    }),
+    []
+  );
+
+  return (
+    <PolicyModalsContext.Provider value={value}>
+      {children}
+      <PolicyModals
+        privacyOpen={privacyOpen}
+        termsOpen={termsOpen}
+        onPrivacyOpenChange={setPrivacyOpen}
+        onTermsOpenChange={setTermsOpen}
+      />
+    </PolicyModalsContext.Provider>
   );
 };
 

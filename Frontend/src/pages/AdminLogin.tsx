@@ -48,10 +48,10 @@ const AdminLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-ivory flex items-center justify-center px-4">
+    <div className="min-h-screen bg-ivory flex items-center justify-center px-3 sm:px-4">
       <div className="w-full max-w-2xl">
-        <div className="bg-white rounded-3xl p-8 luxury-shadow">
-          <div className="text-center mb-8">
+        <div className="bg-white rounded-3xl p-4 sm:p-8 luxury-shadow">
+          <div className="text-center mb-6 sm:mb-8">
             <h1 className="font-playfair text-4xl md:text-5xl font-bold text-gray-800">Admin Login</h1>
             <p className="text-gray-800/70 mt-3">Sign in to manage rooms and bookings.</p>
           </div>
