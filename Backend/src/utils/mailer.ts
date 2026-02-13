@@ -116,13 +116,23 @@ export const sendMailSafe = async (params: {
       pass,
     });
 
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: params.from ?? user,
       to: params.to,
       replyTo: params.replyTo,
       subject: params.subject,
       html: params.html,
       attachments: params.attachments,
+    });
+
+    // eslint-disable-next-line no-console
+    console.error("MAILER SENT >>>", {
+      to: params.to,
+      subject: params.subject,
+      messageId: (info as any)?.messageId,
+      response: (info as any)?.response,
+      accepted: (info as any)?.accepted,
+      rejected: (info as any)?.rejected,
     });
   } catch (err) {
     // eslint-disable-next-line no-console
