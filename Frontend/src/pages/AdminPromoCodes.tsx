@@ -33,7 +33,7 @@ const AdminPromoCodes = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/admin-api/promos", { credentials: "include" });
+      const res = await fetch("/api/promos", { credentials: "include" });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error?.message ?? "Failed to load promo codes");
       setPromos(data?.data?.promos ?? []);
@@ -52,7 +52,7 @@ const AdminPromoCodes = () => {
     if (!ok) return;
 
     try {
-      const res = await fetch(`/admin-api/promos/${encodeURIComponent(id)}`, {
+      const res = await fetch(`/api/promos/${encodeURIComponent(id)}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -92,7 +92,7 @@ const AdminPromoCodes = () => {
     if (expiresAt.trim()) payload.expiresAt = expiresAt;
 
     try {
-      const res = await fetch("/admin-api/promos", {
+      const res = await fetch("/api/promos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -121,7 +121,7 @@ const AdminPromoCodes = () => {
 
   const toggleActive = async (p: Promo) => {
     try {
-      const res = await fetch(`/admin-api/promos/${encodeURIComponent(p.id)}/active`, {
+      const res = await fetch(`/api/promos/${encodeURIComponent(p.id)}/active`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

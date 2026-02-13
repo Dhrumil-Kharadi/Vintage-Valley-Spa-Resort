@@ -21,6 +21,13 @@ exports.adminPromoController = {
         const promos = await adminPromoService_1.adminPromoService.list();
         res.json({ ok: true, data: { promos } });
     }),
+    delete: (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+        const id = String(req.params.id ?? "").trim();
+        if (!id)
+            return res.status(400).json({ ok: false, error: { message: "Invalid promo id" } });
+        await adminPromoService_1.adminPromoService.delete({ id });
+        res.json({ ok: true });
+    }),
     create: (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         const body = createSchema.parse(req.body);
         const promo = await adminPromoService_1.adminPromoService.create({

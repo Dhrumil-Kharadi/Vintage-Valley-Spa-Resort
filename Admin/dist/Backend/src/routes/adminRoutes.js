@@ -11,6 +11,7 @@ exports.adminRouter.get("/users", adminController_1.adminController.users);
 exports.adminRouter.get("/rooms", adminController_1.adminController.rooms);
 exports.adminRouter.get("/bookings", adminController_1.adminController.bookings);
 exports.adminRouter.post("/bookings/manual", adminController_1.adminController.createManualBooking);
+exports.adminRouter.delete("/bookings/:id", adminController_1.adminController.deleteBooking);
 exports.adminRouter.get("/payments", adminController_1.adminController.payments);
 exports.adminRouter.get("/inquiries", inquiryController_1.inquiryController.list);
 exports.adminRouter.get("/inquiries/unread-count", inquiryController_1.inquiryController.unreadCount);

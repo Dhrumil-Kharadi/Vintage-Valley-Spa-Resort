@@ -8,5 +8,7 @@ exports.adminDataRouter = (0, express_1.Router)();
 exports.adminDataRouter.use(auth_1.requireAuth, auth_1.requireAdmin);
 exports.adminDataRouter.get("/users", adminDataController_1.adminDataController.users);
 exports.adminDataRouter.get("/bookings", adminDataController_1.adminDataController.bookings);
+exports.adminDataRouter.post("/bookings/manual", adminDataController_1.adminDataController.createManualBooking);
+exports.adminDataRouter.delete("/bookings/:id", adminDataController_1.adminDataController.deleteBooking);
 exports.adminDataRouter.get("/payments", adminDataController_1.adminDataController.payments);
 exports.adminDataRouter.get("/rooms", adminDataController_1.adminDataController.rooms);

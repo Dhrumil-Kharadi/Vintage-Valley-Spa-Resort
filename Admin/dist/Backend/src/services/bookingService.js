@@ -1,16 +1,16 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.bookingService = void 0;
-const client_1 = require("../prisma/client");
-const errorHandler_1 = require("../middlewares/errorHandler");
+const client_1 = require("@prisma/client");
+const db_1 = require("../config/db");
 const env_1 = require("../config/env");
-const mailer_1 = require("../utils/mailer");
+const errorHandler_1 = require("../middlewares/errorHandler");
 const razorpay_1 = require("../utils/razorpay");
-const client_2 = require("@prisma/client");
 const promoService_1 = require("./promoService");
+const mailer_1 = require("../utils/mailer");
 exports.bookingService = {
     async createBooking(params) {
-        const user = await client_1.prisma.user.findUnique({
+        const user = await db_1.prisma.user.findUnique({
             where: { id: params.userId },
             select: { id: true, name: true, email: true },
         });
@@ -19,7 +19,7 @@ exports.bookingService = {
         const razorpay = (0, razorpay_1.getRazorpayClient)();
         if (!razorpay)
             throw new errorHandler_1.HttpError(500, "Payment provider not configured");
-        const room = await client_1.prisma.room.findUnique({ where: { id: params.roomId } });
+        const room = await db_1.prisma.room.findUnique({ where: { id: params.roomId } });
         if (!room)
             throw new errorHandler_1.HttpError(404, "Room not found");
         const checkInDate = new Date(params.checkIn);
@@ -69,6 +69,7 @@ exports.bookingService = {
             planMap.set(key, plan);
         }
         let cpNights = 0;
+        let mapNights = 0;
         const mealPlanByDate = [];
         {
             const cursor = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
@@ -77,15 +78,24 @@ exports.bookingService = {
                 const plan = planMap.get(key) ?? "EP";
                 if (plan === "CP")
                     cpNights += 1;
+                if (plan === "MAP")
+                    mapNights += 1;
                 mealPlanByDate.push({ date: key, plan });
                 cursor.setDate(cursor.getDate() + 1);
             }
         }
+        const title = String(room?.title ?? "").toLowerCase();
+        const mapRatePerGuestPerNight = title.includes("lotus") || title.includes("presidential")
+            ? 2000
+            : title.includes("deluxe") || title.includes("edge")
+                ? 1000
+                : 0;
         const base = room.pricePerNight * nights * rooms;
         const childCharge = 1200 * params.children * nights;
         const extraAdultCharge = 1500 * params.extraAdults * nights;
         const cpAmountNum = round2(500 * Number(params.guests) * cpNights);
-        const originalBaseAmountNum = round2(base + childCharge + extraAdultCharge + cpAmountNum);
+        const mapAmountNum = round2(mapRatePerGuestPerNight * Number(params.guests) * mapNights);
+        const originalBaseAmountNum = round2(base + childCharge + extraAdultCharge + cpAmountNum + mapAmountNum);
         let promoToAttach = null;
         let discountAmountNum = 0;
         if (params.promoCode && String(params.promoCode).trim()) {
@@ -104,13 +114,13 @@ exports.bookingService = {
         if (!Number.isFinite(amountNum) || amountNum < 1 || amountPaise < 100) {
             throw new errorHandler_1.HttpError(400, "Invalid amount");
         }
-        const baseAmount = new client_2.Prisma.Decimal(discountedBaseAmountNum.toFixed(2));
-        const mealPlanCpAmount = new client_2.Prisma.Decimal(cpAmountNum.toFixed(2));
-        const convenienceFeeAmount = new client_2.Prisma.Decimal(convenienceFeeAmountNum.toFixed(2));
-        const gstAmount = new client_2.Prisma.Decimal(gstAmountNum.toFixed(2));
-        const amount = new client_2.Prisma.Decimal(amountNum.toFixed(2));
-        const discountAmount = new client_2.Prisma.Decimal(round2(discountAmountNum).toFixed(2));
-        const existing = await client_1.prisma.booking.findFirst({
+        const baseAmount = new client_1.Prisma.Decimal(discountedBaseAmountNum.toFixed(2));
+        const mealPlanCpAmount = new client_1.Prisma.Decimal(cpAmountNum.toFixed(2));
+        const convenienceFeeAmount = new client_1.Prisma.Decimal(convenienceFeeAmountNum.toFixed(2));
+        const gstAmount = new client_1.Prisma.Decimal(gstAmountNum.toFixed(2));
+        const amount = new client_1.Prisma.Decimal(amountNum.toFixed(2));
+        const discountAmount = new client_1.Prisma.Decimal(round2(discountAmountNum).toFixed(2));
+        const existing = await db_1.prisma.booking.findFirst({
             where: {
                 userId: params.userId,
                 roomId: params.roomId,
@@ -127,7 +137,7 @@ exports.bookingService = {
             const existingPayment = existing.payments?.find((p) => p.status === "CREATED" && p.provider === "RAZORPAY");
             if (existingPayment?.razorpayOrderId) {
                 try {
-                    await client_1.prisma.booking.update({
+                    await db_1.prisma.booking.update({
                         where: { id: existing.id },
                         data: {
                             checkInTime: params.checkInTime ?? null,
@@ -170,7 +180,7 @@ exports.bookingService = {
         let booking;
         try {
             if (existing) {
-                booking = await client_1.prisma.$transaction(async (tx) => {
+                booking = await db_1.prisma.$transaction(async (tx) => {
                     const updated = await tx.booking.update({
                         where: { id: existing.id },
                         data: {
@@ -216,7 +226,7 @@ exports.bookingService = {
                 });
             }
             else {
-                booking = await client_1.prisma.$transaction(async (tx) => {
+                booking = await db_1.prisma.$transaction(async (tx) => {
                     const created = await tx.booking.create({
                         data: {
                             userId: params.userId,
@@ -279,7 +289,7 @@ exports.bookingService = {
         };
     },
     async deleteUserPendingBooking(params) {
-        const booking = await client_1.prisma.booking.findUnique({
+        const booking = await db_1.prisma.booking.findUnique({
             where: { id: params.bookingId },
             include: { payments: true },
         });
@@ -289,13 +299,13 @@ exports.bookingService = {
             throw new errorHandler_1.HttpError(403, "Forbidden");
         if (booking.status !== "PENDING")
             throw new errorHandler_1.HttpError(400, "Only pending bookings can be deleted");
-        await client_1.prisma.$transaction(async (tx) => {
+        await db_1.prisma.$transaction(async (tx) => {
             await tx.booking.delete({ where: { id: booking.id } });
         });
         return { id: booking.id };
     },
     async listUserBookings(params) {
-        const bookings = await client_1.prisma.booking.findMany({
+        const bookings = await db_1.prisma.booking.findMany({
             where: { userId: params.userId },
             orderBy: { createdAt: "desc" },
             include: {
@@ -305,7 +315,7 @@ exports.bookingService = {
         return bookings;
     },
     async markPaymentVerified(params) {
-        const booking = await client_1.prisma.booking.findUnique({
+        const booking = await db_1.prisma.booking.findUnique({
             where: { id: params.bookingId },
             include: { payments: true },
         });
@@ -326,7 +336,7 @@ exports.bookingService = {
         catch {
             paymentDetails = null;
         }
-        const updated = await client_1.prisma.$transaction(async (tx) => {
+        const updated = await db_1.prisma.$transaction(async (tx) => {
             const p = await tx.payment.update({
                 where: { id: payment.id },
                 data: {
@@ -349,11 +359,12 @@ exports.bookingService = {
             return { booking: b, payment: p };
         });
         try {
-            const fullBooking = await client_1.prisma.booking.findUnique({
+            const fullBooking = await db_1.prisma.booking.findUnique({
                 where: { id: booking.id },
                 include: {
                     room: { select: { id: true, title: true, pricePerNight: true } },
                     user: { select: { id: true, name: true, email: true } },
+                    payments: true,
                 },
             });
             if (fullBooking?.user?.email) {
@@ -364,12 +375,104 @@ exports.bookingService = {
                 const baseAmount = Number(fullBooking.baseAmount ?? roomTotal + childCharge + extraAdultCharge);
                 const gstAmount = Number(fullBooking.gstAmount ?? Math.round(baseAmount * 0.05));
                 const fmt = (n) => `₹${Number(n ?? 0).toLocaleString("en-IN")}`;
-                const subject = `Booking Confirmed - ${fullBooking.id}`;
+                const subject = `Payment Successful • Booking Confirmed - ${fullBooking.id}`;
+                const paidAmount = Array.isArray(fullBooking.payments)
+                    ? fullBooking.payments
+                        .filter((p) => p?.status === "PAID")
+                        .reduce((sum, p) => sum + Number(p?.amount ?? 0), 0)
+                    : 0;
+                const invoiceHtml = `
+          <div style="font-family:Arial,Helvetica,sans-serif;max-width:760px;margin:0 auto;padding:24px;background:#ffffff;color:#111827;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid #e5e7eb;border-radius:16px;padding:18px 18px 14px;">
+              <div>
+                <div style="font-size:18px;font-weight:800;">Vintage Valley</div>
+                <div style="font-size:12px;color:#6b7280;">Invoice / Booking Confirmation</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:12px;color:#6b7280;">Booking ID</div>
+                <div style="font-size:14px;font-weight:800;">${fullBooking.id}</div>
+              </div>
+            </div>
+
+            <div style="margin-top:14px;border:1px solid #e5e7eb;border-radius:16px;padding:18px;">
+              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+                <div style="background:#fef3c7;border-radius:999px;padding:8px 12px;font-weight:700;">Status: CONFIRMED</div>
+                <div style="background:#ecfdf5;border-radius:999px;padding:8px 12px;font-weight:700;">Paid: ${fmt(paidAmount || fullBooking.amount)}</div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                  <div style="font-size:12px;color:#6b7280;">Guest</div>
+                  <div style="font-weight:700;">${String(fullBooking.user?.name ?? "Guest")}</div>
+                  <div style="font-size:12px;color:#6b7280;">${String(fullBooking.user?.email ?? "")}</div>
+                </div>
+                <div>
+                  <div style="font-size:12px;color:#6b7280;">Room</div>
+                  <div style="font-weight:700;">${String(fullBooking.room?.title ?? "Room")}</div>
+                  <div style="font-size:12px;color:#6b7280;">${fmt(fullBooking.room?.pricePerNight ?? 0)} / night</div>
+                </div>
+              </div>
+
+              <div style="border-top:1px dashed #e5e7eb;margin-top:14px;padding-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                  <div style="font-size:12px;color:#6b7280;">Check-in</div>
+                  <div style="font-weight:700;">${new Date(fullBooking.checkIn).toLocaleDateString()}</div>
+                </div>
+                <div>
+                  <div style="font-size:12px;color:#6b7280;">Check-out</div>
+                  <div style="font-weight:700;">${new Date(fullBooking.checkOut).toLocaleDateString()}</div>
+                </div>
+                <div>
+                  <div style="font-size:12px;color:#6b7280;">Nights</div>
+                  <div style="font-weight:700;">${Number(fullBooking.nights ?? 0)}</div>
+                </div>
+                <div>
+                  <div style="font-size:12px;color:#6b7280;">Rooms</div>
+                  <div style="font-weight:700;">${Number.isFinite(rooms) && rooms > 0 ? rooms : 1}</div>
+                </div>
+              </div>
+
+              <div style="border-top:1px dashed #e5e7eb;margin-top:14px;padding-top:14px;">
+                <div style="font-weight:800;margin-bottom:8px;">Price Breakdown</div>
+                <table style="width:100%;border-collapse:collapse;">
+                  <tbody>
+                    <tr>
+                      <td style="padding:6px 0;color:#374151;">Room total</td>
+                      <td style="padding:6px 0;text-align:right;font-weight:700;">${fmt(roomTotal)}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;color:#374151;">Children charge</td>
+                      <td style="padding:6px 0;text-align:right;font-weight:700;">${fmt(childCharge)}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;color:#374151;">Extra adults charge</td>
+                      <td style="padding:6px 0;text-align:right;font-weight:700;">${fmt(extraAdultCharge)}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;color:#374151;">Base amount</td>
+                      <td style="padding:6px 0;text-align:right;font-weight:700;">${fmt(baseAmount)}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;color:#374151;">GST (5%)</td>
+                      <td style="padding:6px 0;text-align:right;font-weight:700;">${fmt(gstAmount)}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:10px 0;border-top:1px solid #e5e7eb;font-size:16px;font-weight:900;">Total</td>
+                      <td style="padding:10px 0;border-top:1px solid #e5e7eb;text-align:right;font-size:16px;font-weight:900;">${fmt(fullBooking.amount)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div style="margin-top:12px;color:#6b7280;font-size:12px;">This invoice is generated automatically. Please keep it for your records.</div>
+            </div>
+          </div>
+        `;
                 const html = `
           <div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:0 auto;padding:24px;background:#ffffff;color:#1f2937;">
             <div style="border:1px solid #e5e7eb;border-radius:16px;padding:20px;">
-              <h2 style="margin:0 0 8px 0;">Booking Confirmation</h2>
-              <div style="color:#6b7280;margin-bottom:16px;">Thank you, ${fullBooking.user.name}. Your booking is confirmed.</div>
+              <h2 style="margin:0 0 8px 0;">Payment Successful</h2>
+              <div style="color:#6b7280;margin-bottom:16px;">Thank you, ${fullBooking.user.name}. Your booking is confirmed. Your invoice is attached.</div>
 
               <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
                 <div style="background:#fef3c7;border-radius:999px;padding:8px 12px;font-weight:700;">Booking ID: ${fullBooking.id}</div>
@@ -427,8 +530,21 @@ exports.bookingService = {
                     subject,
                     html,
                     from: env_1.env.EMAIL_FROM,
+                    replyTo: fullBooking.user.email,
                     gmailUser: env_1.env.GMAIL_USER,
                     gmailAppPassword: env_1.env.GMAIL_APP_PASSWORD,
+                    smtpHost: env_1.env.SMTP_HOST,
+                    smtpPort: env_1.env.SMTP_PORT,
+                    smtpSecure: env_1.env.SMTP_SECURE,
+                    smtpUser: env_1.env.SMTP_USER,
+                    smtpPass: env_1.env.SMTP_PASS,
+                    attachments: [
+                        {
+                            filename: `Invoice-${fullBooking.id}.html`,
+                            content: invoiceHtml,
+                            contentType: "text/html",
+                        },
+                    ],
                 });
             }
         }
@@ -438,7 +554,7 @@ exports.bookingService = {
         return updated;
     },
     async getUserInvoiceData(params) {
-        const booking = await client_1.prisma.booking.findUnique({
+        const booking = await db_1.prisma.booking.findUnique({
             where: { id: params.bookingId },
             include: {
                 room: true,

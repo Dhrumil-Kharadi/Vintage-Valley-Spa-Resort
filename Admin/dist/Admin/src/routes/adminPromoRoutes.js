@@ -8,4 +8,5 @@ exports.adminPromoRouter = (0, express_1.Router)();
 exports.adminPromoRouter.use(auth_1.requireAuth, auth_1.requireAdmin);
 exports.adminPromoRouter.get("/", adminPromoController_1.adminPromoController.list);
 exports.adminPromoRouter.post("/", adminPromoController_1.adminPromoController.create);
+exports.adminPromoRouter.delete("/:id", adminPromoController_1.adminPromoController.delete);
 exports.adminPromoRouter.patch("/:id/active", adminPromoController_1.adminPromoController.setActive);
