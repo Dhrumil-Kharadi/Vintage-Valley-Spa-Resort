@@ -100,6 +100,12 @@ const AdminLogin = () => {
             </button>
 
             <div className="text-center text-sm text-gray-800/70">
+              <Link to="/admin/forgot-password" className="hover:text-gold transition-colors duration-200">
+                Forgot password?
+              </Link>
+            </div>
+
+            <div className="text-center text-sm text-gray-800/70">
               <Link to="/" className="hover:text-gold transition-colors duration-200">
                 Go back to home page
               </Link>

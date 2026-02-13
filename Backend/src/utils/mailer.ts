@@ -44,7 +44,7 @@ export const sendMailSafe = async (params: {
   gmailAppPassword?: string;
   smtpHost?: string;
   smtpPort?: number;
-  smtpSecure?: boolean;
+  smtpSecure?: boolean | string;
   smtpUser?: string;
   smtpPass?: string;
   attachments?: MailAttachment[];
@@ -55,30 +55,77 @@ export const sendMailSafe = async (params: {
   const smtpPass = params.smtpPass;
   const smtpSecure = params.smtpSecure;
 
-  const gmailUser = params.gmailUser;
-  const gmailAppPassword = params.gmailAppPassword;
-
   const hasSmtp = !!(smtpHost && smtpPort && smtpUser && smtpPass);
-  const hasGmail = !!(gmailUser && gmailAppPassword);
+  if (!hasSmtp) {
+    // eslint-disable-next-line no-console
+    console.error("MAILER SKIP >>> missing SMTP config", {
+      hasHost: !!smtpHost,
+      hasPort: !!smtpPort,
+      hasUser: !!smtpUser,
+      hasPass: !!smtpPass,
+    });
+    return;
+  }
 
-  if (!hasSmtp && !hasGmail) return;
+  const host = String(smtpHost).trim();
+  const port = Number(smtpPort);
+  const user = String(smtpUser).trim();
+  const pass = String(smtpPass)
+    .trim()
+    .replace(/\s+/g, "");
+  let secure = (() => {
+    if (typeof smtpSecure === "boolean") return smtpSecure;
+    if (typeof smtpSecure === "string") {
+      const s = smtpSecure.trim().toLowerCase();
+      if (s === "true" || s === "1" || s === "yes" || s === "y") return true;
+      if (s === "false" || s === "0" || s === "no" || s === "n" || s === "") return false;
+    }
+    return Boolean(smtpSecure);
+  })();
 
-  const transporter = hasSmtp
-    ? createSmtpTransporter({
-        host: String(smtpHost),
-        port: Number(smtpPort),
-        secure: Boolean(smtpSecure),
-        user: String(smtpUser),
-        pass: String(smtpPass),
-      })
-    : createGmailTransporter({ user: String(gmailUser), appPassword: String(gmailAppPassword) });
+  if (port === 587 && secure === true) secure = false;
+  if (port === 465 && secure === false) secure = true;
 
-  await transporter.sendMail({
-    from: params.from ?? (hasSmtp ? String(smtpUser) : String(gmailUser)),
+  // eslint-disable-next-line no-console
+  console.error("MAILER CONFIG >>>", {
+    host,
+    port,
+    secure,
+    smtpSecureRaw: smtpSecure,
     to: params.to,
-    replyTo: params.replyTo,
-    subject: params.subject,
-    html: params.html,
-    attachments: params.attachments,
   });
+
+  if (!host || !Number.isFinite(port) || !user || !pass) {
+    // eslint-disable-next-line no-console
+    console.error("MAILER SKIP >>> invalid SMTP config", {
+      host,
+      port,
+      hasUser: !!user,
+      hasPass: !!pass,
+      secure,
+    });
+    return;
+  }
+
+  try {
+    const transporter = createSmtpTransporter({
+      host,
+      port,
+      secure,
+      user,
+      pass,
+    });
+
+    await transporter.sendMail({
+      from: params.from ?? user,
+      to: params.to,
+      replyTo: params.replyTo,
+      subject: params.subject,
+      html: params.html,
+      attachments: params.attachments,
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("MAILER ERROR >>>", err);
+  }
 };

@@ -5,6 +5,7 @@ import { HttpError } from "../middlewares/errorHandler";
 import { getRazorpayClient } from "../utils/razorpay";
 import { promoService } from "./promoService";
 import { sendMailSafe } from "../utils/mailer";
+import { generateBookingInvoicePdfBuffer } from "../utils/invoicePdf";
 
 export const bookingService = {
   async createBooking(params: {
@@ -404,7 +405,7 @@ export const bookingService = {
         where: { id: booking.id },
         include: {
           room: { select: { id: true, title: true, pricePerNight: true } },
-          user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, name: true, email: true, phone: true } },
           payments: true,
         },
       });
@@ -514,71 +515,100 @@ export const bookingService = {
         `;
 
         const html = `
-          <div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:0 auto;padding:24px;background:#ffffff;color:#1f2937;">
-            <div style="border:1px solid #e5e7eb;border-radius:16px;padding:20px;">
-              <h2 style="margin:0 0 8px 0;">Payment Successful</h2>
-              <div style="color:#6b7280;margin-bottom:16px;">Thank you, ${fullBooking.user.name}. Your booking is confirmed. Your invoice is attached.</div>
-
-              <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
-                <div style="background:#fef3c7;border-radius:999px;padding:8px 12px;font-weight:700;">Booking ID: ${fullBooking.id}</div>
-                <div style="background:#f3f4f6;border-radius:999px;padding:8px 12px;font-weight:700;">Status: ${fullBooking.status}</div>
+          <div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:0 auto;padding:24px;background:#ffffff;color:#111827;">
+            <div style="border:1px solid #e5e7eb;border-radius:18px;padding:22px;">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                <div>
+                  <div style="font-size:18px;font-weight:800;">Booking Confirmed</div>
+                  <div style="color:#6b7280;margin-top:4px;">Your payment was successful. Your invoice PDF is attached.</div>
+                </div>
+                <div style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:999px;padding:8px 12px;font-weight:800;">Status: CONFIRMED</div>
               </div>
 
-              <div style="border-top:1px dashed #e5e7eb;padding-top:16px;">
-                <h3 style="margin:0 0 8px 0;">Room</h3>
-                <div><strong>${fullBooking.room?.title ?? "Room"}</strong></div>
-                <div style="color:#6b7280;">Price per night: ${fmt(fullBooking.room?.pricePerNight ?? 0)}</div>
+              <div style="margin-top:16px;border-top:1px dashed #e5e7eb;padding-top:16px;">
+                <div style="font-size:14px;font-weight:800;margin-bottom:10px;">Guest Details</div>
+                <table style="width:100%;border-collapse:collapse;">
+                  <tbody>
+                    <tr>
+                      <td style="padding:6px 0;color:#6b7280;width:160px;">Name</td>
+                      <td style="padding:6px 0;font-weight:700;">${String(fullBooking.user?.name ?? "Guest")}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;color:#6b7280;">Email</td>
+                      <td style="padding:6px 0;font-weight:700;">${String(fullBooking.user?.email ?? "")}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;color:#6b7280;">Phone</td>
+                      <td style="padding:6px 0;font-weight:700;">${String(fullBooking.user?.phone ?? "—")}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
 
-              <div style="border-top:1px dashed #e5e7eb;padding-top:16px;margin-top:16px;">
-                <h3 style="margin:0 0 8px 0;">Stay</h3>
-                <div>Check-in: <strong>${new Date(fullBooking.checkIn).toLocaleDateString()}</strong></div>
-                <div>Check-out: <strong>${new Date(fullBooking.checkOut).toLocaleDateString()}</strong></div>
-                <div>Nights: <strong>${fullBooking.nights}</strong></div>
+              <div style="margin-top:16px;border-top:1px dashed #e5e7eb;padding-top:16px;">
+                <div style="font-size:14px;font-weight:800;margin-bottom:10px;">Booking Summary</div>
+                <table style="width:100%;border-collapse:collapse;">
+                  <tbody>
+                    <tr>
+                      <td style="padding:6px 0;color:#6b7280;width:160px;">Room</td>
+                      <td style="padding:6px 0;font-weight:700;">${String(fullBooking.room?.title ?? "Room")}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;color:#6b7280;">Check-in</td>
+                      <td style="padding:6px 0;font-weight:700;">${new Date(fullBooking.checkIn).toLocaleDateString()}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;color:#6b7280;">Check-out</td>
+                      <td style="padding:6px 0;font-weight:700;">${new Date(fullBooking.checkOut).toLocaleDateString()}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;color:#6b7280;">Nights</td>
+                      <td style="padding:6px 0;font-weight:700;">${Number(fullBooking.nights ?? 0)}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;color:#6b7280;">Guests</td>
+                      <td style="padding:6px 0;font-weight:700;">${Number(fullBooking.guests ?? 0)} (Adults: ${Number(fullBooking.adults ?? 0)}, Children: ${Number(fullBooking.children ?? 0)}, Extra Adults: ${Number(fullBooking.extraAdults ?? 0)})</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;color:#6b7280;">Rooms</td>
+                      <td style="padding:6px 0;font-weight:700;">${Number.isFinite(rooms) && rooms > 0 ? rooms : 1}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
 
-              <div style="border-top:1px dashed #e5e7eb;padding-top:16px;margin-top:16px;">
-                <h3 style="margin:0 0 8px 0;">Guests</h3>
-                <div>Total guests: <strong>${fullBooking.guests}</strong></div>
-                <div>Adults: <strong>${fullBooking.adults}</strong></div>
-                <div>Children (5–10): <strong>${fullBooking.children}</strong></div>
-                <div>Extra adults (10+): <strong>${fullBooking.extraAdults}</strong></div>
-                <div>Rooms: <strong>${rooms}</strong></div>
-              </div>
-
-              <div style="border-top:1px dashed #e5e7eb;padding-top:16px;margin-top:16px;">
-                <h3 style="margin:0 0 8px 0;">Price Breakdown</h3>
-                <div style="display:flex;justify-content:space-between;gap:12px;"><span>Room total</span><strong>${fmt(roomTotal)}</strong></div>
-                <div style="display:flex;justify-content:space-between;gap:12px;"><span>Children charge</span><strong>${fmt(childCharge)}</strong></div>
-                <div style="display:flex;justify-content:space-between;gap:12px;"><span>Extra adults charge</span><strong>${fmt(extraAdultCharge)}</strong></div>
-                <div style="display:flex;justify-content:space-between;gap:12px;"><span>Base amount</span><strong>${fmt(baseAmount)}</strong></div>
-                <div style="display:flex;justify-content:space-between;gap:12px;"><span>GST (5%)</span><strong>${fmt(gstAmount)}</strong></div>
-                <div style="border-top:1px solid #e5e7eb;margin-top:10px;padding-top:10px;display:flex;justify-content:space-between;gap:12px;font-size:18px;">
-                  <span><strong>Total</strong></span>
-                  <span><strong>${fmt(fullBooking.amount)}</strong></span>
+              <div style="margin-top:16px;border-top:1px dashed #e5e7eb;padding-top:16px;">
+                <div style="font-size:14px;font-weight:800;margin-bottom:10px;">Payment</div>
+                <div style="display:flex;justify-content:space-between;gap:12px;">
+                  <div style="color:#6b7280;">Paid Amount</div>
+                  <div style="font-weight:900;">${fmt(paidAmount || fullBooking.amount)}</div>
+                </div>
+                <div style="display:flex;justify-content:space-between;gap:12px;margin-top:8px;">
+                  <div style="color:#6b7280;">Total Amount</div>
+                  <div style="font-weight:900;">${fmt(fullBooking.amount)}</div>
                 </div>
               </div>
 
               ${fullBooking.additionalInformation ? `
-                <div style="border-top:1px dashed #e5e7eb;padding-top:16px;margin-top:16px;">
-                  <h3 style="margin:0 0 8px 0;">Additional Information</h3>
+                <div style="margin-top:16px;border-top:1px dashed #e5e7eb;padding-top:16px;">
+                  <div style="font-size:14px;font-weight:800;margin-bottom:10px;">Additional Information</div>
                   <div style="white-space:pre-wrap;color:#374151;">${String(fullBooking.additionalInformation)}</div>
                 </div>
               ` : ""}
 
-              <div style="margin-top:18px;color:#6b7280;font-size:12px;">This is an automated email. Please keep it for your records.</div>
+              <div style="margin-top:18px;color:#6b7280;font-size:12px;">This is an automated message. For any queries, please reply to this email.</div>
             </div>
           </div>
         `;
+
+        const pdfBuffer = await generateBookingInvoicePdfBuffer(fullBooking);
 
         await sendMailSafe({
           to: fullBooking.user.email,
           subject,
           html,
           from: env.EMAIL_FROM,
-          replyTo: fullBooking.user.email,
-          gmailUser: env.GMAIL_USER,
-          gmailAppPassword: env.GMAIL_APP_PASSWORD,
+          replyTo: env.EMAIL_REPLY_TO ?? fullBooking.user.email,
           smtpHost: env.SMTP_HOST,
           smtpPort: env.SMTP_PORT,
           smtpSecure: env.SMTP_SECURE,
@@ -586,15 +616,16 @@ export const bookingService = {
           smtpPass: env.SMTP_PASS,
           attachments: [
             {
-              filename: `Invoice-${fullBooking.id}.html`,
-              content: invoiceHtml,
-              contentType: "text/html",
+              filename: `Invoice-${fullBooking.id}.pdf`,
+              content: pdfBuffer,
+              contentType: "application/pdf",
             },
           ],
         });
       }
-    } catch {
-      // ignore email failures
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("PAYMENT INVOICE MAIL ERROR >>>", err);
     }
 
     return updated;

@@ -11,6 +11,8 @@ import Index from "./pages/Index";
 import Rooms from "./pages/Rooms";
 import Login from "./pages/login";
 import AdminLogin from "./pages/AdminLogin";
+import AdminForgotPassword from "./pages/AdminForgotPassword";
+import AdminResetPassword from "./pages/AdminResetPassword";
 import AdminHome from "./pages/AdminHome";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminUsers from "./pages/AdminUsers";
@@ -42,6 +44,8 @@ const App = () => (
             <Route path="/rooms" element={<Rooms />} />
             <Route path="/login" element={<Login />} />
             <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin/forgot-password" element={<AdminForgotPassword />} />
+            <Route path="/admin/reset-password" element={<AdminResetPassword />} />
             <Route path="/admin" element={<AdminHome />} />
             <Route path="/admin/rooms" element={<AdminDashboard />} />
             <Route path="/admin/users" element={<AdminUsers />} />
