@@ -45,10 +45,15 @@ const verifySchema = z.object({
   razorpaySignature: z.string().min(1),
 });
 
-export const bookingController: Record<"me" | "create" | "verify" | "deletePending" | "invoice", RequestHandler> = {
+export const bookingController: Record<"me" | "totalCount" | "create" | "verify" | "deletePending" | "invoice", RequestHandler> = {
   me: asyncHandler(async (req: AuthedRequest, res) => {
     const bookings = await bookingService.listUserBookings({ userId: req.user!.userId });
     res.json({ ok: true, data: { bookings } });
+  }),
+
+  totalCount: asyncHandler(async (_req: AuthedRequest, res) => {
+    const result = await bookingService.getTotalBookingsCount();
+    res.json({ ok: true, data: result });
   }),
 
   create: asyncHandler(async (req: AuthedRequest, res) => {

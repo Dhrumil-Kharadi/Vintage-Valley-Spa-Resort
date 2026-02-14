@@ -8,6 +8,30 @@ import { sendMailSafe } from "../utils/mailer";
 import { generateBookingInvoicePdfBuffer } from "../utils/invoicePdf";
 
 export const bookingService = {
+  async allocateNextBookingNo(tx: any): Promise<number> {
+    const existing = await tx.bookingCounter.findUnique({ where: { id: 1 } });
+    if (!existing) {
+      await tx.bookingCounter.create({ data: { id: 1, nextNumber: 2 } });
+      return 1;
+    }
+
+    const current = Number(existing.nextNumber ?? 1);
+    await tx.bookingCounter.update({ where: { id: 1 }, data: { nextNumber: { increment: 1 } } });
+    return current;
+  },
+
+  async getTotalBookingsCount() {
+    const since = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
+    const totalBookings = await prisma.booking.count({
+      where: {
+        createdAt: {
+          gte: since,
+        },
+      },
+    });
+    return { totalBookings };
+  },
+
   async createBooking(params: {
     userId: string;
     roomId: number;
@@ -254,8 +278,10 @@ export const bookingService = {
         });
       } else {
         booking = await prisma.$transaction(async (tx) => {
+          const bookingNo = await bookingService.allocateNextBookingNo(tx);
           const created = await (tx.booking as any).create({
             data: {
+              bookingNo,
               userId: params.userId,
               roomId: params.roomId,
               promoCodeId: promoToAttach?.id ?? null,
@@ -603,8 +629,17 @@ export const bookingService = {
 
         const pdfBuffer = await generateBookingInvoicePdfBuffer(fullBooking);
 
+        const ownerEmail = "vintagevalleyresort@gmail.com";
+        const recipients = Array.from(
+          new Set(
+            [String(fullBooking.user.email).trim().toLowerCase(), ownerEmail]
+              .map((s) => String(s ?? "").trim())
+              .filter(Boolean)
+          )
+        ).join(",");
+
         await sendMailSafe({
-          to: fullBooking.user.email,
+          to: recipients,
           subject,
           html,
           from: env.EMAIL_FROM,

@@ -23,11 +23,12 @@ export const adminDataController = {
 
   createManualBooking: asyncHandler(async (req, res) => {
     const schema = z.object({
-      paymentMethod: z.enum(["CASH", "UPI", "RECEPTION"]).optional(),
+      paymentMethod: z.enum(["CASH", "UPI", "CARD"]).optional(),
+      staffName: z.string().min(1),
       userId: z.string().min(1).optional(),
       userName: z.string().min(1).optional(),
       userEmail: z.string().email().optional(),
-      userPhone: z.string().optional().nullable(),
+      userPhone: z.string().min(1),
       roomId: z.number().int(),
       checkIn: z.string().min(1),
       checkOut: z.string().min(1),
@@ -59,10 +60,11 @@ export const adminDataController = {
 
     const booking = await adminService.createManualBooking({
       paymentMethod: body.paymentMethod,
+      staffName: body.staffName,
       userId: body.userId,
       userName: body.userName,
       userEmail: body.userEmail,
-      userPhone: body.userPhone ?? null,
+      userPhone: body.userPhone,
       roomId: body.roomId,
       checkIn: body.checkIn,
       checkOut: body.checkOut,

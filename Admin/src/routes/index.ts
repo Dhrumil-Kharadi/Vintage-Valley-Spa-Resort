@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAdmin, requireAuth } from "../../../Backend/src/middlewares/auth";
+import { requireAdmin, requireAdminOrStaff, requireAuth } from "../../../Backend/src/middlewares/auth";
 
 import { adminAuthRouter } from "./adminAuthRoutes";
 import { adminDataRouter } from "./adminDataRoutes";
@@ -16,6 +16,6 @@ adminApiRouter.use("/auth", adminAuthRouter);
 // =====================
 // PROTECTED ROUTES
 // =====================
-adminApiRouter.use("/", requireAuth, requireAdmin, adminDataRouter);
-adminApiRouter.use("/promos", requireAuth, requireAdmin, adminPromoRouter);
-adminApiRouter.use("/rooms", requireAuth, requireAdmin, adminRoomRouter);
+adminApiRouter.use("/", requireAuth, adminDataRouter);
+adminApiRouter.use("/promos", requireAuth, requireAdminOrStaff, adminPromoRouter);
+adminApiRouter.use("/rooms", requireAuth, requireAdminOrStaff, adminRoomRouter);

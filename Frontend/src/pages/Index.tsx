@@ -440,7 +440,7 @@ const Index = () => {
       </section>
 
       {/* Enhanced Rooms Section */}
-      <section className="section-padding bg-gradient-to-b from-ivory to-white">
+      <section id="exquisite-suites" className="section-padding bg-gradient-to-b from-ivory to-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
             <div className="inline-block px-6 py-2 bg-charcoal/10 rounded-full mb-6">

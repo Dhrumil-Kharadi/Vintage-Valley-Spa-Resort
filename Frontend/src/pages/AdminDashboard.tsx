@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 
 const AdminDashboard = () => {
+  const [role, setRole] = useState<string | null>(null);
   const [rooms, setRooms] = useState<any[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(false);
   const [roomsError, setRoomsError] = useState<string | null>(null);
@@ -44,6 +45,15 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
+    try {
+      const raw = localStorage.getItem("admin_user");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const r = typeof parsed?.role === "string" ? parsed.role : null;
+        setRole(r);
+      }
+    } catch {
+    }
     loadRooms();
   }, []);
 
@@ -151,9 +161,11 @@ const AdminDashboard = () => {
     if (editingId == null) return;
     setEditError(null);
 
-    if (parsedEditImages.length === 0) {
-      setEditError("Please add at least one image URL (one per line). ");
-      return;
+    if (role !== "STAFF") {
+      if (parsedEditImages.length === 0) {
+        setEditError("Please add at least one image URL (one per line). ");
+        return;
+      }
     }
 
     setEditLoading(true);
@@ -162,14 +174,18 @@ const AdminDashboard = () => {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          title: editTitle.trim(),
-          description: editDescription.trim(),
-          pricePerNight: editPricePerNight,
-          person: editPerson,
-          images: parsedEditImages,
-          amenities: parsedEditAmenities,
-        }),
+        body: JSON.stringify(
+          role === "STAFF"
+            ? { pricePerNight: editPricePerNight }
+            : {
+                title: editTitle.trim(),
+                description: editDescription.trim(),
+                pricePerNight: editPricePerNight,
+                person: editPerson,
+                images: parsedEditImages,
+                amenities: parsedEditAmenities,
+              }
+        ),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -187,6 +203,7 @@ const AdminDashboard = () => {
   };
 
   const deleteRoom = async (id: number) => {
+    if (role === "STAFF") return;
     const ok = window.confirm("Delete this room? This cannot be undone.");
     if (!ok) return;
 
@@ -208,7 +225,10 @@ const AdminDashboard = () => {
 
   return (
     <AdminLayout title="Rooms" description="Add rooms to your inventory.">
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className={role === "STAFF" ? "grid grid-cols-1 gap-6" : "grid grid-cols-1 xl:grid-cols-2 gap-6"}>
+        {role === "STAFF" ? (
+          <div />
+        ) : (
         <div>
           <div className="bg-white rounded-3xl p-4 sm:p-8 luxury-shadow">
             <h2 className="font-playfair text-3xl font-bold text-gray-800 mb-6">Add Room</h2>
@@ -322,6 +342,7 @@ const AdminDashboard = () => {
             </form>
           </div>
         </div>
+        )}
 
         <div>
           <div className="bg-white rounded-3xl p-4 sm:p-8 luxury-shadow">

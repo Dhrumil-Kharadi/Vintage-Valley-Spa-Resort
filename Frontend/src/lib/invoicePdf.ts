@@ -69,8 +69,8 @@ export const downloadBookingInvoicePdf = async (b: any, opts?: { fileName?: stri
   const invoiceNo = `INV-${String(b.id ?? "").slice(0, 8).toUpperCase()}`;
   const invoiceDate = new Date();
 
-  const bookingRefRaw = (b as any)?.bookingReference ?? (b as any)?.referenceNo ?? (b as any)?.reference ?? b.id;
-  const bookingRef = String(bookingRefRaw ?? "").trim() || "—";
+  // Use VVR-{bookingNo} format if available, otherwise fall back to the old ID
+  const bookingRef = b.bookingNo ? `VVR-${b.bookingNo}` : String(b.id ?? "").trim() || "—";
 
   const drawDivider = (yy: number) => {
     doc.setDrawColor(226, 232, 240);
@@ -190,34 +190,30 @@ export const downloadBookingInvoicePdf = async (b: any, opts?: { fileName?: stri
     doc.text("VALLEY RESORT", rightColX + colW, topY + 18, { align: "right" });
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
     const address =
       "Mumbai-Nashik Highway,Opp Pravin Industries,\nTalegaon,Igatpuri,\nIgatpuri,Nashik - 422403,Maharashtra,India";
-    const addrLines = doc.splitTextToSize(address, colW);
     const addrStartY = topY + 36;
-    doc.text(addrLines, rightColX + colW, addrStartY, { align: "right" });
-
-    const addrLineH = 12;
-    const addrEndY = addrStartY + (addrLines.length - 1) * addrLineH;
-
-    // Email (underlined)
-    const email = "vintagevalleyresort@gmail.com";
-    let emailY = addrEndY + 16;
-    let phoneY = emailY + 18;
-
     const safeBottomY = boxY + boxH - 14;
-    if (phoneY > safeBottomY) {
-      const shiftUp = phoneY - safeBottomY;
-      emailY -= shiftUp;
-      phoneY -= shiftUp;
+    const headerLineH = 13;
+    doc.setFontSize(10);
+    const addrLines = doc.splitTextToSize(address, colW);
+    for (let i = 0; i < addrLines.length; i++) {
+      doc.text(String(addrLines[i] ?? ""), rightColX + colW, addrStartY + i * headerLineH, { align: "right" });
     }
+    const addrEndY = addrStartY + (addrLines.length - 1) * headerLineH;
+    const email = "vintagevalleyresort@gmail.com";
+    const contactStartY = Math.max(addrEndY + 10, safeBottomY - (headerLineH * 3 + 8));
 
-    doc.text(email, rightColX + colW, emailY, { align: "right" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text("Contact us By", rightColX + colW, contactStartY, { align: "right" });
+    doc.text("Phone number : +919371169888", rightColX + colW, contactStartY + headerLineH, { align: "right" });
+    const emailTextY = contactStartY + headerLineH * 2;
+    doc.text(`Email ID : ${email}`, rightColX + colW, emailTextY, { align: "right" });
     const emailW = doc.getTextWidth(email);
     doc.setLineWidth(0.8);
-    doc.line(innerRight - emailW, emailY + 2, innerRight, emailY + 2);
-
-    doc.text("Phone : +919371169888", rightColX + colW, phoneY, { align: "right" });
+    const underlineY = emailTextY + 1;
+    doc.line(innerRight - emailW, underlineY, innerRight, underlineY);
 
     y = boxY + boxH + 18;
   }
@@ -322,11 +318,9 @@ export const downloadBookingInvoicePdf = async (b: any, opts?: { fileName?: stri
   y += 18;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
-  doc.text(guestName, left + 14, y);
+  doc.text(`Name : ${guestName}`, left + 14, y);
   y += 16;
-  doc.text("Email ID", left + 14, y);
-  doc.text(":", left + 14 + 120, y);
-  doc.text(String(b.user?.email ?? ""), left + 14 + 130, y);
+  doc.text(`Email : ${String(b.user?.email ?? "")}`, left + 14, y);
   y += 22;
 
   // Rooms Details
@@ -375,9 +369,10 @@ export const downloadBookingInvoicePdf = async (b: any, opts?: { fileName?: stri
   doc.setFont("helvetica", "bold");
   doc.text("Description", tableX, y);
   doc.setFont("helvetica", "normal");
-  doc.text(`: ${roomTitle}`, tableX + 70, y);
-  y += 14;
-  doc.text("- AP", tableX, y);
+  const hasMap = (b.mealPlanByDate || []).some((d: any) => d.plan === "MAP");
+  const hasCp = (b.mealPlanByDate || []).some((d: any) => d.plan === "CP");
+  const mealPlan = hasMap ? "AP" : hasCp ? "CP" : "EP";
+  doc.text(`: ${roomTitle} - ${mealPlan}`, tableX + 70, y);
   y += 18;
 
   // Rates Details
@@ -523,9 +518,11 @@ export const downloadBookingInvoicePdf = async (b: any, opts?: { fileName?: stri
     doc.setFont("helvetica", "normal");
     doc.text("**** FOR ANY FURTHER QUERY ****", x, y);
     y += 16;
-    doc.text("Contact us by Phone No  : +919371169888", x, y);
+    doc.text("Contact us by", x, y);
     y += 14;
-    doc.text("Email Id : vintagevalleyresort@gmail.com", x, y);
+    doc.text("Phone number : +919371169888", x, y);
+    y += 14;
+    doc.text("Email ID : vintagevalleyresort@gmail.com", x, y);
     y += 14;
     const addr =
       "Mumbai-Nashik Highway,Opp Pravin Industries,Talegaon,Igatpuri,Igatpuri,Nashik-422403,Maharashtra,India";

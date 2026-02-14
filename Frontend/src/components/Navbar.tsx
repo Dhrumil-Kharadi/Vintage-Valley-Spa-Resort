@@ -110,6 +110,8 @@ const Navbar = () => {
     { name: 'Book Now', path: '/rooms' },
   ];
 
+  const bookNowLink = navLinks.find((l) => l.name === 'Book Now');
+
   return (
     <nav
       className={`fixed top-0 w-full z-50 transition-all duration-500 ${
@@ -212,33 +214,39 @@ const Navbar = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <button
-            className="md:hidden p-2"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            {isMobileMenuOpen ? (
-              <X className={`h-6 w-6 ${isScrolled ? 'text-gray-800' : 'text-white'}`} />
-            ) : (
-              <Menu className={`h-6 w-6 ${isScrolled ? 'text-gray-800' : 'text-white'}`} />
+          <div className="md:hidden flex items-center gap-2">
+            {bookNowLink && (
+              <Link
+                to={bookNowLink.path}
+                className="px-4 py-2 rounded-full font-semibold text-sm bg-gold text-gray-800 hover:bg-bronze transition-colors duration-200"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Book Now
+              </Link>
             )}
-          </button>
+            <button
+              className="p-2"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={isMobileMenuOpen}
+              aria-controls="mobile-menu"
+            >
+              {isMobileMenuOpen ? (
+                <X className={`h-6 w-6 ${isScrolled ? 'text-gray-800' : 'text-white'}`} />
+              ) : (
+                <Menu className={`h-6 w-6 ${isScrolled ? 'text-gray-800' : 'text-white'}`} />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden bg-white/95 backdrop-blur-md border-t border-gold/20">
+          <div id="mobile-menu" className="md:hidden bg-white/95 backdrop-blur-md border-t border-gold/20">
             <div className="px-2 pt-2 pb-3 space-y-1">
-              {navLinks.map((link) => (
-                link.name === 'Book Now' ? (
-                  <Link
-                    key={`${link.path}:${link.name}`}
-                    to={link.path}
-                    className="block w-full px-4 py-3 rounded-full font-semibold text-base bg-gold text-gray-800 hover:bg-bronze transition-colors duration-200 text-center mt-2"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    {link.name}
-                  </Link>
-                ) : (
+              {navLinks
+                .filter((link) => link.name !== 'Book Now')
+                .map((link) => (
                   <Link
                     key={link.path}
                     to={link.path}
@@ -251,8 +259,7 @@ const Navbar = () => {
                   >
                     {link.name}
                   </Link>
-                )
-              ))}
+                ))}
               {!userName ? (
                 <Link
                   to="/login"

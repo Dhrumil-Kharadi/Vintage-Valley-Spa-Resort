@@ -15,6 +15,7 @@ const AdminBookings = () => {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [createOk, setCreateOk] = useState<string | null>(null);
+  const [staffName, setStaffName] = useState("");
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [userPhone, setUserPhone] = useState("");
@@ -28,7 +29,7 @@ const AdminBookings = () => {
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
   const [extraAdults, setExtraAdults] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "UPI" | "RECEPTION">("RECEPTION");
+  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "UPI" | "CARD">("CASH");
   const [additionalInformation, setAdditionalInformation] = useState("");
   const [promoInput, setPromoInput] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountAmount: number } | null>(null);
@@ -148,6 +149,17 @@ const AdminBookings = () => {
 
     return { roomTotal, childCharge, extraAdultCharge, cpCharge, mapCharge, base, convenienceFee, gst, total };
   }, [selectedRoom, nights, rooms, guests, children, extraAdults, nightDates, mealPlanByDate]);
+
+  const baseLabel = useMemo(() => {
+    if (!priceEstimate) return "Base";
+
+    const hasCp = Number(priceEstimate.cpCharge ?? 0) > 0;
+    const hasMap = Number(priceEstimate.mapCharge ?? 0) > 0;
+
+    if (hasMap) return "Base (Room + breakfast + lunch/dinner)";
+    if (hasCp) return "Base (Room + breakfast)";
+    return "Base (Room)";
+  }, [priceEstimate]);
 
   const discountedEstimate = useMemo(() => {
     const pe = priceEstimate;
@@ -273,10 +285,16 @@ const AdminBookings = () => {
     setCreateError(null);
     setCreateOk(null);
 
+    const staff = staffName.trim();
     const name = userName.trim();
     const email = userEmail.trim();
     const phone = userPhone.trim();
     const r = roomId.trim();
+    if (!staff) {
+      setCreateError("Staff name is required");
+      toast.error("Staff name is required");
+      return;
+    }
     if (!name) {
       setCreateError("User name is required");
       toast.error("User name is required");
@@ -285,6 +303,11 @@ const AdminBookings = () => {
     if (!email) {
       setCreateError("User email is required");
       toast.error("User email is required");
+      return;
+    }
+    if (!phone) {
+      setCreateError("User phone is required");
+      toast.error("User phone is required");
       return;
     }
     if (!r || !Number.isFinite(Number(r))) {
@@ -311,9 +334,10 @@ const AdminBookings = () => {
         credentials: "include",
         body: JSON.stringify({
           paymentMethod,
+          staffName: staff,
           userName: name,
           userEmail: email,
-          userPhone: phone ? phone : null,
+          userPhone: phone,
           roomId: Number(r),
           checkIn,
           checkOut,
@@ -332,7 +356,7 @@ const AdminBookings = () => {
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error?.message ?? "Failed to create booking");
 
-      setCreateOk("Booking created (CONFIRMED) with Cash/UPI/Reception payment.");
+      setCreateOk("Booking created (CONFIRMED) with Cash/UPI/Card payment.");
       toast.success("Booking created");
       await loadBookings();
     } catch (e: any) {
@@ -347,7 +371,7 @@ const AdminBookings = () => {
     <AdminLayout title="Bookings" description="View and manage bookings.">
       <div className="bg-white rounded-3xl p-4 sm:p-8 luxury-shadow">
         <div className="mb-8">
-          <div className="text-gray-900 font-semibold mb-3">Cash/UPI/Reception Payment</div>
+          <div className="text-gray-900 font-semibold mb-3">Cash/UPI/Card Payment</div>
 
           <div className="mb-4">
             <div className="text-xs text-gray-800/70 mb-1">Payment method</div>
@@ -356,9 +380,9 @@ const AdminBookings = () => {
               onChange={(e) => setPaymentMethod(e.target.value as any)}
               className="px-4 py-3 rounded-2xl border border-gold/20 focus:outline-none focus:ring-2 focus:ring-gold/30 w-full md:w-1/2"
             >
-              <option value="RECEPTION">Reception</option>
               <option value="CASH">Cash</option>
               <option value="UPI">UPI</option>
+              <option value="CARD">Card</option>
             </select>
           </div>
 
@@ -370,6 +394,23 @@ const AdminBookings = () => {
           )}
 
           <div className="mt-4">
+            <div className="text-gray-800 font-semibold mb-2">Staff</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="flex flex-col gap-1">
+                <div className="text-xs text-gray-800/70">Staff name</div>
+                <input
+                  value={staffName}
+                  onChange={(e) => setStaffName(e.target.value)}
+                  placeholder="Staff full name"
+                  className="px-4 py-3 rounded-2xl border border-gold/20 focus:outline-none focus:ring-2 focus:ring-gold/30"
+                />
+              </div>
+              <div className="hidden md:block" />
+              <div className="hidden md:block" />
+            </div>
+          </div>
+
+          <div className="mt-6">
             <div className="text-gray-800 font-semibold mb-2">Guest details</div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="flex flex-col gap-1">
@@ -392,7 +433,7 @@ const AdminBookings = () => {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <div className="text-xs text-gray-800/70">Phone (optional)</div>
+                <div className="text-xs text-gray-800/70">Phone</div>
                 <input
                   value={userPhone}
                   onChange={(e) => setUserPhone(e.target.value)}
@@ -601,7 +642,12 @@ const AdminBookings = () => {
 
           <div className="mt-4">
             <div className="text-gray-800 font-semibold">Meal plan (day-wise)</div>
-            <div className="text-gray-800/70 text-sm">EP: no meals, CP: +₹500/guest/night, MAP: included</div>
+            <div className="text-gray-800/70 text-sm">
+              <span className="hidden sm:inline">EP: no meals, CP: +₹500/guest/night(Breakfast only), MAP: Breakfast included and either lunch or dinner</span>
+              <span className="sm:hidden block">EP: no meals</span>
+              <span className="sm:hidden block">CP: +₹500/guest/night(Breakfast only)</span>
+              <span className="sm:hidden block">MAP: Breakfast included and either lunch or dinner</span>
+            </div>
 
             {nightDates.length === 0 ? (
               <div className="text-gray-800/60 text-sm mt-2">Select check-in and check-out dates to choose meal plans.</div>
@@ -711,7 +757,7 @@ const AdminBookings = () => {
               <div className="mt-3 space-y-3">
                 <div className="px-4 py-3 rounded-2xl border border-gold/20 bg-ivory/40">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-800/70">Base (room + addons + meals)</span>
+                    <span className="text-xs text-gray-800/70">{baseLabel}</span>
                     <span className="text-gray-900 font-semibold">{formatInr(priceEstimate.base)}</span>
                   </div>
                 </div>
@@ -770,6 +816,7 @@ const AdminBookings = () => {
               <thead>
                 <tr className="text-gray-800/60 text-sm">
                   <th className="py-3 pr-4">Booking ID</th>
+                  <th className="py-3 pr-4">Staff</th>
                   <th className="py-3 pr-4">User</th>
                   <th className="py-3 pr-4">Email</th>
                   <th className="py-3 pr-4">Phone</th>
@@ -788,7 +835,8 @@ const AdminBookings = () => {
                     const paid = b.payments?.find((p: any) => p.status === 'PAID');
                     return (
                   <tr key={b.id} className="border-t border-gold/10">
-                    <td className="py-3 pr-4 font-mono text-xs text-gray-800/80">{b.id}</td>
+                    <td className="py-3 pr-4 font-mono text-xs text-gray-800/80">{b.bookingNo ? `VVR-${b.bookingNo}` : b.id}</td>
+                    <td className="py-3 pr-4 text-gray-800/80">{b.staffName ?? "—"}</td>
                     <td className="py-3 pr-4 text-gray-800/80">{b.user?.name ?? "—"}</td>
                     <td className="py-3 pr-4 text-gray-800/80">{b.user?.email ?? "—"}</td>
                     <td className="py-3 pr-4 text-gray-800/80">{b.user?.phone ?? "—"}</td>

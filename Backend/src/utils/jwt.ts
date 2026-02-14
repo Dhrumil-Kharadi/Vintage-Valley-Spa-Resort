@@ -3,7 +3,7 @@ import { env } from "../config/env";
 
 export type JwtPayload = {
   userId: string;
-  role: "USER" | "ADMIN";
+  role: "USER" | "ADMIN" | "STAFF";
 };
 
 export const signAccessToken = (payload: JwtPayload) => {

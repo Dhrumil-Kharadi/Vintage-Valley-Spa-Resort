@@ -2,7 +2,7 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { adminService } from "../services/adminService";
 import { z } from "zod";
 
-export const adminController = {
+export const adminController: Record<"users" | "rooms" | "bookings" | "newBookingsCount" | "deleteBooking" | "createManualBooking" | "payments", any> = {
   users: asyncHandler(async (_req, res) => {
     const users = await adminService.listUsers();
     res.json({ ok: true, data: { users } });
@@ -30,6 +30,20 @@ export const adminController = {
     res.json({ ok: true, data: { bookings } });
   }),
 
+  newBookingsCount: asyncHandler(async (req, res) => {
+    const schema = z.object({ lastLogoutTime: z.string().optional().nullable() });
+    const body = schema.parse(req.body ?? {});
+
+    const raw = String(body.lastLogoutTime ?? "").trim();
+    const since = raw ? new Date(raw) : new Date(0);
+    if (!Number.isFinite(since.getTime())) {
+      return res.status(400).json({ ok: false, error: { message: "Invalid lastLogoutTime" } });
+    }
+
+    const result = await adminService.countBookingsCreatedAfter({ since });
+    res.json({ ok: true, data: result });
+  }),
+
   deleteBooking: asyncHandler(async (req, res) => {
     const schema = z.object({ id: z.string().min(1) });
     const { id } = schema.parse(req.params);
@@ -39,11 +53,12 @@ export const adminController = {
 
   createManualBooking: asyncHandler(async (req, res) => {
     const schema = z.object({
-      paymentMethod: z.enum(["CASH", "UPI", "RECEPTION"]).optional(),
+      paymentMethod: z.enum(["CASH", "UPI", "CARD"]).optional(),
+      staffName: z.string().min(1),
       userId: z.string().min(1).optional(),
       userName: z.string().min(1).optional(),
       userEmail: z.string().email().optional(),
-      userPhone: z.string().optional().nullable(),
+      userPhone: z.string().min(1),
       roomId: z.number().int(),
       checkIn: z.string().min(1),
       checkOut: z.string().min(1),
@@ -74,10 +89,11 @@ export const adminController = {
     }
     const booking = await adminService.createManualBooking({
       paymentMethod: body.paymentMethod,
+      staffName: body.staffName,
       userId: body.userId,
       userName: body.userName,
       userEmail: body.userEmail,
-      userPhone: body.userPhone ?? null,
+      userPhone: body.userPhone,
       roomId: body.roomId,
       checkIn: body.checkIn,
       checkOut: body.checkOut,

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { usePolicyModals } from '@/components/PolicyModals';
+import { Star } from 'lucide-react';
 
 type RoomDetails = {
   id: string | number;
@@ -723,7 +724,12 @@ const Booking = () => {
                     <label className="block text-gray-800 font-medium">
                       Meal plan (day-wise)
                     </label>
-                    <div className="text-xs text-gray-800/60">EP: no meals, CP: +₹500/guest/night, MAP: included</div>
+                    <div className="text-xs text-gray-800/60">
+                      <span className="hidden sm:inline">EP: no meals, CP: +₹500/guest/night(Breakfast only), MAP: Breakfast included and either lunch or dinner</span>
+                      <span className="sm:hidden block">EP: no meals</span>
+                      <span className="sm:hidden block">CP: +₹500/guest/night(Breakfast only)</span>
+                      <span className="sm:hidden block">MAP: Breakfast included and either lunch or dinner</span>
+                    </div>
                   </div>
                   {nightDates.length === 0 ? (
                     <div className="text-sm text-gray-800/60">Select valid dates to choose plan day-wise.</div>
@@ -939,7 +945,10 @@ const Booking = () => {
                 </div>
 
                 <div className="pt-4">
-                  <div className="text-gray-800 font-semibold mb-2">Terms & Conditions</div>
+                  <div className="text-gray-800 font-semibold mb-2">
+                    <span>Terms & Conditions</span>
+                    <span className="text-amber-800">*</span>
+                  </div>
                   <div className="flex items-start justify-between gap-3">
                     <label className="flex items-start gap-3 text-gray-800/80 cursor-pointer select-none">
                       <input

@@ -1,8 +1,16 @@
 import { ChevronDown, Play } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Hero = () => {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const navigate = useNavigate();
+
+  const scrollToSuites = () => {
+    const el = document.getElementById('exquisite-suites');
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
     <section className="relative h-screen flex items-center justify-center overflow-hidden">
@@ -46,11 +54,17 @@ const Hero = () => {
         
         {/* Interactive CTA Section */}
         <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16 animate-fade-in delay-1000">
-          <button className="group relative bg-transparent border-2 border-white text-white px-10 py-4 rounded-full font-semibold text-lg overflow-hidden transition-all duration-500 transform hover:scale-105 hover:bg-white/10 hover:text-white">
+          <button
+            onClick={() => navigate('/rooms')}
+            className="group relative bg-transparent border-2 border-white text-white px-10 py-4 rounded-full font-semibold text-lg overflow-hidden transition-all duration-500 transform hover:scale-105 hover:bg-white/10 hover:text-white"
+          >
             <span className="relative z-10">Reserve Your Escape</span>
           </button>
           
-          <button className="text-white px-8 py-4 rounded-full font-medium text-lg border border-white/30 hover:bg-white/5 hover:text-white transition-all duration-300 backdrop-blur-sm">
+          <button
+            onClick={scrollToSuites}
+            className="text-white px-8 py-4 rounded-full font-medium text-lg border border-white/30 hover:bg-white/5 hover:text-white transition-all duration-300 backdrop-blur-sm"
+          >
             View Our Suites
           </button>
         </div>

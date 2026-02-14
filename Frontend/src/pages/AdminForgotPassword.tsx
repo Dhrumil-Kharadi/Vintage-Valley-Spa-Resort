@@ -5,6 +5,7 @@ const AdminForgotPassword = () => {
   const [loading, setLoading] = useState(false);
   const [ok, setOk] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,7 +18,7 @@ const AdminForgotPassword = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({}),
+        body: JSON.stringify({ email: email.trim() ? email.trim() : undefined }),
       });
 
       const raw = await res.text().catch(() => "");
@@ -55,6 +56,20 @@ const AdminForgotPassword = () => {
           </div>
 
           <form onSubmit={submit} className="space-y-6">
+            <div>
+              <label htmlFor="email" className="block text-gray-800 font-medium mb-2">
+                Email
+              </label>
+              <input
+                type="email"
+                id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                placeholder="admin or staff email"
+              />
+            </div>
+
             {ok && (
               <div className="bg-gold/10 border border-gold/20 text-gray-800 px-4 py-3 rounded-2xl">
                 If your admin account is configured, a reset link has been sent.

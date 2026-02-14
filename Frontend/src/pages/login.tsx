@@ -2,6 +2,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -41,9 +42,25 @@ const Login = () => {
     run();
   }, [navigate, redirect]);
 
-  const loginUser = (userName: string) => {
-    localStorage.setItem("user", JSON.stringify({ name: userName }));
+  const showTotalHotelBookingsToast = async () => {
+    try {
+      const res = await fetch('/api/bookings/total-count', { credentials: 'include' });
+      if (!res.ok) return;
+      const data = await res.json().catch(() => null);
+      const totalBookings = Number(data?.data?.totalBookings ?? data?.totalBookings ?? 0);
+      if (!Number.isFinite(totalBookings)) return;
+      toast.info(`Total ${totalBookings} bookings have been made in this hotel in last 4 days.`);
+    } catch {
+      // ignore
+    }
+  };
+
+  const loginUser = async (userName: string, userEmail?: string | null, opts?: { showTotalHotelBookingsToast?: boolean }) => {
+    localStorage.setItem("user", JSON.stringify({ name: userName, email: userEmail ?? undefined }));
     window.dispatchEvent(new Event('storage'));
+    if (opts?.showTotalHotelBookingsToast) {
+      await showTotalHotelBookingsToast();
+    }
     navigate(redirect);
   };
 
@@ -78,7 +95,8 @@ const Login = () => {
         }
 
         const userName = data?.data?.user?.name ?? name.trim() ?? 'Yagna';
-        loginUser(userName);
+        const userEmail = data?.data?.user?.email ?? email.trim() ?? null;
+        await loginUser(userName, userEmail, { showTotalHotelBookingsToast: false });
       } catch {
         setError('Signup failed');
       }
@@ -101,7 +119,8 @@ const Login = () => {
       }
 
       const userName = data?.data?.user?.name ?? 'Yagna';
-      loginUser(userName);
+      const userEmail = data?.data?.user?.email ?? email.trim() ?? null;
+      await loginUser(userName, userEmail, { showTotalHotelBookingsToast: true });
     } catch {
       setError('Login failed');
     }

@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { requireAdmin, requireAuth } from "../../../Backend/src/middlewares/auth";
+import { requireAdminOrStaff, requireAuth } from "../../../Backend/src/middlewares/auth";
 import { adminRoomController } from "../controllers/adminRoomController";
 
 export const adminRoomRouter = Router();
 
-adminRoomRouter.use(requireAuth, requireAdmin);
+adminRoomRouter.use(requireAuth, requireAdminOrStaff);
 
 adminRoomRouter.get("/", adminRoomController.list);
 adminRoomRouter.post("/", adminRoomController.create);

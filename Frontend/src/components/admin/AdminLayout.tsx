@@ -35,6 +35,7 @@ const AdminLayout = ({ title, description, children }: AdminLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [unreadInquiries, setUnreadInquiries] = useState<number>(0);
+  const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
     const run = async () => {
@@ -42,6 +43,17 @@ const AdminLayout = ({ title, description, children }: AdminLayoutProps) => {
         const res = await fetch("/admin-api/auth/me", { credentials: "include" });
         if (!res.ok) {
           navigate("/admin/login", { replace: true });
+          return;
+        }
+
+        try {
+          const raw = localStorage.getItem("admin_user");
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            const r = typeof parsed?.role === "string" ? parsed.role : null;
+            setRole(r);
+          }
+        } catch {
         }
       } catch {
         navigate("/admin/login", { replace: true });
@@ -50,6 +62,11 @@ const AdminLayout = ({ title, description, children }: AdminLayoutProps) => {
 
     run();
   }, [navigate]);
+
+  useEffect(() => {
+  }, [location.pathname, navigate, role]);
+
+  const effectiveNavItems = navItems;
 
   useEffect(() => {
     const run = async () => {
@@ -67,6 +84,10 @@ const AdminLayout = ({ title, description, children }: AdminLayoutProps) => {
   }, [location.pathname]);
 
   const handleLogout = async () => {
+    try {
+      localStorage.setItem("admin_last_logout_at", new Date().toISOString());
+    } catch {
+    }
     try {
       await fetch("/admin-api/auth/logout", {
         method: "POST",
@@ -95,7 +116,7 @@ const AdminLayout = ({ title, description, children }: AdminLayoutProps) => {
 
         <SidebarContent className="px-2">
           <SidebarMenu>
-            {navItems.map((item) => {
+            {effectiveNavItems.map((item) => {
               const active = location.pathname === item.to;
               const Icon = item.icon;
               const badge = item.badgeKey === "inquiries" ? unreadInquiries : 0;

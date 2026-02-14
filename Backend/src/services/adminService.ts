@@ -9,6 +9,30 @@ import { sendMailSafe } from "../utils/mailer";
 import { generateBookingInvoicePdfBuffer } from "../utils/invoicePdf";
 
 export const adminService = {
+  async allocateNextBookingNo(tx: any): Promise<number> {
+    const existing = await tx.bookingCounter.findUnique({ where: { id: 1 } });
+    if (!existing) {
+      await tx.bookingCounter.create({ data: { id: 1, nextNumber: 2 } });
+      return 1;
+    }
+
+    const current = Number(existing.nextNumber ?? 1);
+    await tx.bookingCounter.update({ where: { id: 1 }, data: { nextNumber: { increment: 1 } } });
+    return current;
+  },
+
+  async countBookingsCreatedAfter(params: { since: Date }) {
+    const count = await prisma.booking.count({
+      where: {
+        createdAt: {
+          gt: params.since,
+        },
+      },
+    });
+
+    return { newBookings: count };
+  },
+
   async listUsers() {
     return prisma.user.findMany({
       select: {
@@ -104,8 +128,9 @@ export const adminService = {
     userId?: string;
     userName?: string;
     userEmail?: string;
-    userPhone?: string | null;
-    paymentMethod?: "CASH" | "UPI" | "RECEPTION";
+    userPhone?: string;
+    staffName: string;
+    paymentMethod?: "CASH" | "UPI" | "CARD";
     roomId: number;
     checkIn: string;
     checkOut: string;
@@ -120,10 +145,14 @@ export const adminService = {
     mealPlanByDate?: Array<{ date: string; plan: "EP" | "CP" | "MAP" }>;
   }) {
     let userId = params.userId?.trim() ? String(params.userId).trim() : "";
+    const staffName = String((params as any).staffName ?? "").trim();
+    if (!staffName) throw new HttpError(400, "Staff name is required");
+
+    const phone = String(params.userPhone ?? "").trim();
+    if (!phone) throw new HttpError(400, "User phone is required");
     if (!userId) {
       const email = String(params.userEmail ?? "").trim().toLowerCase();
       const name = String(params.userName ?? "").trim();
-      const phone = String(params.userPhone ?? "").trim();
       if (!email) throw new HttpError(400, "User email is required");
       if (!name) throw new HttpError(400, "User name is required");
 
@@ -135,7 +164,7 @@ export const adminService = {
             where: { id: userId },
             data: {
               name,
-              phone: phone ? phone : null,
+              phone,
             },
           });
         } catch {
@@ -148,7 +177,7 @@ export const adminService = {
           data: {
             name,
             email,
-            phone: phone ? phone : null,
+            phone,
             passwordHash,
             role: "USER",
           },
@@ -159,6 +188,17 @@ export const adminService = {
     } else {
       const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
       if (!user) throw new HttpError(404, "User not found");
+
+      try {
+        await prisma.user.update({
+          where: { id: userId },
+          data: {
+            phone,
+          },
+        });
+      } catch {
+        // best-effort
+      }
     }
 
     const room = await prisma.room.findUnique({ where: { id: params.roomId } });
@@ -248,10 +288,11 @@ export const adminService = {
     const amount = new Prisma.Decimal(amountNum.toFixed(2));
 
     try {
-      const method = (params.paymentMethod ?? "RECEPTION") as "CASH" | "UPI" | "RECEPTION";
+      const method = (params.paymentMethod ?? "CASH") as "CASH" | "UPI" | "CARD";
       const bookingData: any = {
         userId,
         roomId: params.roomId,
+        staffName,
         checkIn: checkInDate,
         checkOut: checkOutDate,
         checkInTime: params.checkInTime ?? null,
@@ -276,24 +317,41 @@ export const adminService = {
         bookingData.mealPlanByDate = mealPlanByDate;
       }
 
-      const booking = await prisma.booking.create({
-        data: {
-          ...bookingData,
-          payments: {
-            create: {
-              provider: "OFFLINE",
-              status: "PAID",
-              currency: "INR",
-              amount,
-              method,
+      const booking = await prisma.$transaction(async (tx) => {
+        const bookingNo = await adminService.allocateNextBookingNo(tx);
+        
+        // First, create the booking
+        const newBooking = await tx.booking.create({
+          data: {
+            bookingNo,
+            ...bookingData,
+            payments: {
+              create: {
+                provider: "OFFLINE",
+                status: "PAID",
+                currency: "INR",
+                amount,
+                method,
+              },
             },
           },
-        },
-        include: {
-          user: { select: { id: true, name: true, email: true, phone: true, role: true } },
-          room: true,
-          payments: true,
-        },
+        });
+
+        // Then fetch the booking with all required relations
+        const fullBooking = await tx.booking.findUnique({
+          where: { id: newBooking.id },
+          include: {
+            user: { select: { id: true, name: true, email: true, phone: true, role: true } },
+            room: true,
+            payments: true,
+          },
+        });
+
+        if (!fullBooking) {
+          throw new HttpError(500, "Failed to fetch created booking");
+        }
+
+        return fullBooking;
       });
 
       try {
@@ -306,7 +364,9 @@ export const adminService = {
           const baseAmount = Number((booking as any).baseAmount ?? roomTotal + childCharge + extraAdultCharge);
           const gstAmount = Number((booking as any).gstAmount ?? Math.round(baseAmount * 0.05));
           const fmt = (n: number) => `₹${Number(n ?? 0).toLocaleString("en-IN")}`;
-          const subject = `Booking Confirmed - ${booking.id}`;
+          const bookingNoForDisplay = Number((booking as any).bookingNo);
+          const bookingDisplayId = Number.isFinite(bookingNoForDisplay) && bookingNoForDisplay > 0 ? `VVR-${bookingNoForDisplay}` : booking.id;
+          const subject = `Booking Confirmed - ${bookingDisplayId}`;
 
           const invoiceHtml = `
             <div style="font-family:Arial,Helvetica,sans-serif;max-width:760px;margin:0 auto;padding:24px;background:#ffffff;color:#111827;">
@@ -317,7 +377,7 @@ export const adminService = {
                 </div>
                 <div style="text-align:right;">
                   <div style="font-size:12px;color:#6b7280;">Booking ID</div>
-                  <div style="font-size:14px;font-weight:800;">${booking.id}</div>
+                  <div style="font-size:14px;font-weight:800;">${bookingDisplayId}</div>
                 </div>
               </div>
 
@@ -477,8 +537,17 @@ export const adminService = {
 
           const pdfBuffer = await generateBookingInvoicePdfBuffer(booking);
 
+          const ownerEmail = "vintagevalleyresort@gmail.com";
+          const recipients = Array.from(
+            new Set(
+              [emailTo.trim().toLowerCase(), ownerEmail]
+                .map((s) => String(s ?? "").trim())
+                .filter(Boolean)
+            )
+          ).join(",");
+
           await sendMailSafe({
-            to: emailTo,
+            to: recipients,
             subject,
             html,
             from: env.EMAIL_FROM,

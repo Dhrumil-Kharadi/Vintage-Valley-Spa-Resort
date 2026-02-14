@@ -6,7 +6,7 @@ import { HttpError } from "./errorHandler";
 export type AuthedRequest = Request & {
   user?: {
     userId: string;
-    role: "USER" | "ADMIN";
+    role: "USER" | "ADMIN" | "STAFF";
   };
 };
 
@@ -26,5 +26,11 @@ export const requireAuth = (req: AuthedRequest, _res: Response, next: NextFuncti
 export const requireAdmin = (req: AuthedRequest, _res: Response, next: NextFunction) => {
   if (!req.user) return next(new HttpError(401, "Unauthorized"));
   if (req.user.role !== "ADMIN") return next(new HttpError(403, "Forbidden"));
+  return next();
+};
+
+export const requireAdminOrStaff = (req: AuthedRequest, _res: Response, next: NextFunction) => {
+  if (!req.user) return next(new HttpError(401, "Unauthorized"));
+  if (req.user.role !== "ADMIN" && req.user.role !== "STAFF") return next(new HttpError(403, "Forbidden"));
   return next();
 };

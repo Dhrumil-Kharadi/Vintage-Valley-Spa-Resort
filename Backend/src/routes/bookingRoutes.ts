@@ -6,6 +6,7 @@ export const bookingRouter = Router();
 
 bookingRouter.get("/", requireAuth, bookingController.me);
 bookingRouter.get("/me", requireAuth, bookingController.me);
+bookingRouter.get("/total-count", requireAuth, bookingController.totalCount);
 bookingRouter.post("/", requireAuth, bookingController.create);
 bookingRouter.post("/:id/verify", requireAuth, bookingController.verify);
 bookingRouter.delete("/:id", requireAuth, bookingController.deletePending);

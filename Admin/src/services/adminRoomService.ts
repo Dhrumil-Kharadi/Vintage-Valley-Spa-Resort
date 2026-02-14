@@ -77,6 +77,32 @@ export const adminRoomService = {
     };
   },
 
+  async updateRoomPrice(id: number, params: { pricePerNight: number }) {
+    const room = await prisma.room.update({
+      where: { id },
+      data: {
+        pricePerNight: params.pricePerNight,
+      },
+      include: {
+        images: { orderBy: { sortOrder: "asc" } },
+        amenities: true,
+      },
+    });
+
+    const r: any = room as any;
+    return {
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      pricePerNight: r.pricePerNight,
+      person: r.person,
+      images: (r.images ?? []).map((i: any) => i.url),
+      amenities: (r.amenities ?? []).map((a: any) => a.name),
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    };
+  },
+
   async updateRoom(
     id: number,
     params: {

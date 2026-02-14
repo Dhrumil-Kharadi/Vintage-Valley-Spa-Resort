@@ -11,6 +11,7 @@ datasource db {
 enum Role {
   USER
   ADMIN
+  STAFF
 }
 
 enum BookingStatus {
@@ -90,8 +91,11 @@ model RoomAmenity {
 
 model Booking {
   id          String        @id @default(cuid())
+  bookingNo   Int?          @unique
   userId      String
   roomId      Int
+
+  staffName   String?       @db.VarChar(100)
 
   promoCodeId String?
   promoCode   String?       @db.VarChar(50)
@@ -130,6 +134,12 @@ model Booking {
 
   @@index([userId])
   @@index([roomId])
+}
+
+model BookingCounter {
+  id          Int      @id
+  nextNumber  Int      @default(1)
+  updatedAt   DateTime @updatedAt
 }
 
 model PromoCode {

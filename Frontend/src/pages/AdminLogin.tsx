@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -37,6 +38,49 @@ const AdminLogin = () => {
 
         setError(`${res.status} ${res.statusText}: ${message}`);
         return;
+      }
+
+      try {
+        const u = data?.data?.user;
+        if (u && typeof u === "object") {
+          localStorage.setItem("admin_user", JSON.stringify({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            role: u.role,
+          }));
+        }
+      } catch {
+      }
+
+      try {
+        const lastLogoutTime = (() => {
+          try {
+            return localStorage.getItem("admin_last_logout_at");
+          } catch {
+            return null;
+          }
+        })();
+
+        const countRes = await fetch("/api/admin/bookings/new-count", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ lastLogoutTime }),
+        });
+        const countData = await countRes.json().catch(() => null);
+        if (countRes.ok) {
+          const newBookings = Number(countData?.data?.newBookings ?? countData?.newBookings ?? 0);
+          if (Number.isFinite(newBookings)) {
+            toast.info(`${newBookings} new bookings were made after your last logout.`);
+          }
+        }
+
+        try {
+          localStorage.setItem("admin_last_logout_at", new Date().toISOString());
+        } catch {
+        }
+      } catch {
       }
 
       navigate("/admin");
