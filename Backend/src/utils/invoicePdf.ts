@@ -136,7 +136,7 @@ export const generateBookingInvoicePdfBuffer = async (b: any) => {
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
-    const leftNote = "Kindly print this confirmation and\nhave it\nready upon check-in at the Hotel";
+    const leftNote = "Kindly print this confirmation and\nhave it ready upon check-in at the Hotel";
     const leftNoteY = refEndY + 24;
     doc.text(leftNote.split("\n"), leftColX, leftNoteY);
 
@@ -149,7 +149,7 @@ export const generateBookingInvoicePdfBuffer = async (b: any) => {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
     const address =
-      "Mumbai-Nashik Highway,Opp Pravin\nIndustries,Talegaon,Igatpuri,\nIgatpuri,Nashik - 422403,Maharashtra,India";
+      "Mumbai-Nashik Highway,Opp Pravin Industries,\nTalegaon,Igatpuri,\nIgatpuri,Nashik - 422403,Maharashtra,India";
     const addrLines = doc.splitTextToSize(address, colW);
     const addrStartY = topY + 36;
     doc.text(addrLines, rightColX + colW, addrStartY, { align: "right" } as any);
@@ -186,7 +186,7 @@ export const generateBookingInvoicePdfBuffer = async (b: any) => {
   y = drawPara(`Dear ${guestName},`, left + 14, y, contentW - 28, 16);
   y += 6;
   y = drawPara(
-    "Thank you for choosing RVJ ENTERPRISES-VINTAGE VALLEY RESORT for your stay. We are pleased to inform\nyou that your reservation request is CONFIRMED and your reservation details are as follows.",
+    "Thank you for choosing RVJ ENTERPRISES-VINTAGE VALLEY RESORT for your stay. We are pleased to inform you that your reservation request is CONFIRMED and your reservation details are as follows.",
     left + 14,
     y,
     contentW - 28,
@@ -417,16 +417,25 @@ export const generateBookingInvoicePdfBuffer = async (b: any) => {
     doc.setFont("helvetica", "normal");
     doc.text("**** FOR ANY FURTHER QUERY ****", x, y);
     y += 16;
-    doc.text("Contact us by Email Id", x, y);
-    doc.text("vintagevalleyresort@gmail.com", x + 140, y);
+    doc.text("Contact us by Phone No  : +919371169888", x, y);
     y += 14;
-    doc.text("Phone NO  : +919371169888", x, y);
+    doc.text("Email Id : vintagevalleyresort@gmail.com", x, y);
     y += 14;
     const addr =
       "Mumbai-Nashik Highway,Opp Pravin Industries,Talegaon,Igatpuri,Igatpuri,Nashik-422403,Maharashtra,India";
-    const addrLines = doc.splitTextToSize(addr, w);
-    doc.text(addrLines, x, y);
-    y += addrLines.length * 14;
+    {
+      const minFont = 7;
+      let fs = 11;
+      doc.setFont("helvetica", "normal");
+      while (fs > minFont) {
+        doc.setFontSize(fs);
+        if (doc.getTextWidth(addr) <= w) break;
+        fs -= 0.5;
+      }
+      doc.text(addr, x, y);
+      doc.setFontSize(12);
+      y += 14;
+    }
     y += 6;
     doc.setDrawColor(120, 120, 120);
     doc.setLineWidth(0.8);
