@@ -13,12 +13,19 @@ const createRoomSchema = zod_1.z.object({
     amenities: zod_1.z.array(zod_1.z.string().min(1)).default([]),
 });
 const updateRoomSchema = createRoomSchema;
+const updateRoomPriceSchema = zod_1.z.object({
+    pricePerNight: zod_1.z.coerce.number().int().nonnegative(),
+});
 exports.adminRoomController = {
     list: (0, asyncHandler_1.asyncHandler)(async (_req, res) => {
         const rooms = await adminRoomService_1.adminRoomService.listRooms();
         res.json({ ok: true, data: { rooms } });
     }),
     create: (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+        const role = String(req.user?.role ?? "");
+        if (role === "STAFF") {
+            return res.status(403).json({ ok: false, error: { message: "Forbidden" } });
+        }
         const body = createRoomSchema.parse(req.body);
         const room = await adminRoomService_1.adminRoomService.createRoom(body);
         res.status(201).json({ ok: true, data: { room } });
@@ -28,11 +35,22 @@ exports.adminRoomController = {
         if (!Number.isFinite(id)) {
             return res.status(400).json({ ok: false, error: { message: "Invalid room id" } });
         }
+        const role = String(req.user?.role ?? "");
+        if (role === "STAFF") {
+            const body = updateRoomPriceSchema.parse(req.body);
+            const room = await adminRoomService_1.adminRoomService.updateRoomPrice(id, body);
+            res.json({ ok: true, data: { room } });
+            return;
+        }
         const body = updateRoomSchema.parse(req.body);
         const room = await adminRoomService_1.adminRoomService.updateRoom(id, body);
         res.json({ ok: true, data: { room } });
     }),
     remove: (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+        const role = String(req.user?.role ?? "");
+        if (role === "STAFF") {
+            return res.status(403).json({ ok: false, error: { message: "Forbidden" } });
+        }
         const id = Number(req.params.id);
         if (!Number.isFinite(id)) {
             return res.status(400).json({ ok: false, error: { message: "Invalid room id" } });

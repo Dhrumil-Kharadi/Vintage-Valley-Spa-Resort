@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.requireAdmin = exports.requireAuth = void 0;
+exports.requireAdminOrStaff = exports.requireAdmin = exports.requireAuth = void 0;
 const jwt_1 = require("../utils/jwt");
 const env_1 = require("../config/env");
 const errorHandler_1 = require("./errorHandler");
@@ -26,3 +26,11 @@ const requireAdmin = (req, _res, next) => {
     return next();
 };
 exports.requireAdmin = requireAdmin;
+const requireAdminOrStaff = (req, _res, next) => {
+    if (!req.user)
+        return next(new errorHandler_1.HttpError(401, "Unauthorized"));
+    if (req.user.role !== "ADMIN" && req.user.role !== "STAFF")
+        return next(new errorHandler_1.HttpError(403, "Forbidden"));
+    return next();
+};
+exports.requireAdminOrStaff = requireAdminOrStaff;

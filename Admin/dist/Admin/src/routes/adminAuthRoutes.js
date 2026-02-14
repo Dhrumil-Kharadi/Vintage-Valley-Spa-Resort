@@ -9,4 +9,4 @@ exports.adminAuthRouter.post("/login", adminAuthController_1.adminAuthController
 exports.adminAuthRouter.post("/forgot-password", adminAuthController_1.adminAuthController.forgotPassword);
 exports.adminAuthRouter.post("/reset-password", adminAuthController_1.adminAuthController.resetPassword);
 exports.adminAuthRouter.post("/logout", adminAuthController_1.adminAuthController.logout);
-exports.adminAuthRouter.get("/me", auth_1.requireAuth, auth_1.requireAdmin, adminAuthController_1.adminAuthController.me);
+exports.adminAuthRouter.get("/me", auth_1.requireAuth, auth_1.requireAdminOrStaff, adminAuthController_1.adminAuthController.me);

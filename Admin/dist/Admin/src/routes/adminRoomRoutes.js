@@ -5,7 +5,7 @@ const express_1 = require("express");
 const auth_1 = require("../../../Backend/src/middlewares/auth");
 const adminRoomController_1 = require("../controllers/adminRoomController");
 exports.adminRoomRouter = (0, express_1.Router)();
-exports.adminRoomRouter.use(auth_1.requireAuth, auth_1.requireAdmin);
+exports.adminRoomRouter.use(auth_1.requireAuth, auth_1.requireAdminOrStaff);
 exports.adminRoomRouter.get("/", adminRoomController_1.adminRoomController.list);
 exports.adminRoomRouter.post("/", adminRoomController_1.adminRoomController.create);
 exports.adminRoomRouter.put("/:id", adminRoomController_1.adminRoomController.update);

@@ -2,6 +2,84 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateBookingInvoicePdfBuffer = void 0;
 const jspdf_1 = require("jspdf");
+function drawInvoiceHeader(doc, config) {
+    const { left, right, bookingRef } = config;
+    const boxX = left;
+    const boxY = 32;
+    const boxW = right - left;
+    const boxH = 112;
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(2);
+    doc.rect(boxX, boxY, boxW, boxH);
+    doc.setLineWidth(1);
+    doc.rect(boxX + 4, boxY + 4, boxW - 8, boxH - 8);
+    const innerLeft = boxX + 14;
+    const innerRight = boxX + boxW - 14;
+    const colGap = 24;
+    const colW = (boxW - 28 - colGap) / 2;
+    const leftColX = innerLeft;
+    const rightColX = innerLeft + colW + colGap;
+    const headerImageDataUrl = config.headerImageDataUrl;
+    const imageHeight = headerImageDataUrl ? 48 : 0;
+    if (headerImageDataUrl) {
+        const props = doc.getImageProperties ? doc.getImageProperties(headerImageDataUrl) : null;
+        const iw = Number(props?.width ?? 0);
+        const ih = Number(props?.height ?? 0);
+        const usableW = boxW - 28;
+        const scaledW = iw > 0 && ih > 0 ? Math.min(usableW, (iw / ih) * imageHeight) : usableW;
+        const imgX = boxX + (boxW - scaledW) / 2;
+        const imgY = boxY + 8;
+        doc.addImage(headerImageDataUrl, "PNG", imgX, imgY, scaledW, imageHeight);
+    }
+    const topY = boxY + imageHeight + 22;
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("CONFIRM BOOKING", leftColX, topY);
+    doc.setFontSize(12);
+    doc.text("BOOKING REFERENCE", leftColX, topY + 16);
+    doc.setFontSize(14);
+    const refText = `NO :${bookingRef}`;
+    const refLines = doc.splitTextToSize(refText, colW);
+    doc.text(refLines, leftColX, topY + 32);
+    const refLineH = 14;
+    const refEndY = topY + 32 + (refLines.length - 1) * refLineH;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    const leftNote = "Kindly print this confirmation and\nhave it ready upon check-in at the Hotel";
+    const leftNoteY = refEndY + 24;
+    doc.text(leftNote.split("\n"), leftColX, leftNoteY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.text("RVJ ENTERPRISES-VINTAGE", rightColX + colW, topY, { align: "right" });
+    doc.setFontSize(18);
+    doc.text("VALLEY RESORT", rightColX + colW, topY + 18, { align: "right" });
+    doc.setFont("helvetica", "normal");
+    const address = "Mumbai-Nashik Highway,Opp Pravin Industries,\nTalegaon,Igatpuri,\nIgatpuri,Nashik - 422403,Maharashtra,India";
+    const addrStartY = topY + 36;
+    const headerLineH = 13;
+    doc.setFontSize(10);
+    const addrLines = doc.splitTextToSize(address, colW);
+    for (let i = 0; i < addrLines.length; i++) {
+        doc.text(String(addrLines[i] ?? ""), rightColX + colW, addrStartY + i * headerLineH, { align: "right" });
+    }
+    const addrEndY = addrStartY + (addrLines.length - 1) * headerLineH;
+    const email = "vintagevalleyresort@gmail.com";
+    const contactBlockH = headerLineH * 3 + 8;
+    const safeBottomY = boxY + boxH - 14;
+    const contactStartY = Math.max(addrEndY + 10, safeBottomY - contactBlockH);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text("Contact us By", rightColX + colW, contactStartY, { align: "right" });
+    doc.text("Phone number : +919371169888", rightColX + colW, contactStartY + headerLineH, { align: "right" });
+    const emailTextY = contactStartY + headerLineH * 2;
+    doc.text(`Email ID : ${email}`, rightColX + colW, emailTextY, { align: "right" });
+    const emailW = doc.getTextWidth(email);
+    doc.setLineWidth(0.8);
+    const underlineY = emailTextY + 1;
+    doc.line(innerRight - emailW, underlineY, innerRight, underlineY);
+    return boxY + boxH + 18;
+}
 const generateBookingInvoicePdfBuffer = async (b) => {
     const formatMethod = (m) => {
         const s = String(m ?? "").trim();
@@ -43,8 +121,8 @@ const generateBookingInvoicePdfBuffer = async (b) => {
         return dt.toLocaleDateString("en-IN");
     };
     const invoiceDate = new Date();
-    const bookingRefRaw = b?.bookingReference ?? b?.referenceNo ?? b?.reference ?? b.id;
-    const bookingRef = String(bookingRefRaw ?? "").trim() || "—";
+    // Use VVR-{bookingNo} format if available, otherwise fall back to the old ID
+    const bookingRef = b.bookingNo ? `VVR-${b.bookingNo}` : String(b.id ?? "").trim() || "—";
     const addPageIfNeeded = (nextY) => {
         if (nextY <= pageH - 60)
             return;
@@ -88,76 +166,14 @@ const generateBookingInvoicePdfBuffer = async (b) => {
         }
         return yy + h + 14;
     };
-    {
-        const boxX = left;
-        const boxY = 32;
-        const boxW = right - left;
-        const boxH = 132;
-        doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(2);
-        doc.rect(boxX, boxY, boxW, boxH);
-        doc.setLineWidth(1);
-        doc.rect(boxX + 4, boxY + 4, boxW - 8, boxH - 8);
-        const innerLeft = boxX + 14;
-        const innerRight = boxX + boxW - 14;
-        const colGap = 24;
-        const colW = (boxW - 28 - colGap) / 2;
-        const leftColX = innerLeft;
-        const rightColX = innerLeft + colW + colGap;
-        const topY = boxY + 26;
-        doc.setTextColor(0, 0, 0);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(18);
-        doc.text("CONFIRM BOOKING", leftColX, topY);
-        doc.setFontSize(12);
-        doc.text("BOOKING REFERENCE", leftColX, topY + 16);
-        doc.setFontSize(14);
-        const refText = `NO :${bookingRef}`;
-        const refLines = doc.splitTextToSize(refText, colW);
-        doc.text(refLines, leftColX, topY + 32);
-        const refLineH = 14;
-        const refEndY = topY + 32 + (refLines.length - 1) * refLineH;
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(11);
-        const leftNote = "Kindly print this confirmation and\nhave it\nready upon check-in at the Hotel";
-        const leftNoteY = refEndY + 24;
-        doc.text(leftNote.split("\n"), leftColX, leftNoteY);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(15);
-        doc.text("RVJ ENTERPRISES-VINTAGE", rightColX + colW, topY, { align: "right" });
-        doc.setFontSize(18);
-        doc.text("VALLEY RESORT", rightColX + colW, topY + 18, { align: "right" });
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(11);
-        const address = "Mumbai-Nashik Highway,Opp Pravin\nIndustries,Talegaon,Igatpuri,\nIgatpuri,Nashik - 422403,Maharashtra,India";
-        const addrLines = doc.splitTextToSize(address, colW);
-        const addrStartY = topY + 36;
-        doc.text(addrLines, rightColX + colW, addrStartY, { align: "right" });
-        const addrLineH = 12;
-        const addrEndY = addrStartY + (addrLines.length - 1) * addrLineH;
-        const email = "vintagevalleyresort@gmail.com";
-        let emailY = addrEndY + 16;
-        let phoneY = emailY + 18;
-        const safeBottomY = boxY + boxH - 14;
-        if (phoneY > safeBottomY) {
-            const shiftUp = phoneY - safeBottomY;
-            emailY -= shiftUp;
-            phoneY -= shiftUp;
-        }
-        doc.text(email, rightColX + colW, emailY, { align: "right" });
-        const emailW = doc.getTextWidth(email);
-        doc.setLineWidth(0.8);
-        doc.line(innerRight - emailW, emailY + 2, innerRight, emailY + 2);
-        doc.text("Phone : +919371169888", rightColX + colW, phoneY, { align: "right" });
-        y = boxY + boxH + 18;
-    }
+    y = drawInvoiceHeader(doc, { left, right, contentW, bookingRef });
     doc.setFont("helvetica", "normal");
     doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
     const guestName = String(b.user?.name ?? "").trim() || "Guest";
     y = drawPara(`Dear ${guestName},`, left + 14, y, contentW - 28, 16);
     y += 6;
-    y = drawPara("Thank you for choosing RVJ ENTERPRISES-VINTAGE VALLEY RESORT for your stay. We are pleased to inform\nyou that your reservation request is CONFIRMED and your reservation details are as follows.", left + 14, y, contentW - 28, 16);
+    y = drawPara("Thank you for choosing RVJ ENTERPRISES-VINTAGE VALLEY RESORT for your stay. We are pleased to inform you that your reservation request is CONFIRMED and your reservation details are as follows.", left + 14, y, contentW - 28, 16);
     y += 18;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
@@ -183,11 +199,9 @@ const generateBookingInvoicePdfBuffer = async (b) => {
     y += 18;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
-    doc.text(guestName, left + 14, y);
+    doc.text(`Name : ${guestName}`, left + 14, y);
     y += 16;
-    doc.text("Email ID", left + 14, y);
-    doc.text(":", left + 14 + 120, y);
-    doc.text(String(b.user?.email ?? ""), left + 14 + 130, y);
+    doc.text(`Email : ${String(b.user?.email ?? "")}`, left + 14, y);
     y += 22;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
@@ -229,9 +243,10 @@ const generateBookingInvoicePdfBuffer = async (b) => {
     doc.setFont("helvetica", "bold");
     doc.text("Description", tableX, y);
     doc.setFont("helvetica", "normal");
-    doc.text(`: ${roomTitle}`, tableX + 70, y);
-    y += 14;
-    doc.text("- AP", tableX, y);
+    const hasMap = (b.mealPlanByDate || []).some((d) => d.plan === "MAP");
+    const hasCp = (b.mealPlanByDate || []).some((d) => d.plan === "CP");
+    const mealPlan = hasMap ? "AP" : hasCp ? "CP" : "EP";
+    doc.text(`: ${roomTitle} - ${mealPlan}`, tableX + 70, y);
     y += 18;
     addPageIfNeeded(y + 180);
     doc.setFont("helvetica", "bold");
@@ -353,15 +368,27 @@ const generateBookingInvoicePdfBuffer = async (b) => {
         doc.setFont("helvetica", "normal");
         doc.text("**** FOR ANY FURTHER QUERY ****", x, y);
         y += 16;
-        doc.text("Contact us by Email Id", x, y);
-        doc.text("vintagevalleyresort@gmail.com", x + 140, y);
+        doc.text("Contact us by", x, y);
         y += 14;
-        doc.text("Phone NO  : +919371169888", x, y);
+        doc.text("Phone number : +919371169888", x, y);
+        y += 14;
+        doc.text("Email ID : vintagevalleyresort@gmail.com", x, y);
         y += 14;
         const addr = "Mumbai-Nashik Highway,Opp Pravin Industries,Talegaon,Igatpuri,Igatpuri,Nashik-422403,Maharashtra,India";
-        const addrLines = doc.splitTextToSize(addr, w);
-        doc.text(addrLines, x, y);
-        y += addrLines.length * 14;
+        {
+            const minFont = 7;
+            let fs = 11;
+            doc.setFont("helvetica", "normal");
+            while (fs > minFont) {
+                doc.setFontSize(fs);
+                if (doc.getTextWidth(addr) <= w)
+                    break;
+                fs -= 0.5;
+            }
+            doc.text(addr, x, y);
+            doc.setFontSize(12);
+            y += 14;
+        }
         y += 6;
         doc.setDrawColor(120, 120, 120);
         doc.setLineWidth(0.8);

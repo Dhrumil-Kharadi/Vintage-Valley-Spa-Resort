@@ -15,6 +15,6 @@ exports.adminApiRouter.use("/auth", adminAuthRoutes_1.adminAuthRouter);
 // =====================
 // PROTECTED ROUTES
 // =====================
-exports.adminApiRouter.use("/", auth_1.requireAuth, auth_1.requireAdmin, adminDataRoutes_1.adminDataRouter);
-exports.adminApiRouter.use("/promos", auth_1.requireAuth, auth_1.requireAdmin, adminPromoRoutes_1.adminPromoRouter);
-exports.adminApiRouter.use("/rooms", auth_1.requireAuth, auth_1.requireAdmin, adminRoomRoutes_1.adminRoomRouter);
+exports.adminApiRouter.use("/", auth_1.requireAuth, adminDataRoutes_1.adminDataRouter);
+exports.adminApiRouter.use("/promos", auth_1.requireAuth, auth_1.requireAdminOrStaff, adminPromoRoutes_1.adminPromoRouter);
+exports.adminApiRouter.use("/rooms", auth_1.requireAuth, auth_1.requireAdminOrStaff, adminRoomRoutes_1.adminRoomRouter);

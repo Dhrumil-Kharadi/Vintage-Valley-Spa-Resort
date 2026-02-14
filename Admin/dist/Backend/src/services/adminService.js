@@ -14,6 +14,26 @@ const env_1 = require("../config/env");
 const mailer_1 = require("../utils/mailer");
 const invoicePdf_1 = require("../utils/invoicePdf");
 exports.adminService = {
+    async allocateNextBookingNo(tx) {
+        const existing = await tx.bookingCounter.findUnique({ where: { id: 1 } });
+        if (!existing) {
+            await tx.bookingCounter.create({ data: { id: 1, nextNumber: 2 } });
+            return 1;
+        }
+        const current = Number(existing.nextNumber ?? 1);
+        await tx.bookingCounter.update({ where: { id: 1 }, data: { nextNumber: { increment: 1 } } });
+        return current;
+    },
+    async countBookingsCreatedAfter(params) {
+        const count = await client_1.prisma.booking.count({
+            where: {
+                createdAt: {
+                    gt: params.since,
+                },
+            },
+        });
+        return { newBookings: count };
+    },
     async listUsers() {
         return client_1.prisma.user.findMany({
             select: {
@@ -106,10 +126,15 @@ exports.adminService = {
     },
     async createManualBooking(params) {
         let userId = params.userId?.trim() ? String(params.userId).trim() : "";
+        const staffName = String(params.staffName ?? "").trim();
+        if (!staffName)
+            throw new errorHandler_1.HttpError(400, "Staff name is required");
+        const phone = String(params.userPhone ?? "").trim();
+        if (!phone)
+            throw new errorHandler_1.HttpError(400, "User phone is required");
         if (!userId) {
             const email = String(params.userEmail ?? "").trim().toLowerCase();
             const name = String(params.userName ?? "").trim();
-            const phone = String(params.userPhone ?? "").trim();
             if (!email)
                 throw new errorHandler_1.HttpError(400, "User email is required");
             if (!name)
@@ -122,7 +147,7 @@ exports.adminService = {
                         where: { id: userId },
                         data: {
                             name,
-                            phone: phone ? phone : null,
+                            phone,
                         },
                     });
                 }
@@ -137,7 +162,7 @@ exports.adminService = {
                     data: {
                         name,
                         email,
-                        phone: phone ? phone : null,
+                        phone,
                         passwordHash,
                         role: "USER",
                     },
@@ -150,6 +175,17 @@ exports.adminService = {
             const user = await client_1.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
             if (!user)
                 throw new errorHandler_1.HttpError(404, "User not found");
+            try {
+                await client_1.prisma.user.update({
+                    where: { id: userId },
+                    data: {
+                        phone,
+                    },
+                });
+            }
+            catch {
+                // best-effort
+            }
         }
         const room = await client_1.prisma.room.findUnique({ where: { id: params.roomId } });
         if (!room)
@@ -238,10 +274,11 @@ exports.adminService = {
         const gstAmount = new client_2.Prisma.Decimal(gstAmountNum.toFixed(2));
         const amount = new client_2.Prisma.Decimal(amountNum.toFixed(2));
         try {
-            const method = (params.paymentMethod ?? "RECEPTION");
+            const method = (params.paymentMethod ?? "CASH");
             const bookingData = {
                 userId,
                 roomId: params.roomId,
+                staffName,
                 checkIn: checkInDate,
                 checkOut: checkOutDate,
                 checkInTime: params.checkInTime ?? null,
@@ -264,24 +301,37 @@ exports.adminService = {
             if (mealPlanByDate && mealPlanByDate.length > 0) {
                 bookingData.mealPlanByDate = mealPlanByDate;
             }
-            const booking = await client_1.prisma.booking.create({
-                data: {
-                    ...bookingData,
-                    payments: {
-                        create: {
-                            provider: "OFFLINE",
-                            status: "PAID",
-                            currency: "INR",
-                            amount,
-                            method,
+            const booking = await client_1.prisma.$transaction(async (tx) => {
+                const bookingNo = await exports.adminService.allocateNextBookingNo(tx);
+                // First, create the booking
+                const newBooking = await tx.booking.create({
+                    data: {
+                        bookingNo,
+                        ...bookingData,
+                        payments: {
+                            create: {
+                                provider: "OFFLINE",
+                                status: "PAID",
+                                currency: "INR",
+                                amount,
+                                method,
+                            },
                         },
                     },
-                },
-                include: {
-                    user: { select: { id: true, name: true, email: true, phone: true, role: true } },
-                    room: true,
-                    payments: true,
-                },
+                });
+                // Then fetch the booking with all required relations
+                const fullBooking = await tx.booking.findUnique({
+                    where: { id: newBooking.id },
+                    include: {
+                        user: { select: { id: true, name: true, email: true, phone: true, role: true } },
+                        room: true,
+                        payments: true,
+                    },
+                });
+                if (!fullBooking) {
+                    throw new errorHandler_1.HttpError(500, "Failed to fetch created booking");
+                }
+                return fullBooking;
             });
             try {
                 const emailTo = String(params.userEmail ?? booking.user?.email ?? "").trim();
@@ -293,7 +343,9 @@ exports.adminService = {
                     const baseAmount = Number(booking.baseAmount ?? roomTotal + childCharge + extraAdultCharge);
                     const gstAmount = Number(booking.gstAmount ?? Math.round(baseAmount * 0.05));
                     const fmt = (n) => `₹${Number(n ?? 0).toLocaleString("en-IN")}`;
-                    const subject = `Booking Confirmed - ${booking.id}`;
+                    const bookingNoForDisplay = Number(booking.bookingNo);
+                    const bookingDisplayId = Number.isFinite(bookingNoForDisplay) && bookingNoForDisplay > 0 ? `VVR-${bookingNoForDisplay}` : booking.id;
+                    const subject = `Booking Confirmed - ${bookingDisplayId}`;
                     const invoiceHtml = `
             <div style="font-family:Arial,Helvetica,sans-serif;max-width:760px;margin:0 auto;padding:24px;background:#ffffff;color:#111827;">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid #e5e7eb;border-radius:16px;padding:18px 18px 14px;">
@@ -303,7 +355,7 @@ exports.adminService = {
                 </div>
                 <div style="text-align:right;">
                   <div style="font-size:12px;color:#6b7280;">Booking ID</div>
-                  <div style="font-size:14px;font-weight:800;">${booking.id}</div>
+                  <div style="font-size:14px;font-weight:800;">${bookingDisplayId}</div>
                 </div>
               </div>
 
@@ -460,8 +512,12 @@ exports.adminService = {
             </div>
           `;
                     const pdfBuffer = await (0, invoicePdf_1.generateBookingInvoicePdfBuffer)(booking);
+                    const ownerEmail = "vintagevalleyresort@gmail.com";
+                    const recipients = Array.from(new Set([emailTo.trim().toLowerCase(), ownerEmail]
+                        .map((s) => String(s ?? "").trim())
+                        .filter(Boolean))).join(",");
                     await (0, mailer_1.sendMailSafe)({
-                        to: emailTo,
+                        to: recipients,
                         subject,
                         html,
                         from: env_1.env.EMAIL_FROM,

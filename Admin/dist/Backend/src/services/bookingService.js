@@ -10,6 +10,27 @@ const promoService_1 = require("./promoService");
 const mailer_1 = require("../utils/mailer");
 const invoicePdf_1 = require("../utils/invoicePdf");
 exports.bookingService = {
+    async allocateNextBookingNo(tx) {
+        const existing = await tx.bookingCounter.findUnique({ where: { id: 1 } });
+        if (!existing) {
+            await tx.bookingCounter.create({ data: { id: 1, nextNumber: 2 } });
+            return 1;
+        }
+        const current = Number(existing.nextNumber ?? 1);
+        await tx.bookingCounter.update({ where: { id: 1 }, data: { nextNumber: { increment: 1 } } });
+        return current;
+    },
+    async getTotalBookingsCount() {
+        const since = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
+        const totalBookings = await db_1.prisma.booking.count({
+            where: {
+                createdAt: {
+                    gte: since,
+                },
+            },
+        });
+        return { totalBookings };
+    },
     async createBooking(params) {
         const user = await db_1.prisma.user.findUnique({
             where: { id: params.userId },
@@ -228,8 +249,10 @@ exports.bookingService = {
             }
             else {
                 booking = await db_1.prisma.$transaction(async (tx) => {
+                    const bookingNo = await exports.bookingService.allocateNextBookingNo(tx);
                     const created = await tx.booking.create({
                         data: {
+                            bookingNo,
                             userId: params.userId,
                             roomId: params.roomId,
                             promoCodeId: promoToAttach?.id ?? null,
@@ -556,8 +579,12 @@ exports.bookingService = {
           </div>
         `;
                 const pdfBuffer = await (0, invoicePdf_1.generateBookingInvoicePdfBuffer)(fullBooking);
+                const ownerEmail = "vintagevalleyresort@gmail.com";
+                const recipients = Array.from(new Set([String(fullBooking.user.email).trim().toLowerCase(), ownerEmail]
+                    .map((s) => String(s ?? "").trim())
+                    .filter(Boolean))).join(",");
                 await (0, mailer_1.sendMailSafe)({
-                    to: fullBooking.user.email,
+                    to: recipients,
                     subject,
                     html,
                     from: env_1.env.EMAIL_FROM,

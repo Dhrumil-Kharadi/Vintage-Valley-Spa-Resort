@@ -27,6 +27,17 @@ exports.adminController = {
         const bookings = await adminService_1.adminService.listBookings();
         res.json({ ok: true, data: { bookings } });
     }),
+    newBookingsCount: (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+        const schema = zod_1.z.object({ lastLogoutTime: zod_1.z.string().optional().nullable() });
+        const body = schema.parse(req.body ?? {});
+        const raw = String(body.lastLogoutTime ?? "").trim();
+        const since = raw ? new Date(raw) : new Date(0);
+        if (!Number.isFinite(since.getTime())) {
+            return res.status(400).json({ ok: false, error: { message: "Invalid lastLogoutTime" } });
+        }
+        const result = await adminService_1.adminService.countBookingsCreatedAfter({ since });
+        res.json({ ok: true, data: result });
+    }),
     deleteBooking: (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         const schema = zod_1.z.object({ id: zod_1.z.string().min(1) });
         const { id } = schema.parse(req.params);
@@ -35,11 +46,12 @@ exports.adminController = {
     }),
     createManualBooking: (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         const schema = zod_1.z.object({
-            paymentMethod: zod_1.z.enum(["CASH", "UPI", "RECEPTION"]).optional(),
+            paymentMethod: zod_1.z.enum(["CASH", "UPI", "CARD"]).optional(),
+            staffName: zod_1.z.string().min(1),
             userId: zod_1.z.string().min(1).optional(),
             userName: zod_1.z.string().min(1).optional(),
             userEmail: zod_1.z.string().email().optional(),
-            userPhone: zod_1.z.string().optional().nullable(),
+            userPhone: zod_1.z.string().min(1),
             roomId: zod_1.z.number().int(),
             checkIn: zod_1.z.string().min(1),
             checkOut: zod_1.z.string().min(1),
@@ -69,10 +81,11 @@ exports.adminController = {
         }
         const booking = await adminService_1.adminService.createManualBooking({
             paymentMethod: body.paymentMethod,
+            staffName: body.staffName,
             userId: body.userId,
             userName: body.userName,
             userEmail: body.userEmail,
-            userPhone: body.userPhone ?? null,
+            userPhone: body.userPhone,
             roomId: body.roomId,
             checkIn: body.checkIn,
             checkOut: body.checkOut,

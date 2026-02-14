@@ -46,6 +46,10 @@ exports.bookingController = {
         const bookings = await bookingService_1.bookingService.listUserBookings({ userId: req.user.userId });
         res.json({ ok: true, data: { bookings } });
     }),
+    totalCount: (0, asyncHandler_1.asyncHandler)(async (_req, res) => {
+        const result = await bookingService_1.bookingService.getTotalBookingsCount();
+        res.json({ ok: true, data: result });
+    }),
     create: (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         const body = createSchema.parse(req.body);
         const result = await bookingService_1.bookingService.createBooking({

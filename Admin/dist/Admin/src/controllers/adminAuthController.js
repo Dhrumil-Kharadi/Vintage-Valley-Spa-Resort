@@ -27,6 +27,13 @@ exports.adminAuthController = {
     }),
     forgotPassword: (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         const body = forgotPasswordSchema.parse(req.body ?? {});
+        const staffEmail = String(process.env.STAFF_EMAIL ?? "").trim().toLowerCase();
+        const requested = String(body.email ?? "").trim().toLowerCase();
+        if (staffEmail && requested && requested === staffEmail) {
+            await adminAuthService_1.adminAuthService.createStaffResetNotification();
+            res.json({ ok: true });
+            return;
+        }
         await adminAuthService_1.adminAuthService.createAdminResetToken({ email: body.email });
         res.json({ ok: true });
     }),
