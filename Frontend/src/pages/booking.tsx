@@ -1,7 +1,7 @@
 import Navbar from '@/components/Navbar';
 import Footer from '../components/Footer';
 import FloatingContact from '../components/FloatingContact';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { usePolicyModals } from '@/components/PolicyModals';
@@ -12,6 +12,9 @@ type RoomDetails = {
   title: string;
   description: string;
   pricePerNight: number;
+  epPricePerNight?: number | null;
+  cpPricePerNight?: number | null;
+  mapPricePerNight?: number | null;
   person: number;
   amenities: string[];
   images: string[];
@@ -53,6 +56,8 @@ const Booking = () => {
 
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
+  const [checkInText, setCheckInText] = useState('');
+  const [checkOutText, setCheckOutText] = useState('');
   const [checkInTime, setCheckInTime] = useState('13:00');
   const [checkOutTime, setCheckOutTime] = useState('11:00');
   const [rooms, setRooms] = useState(1);
@@ -69,6 +74,48 @@ const Booking = () => {
   const { openTerms } = usePolicyModals();
 
   const [mealPlanByDate, setMealPlanByDate] = useState<Record<string, MealPlan>>({});
+
+  const checkInPickerRef = useRef<HTMLInputElement | null>(null);
+  const checkOutPickerRef = useRef<HTMLInputElement | null>(null);
+  const lastDateRangeKeyRef = useRef<string>('');
+
+  const formatDateDmy = (iso: string) => {
+    if (!iso) return "";
+    const dt = new Date(iso);
+    if (Number.isNaN(dt.getTime())) return "";
+    const dd = String(dt.getDate()).padStart(2, "0");
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    const yyyy = String(dt.getFullYear());
+    return `${dd}/${mm}/${yyyy}`;
+  };
+
+  const formatDateFriendly = (iso: string) => {
+    if (!iso) return "";
+    const dt = new Date(iso);
+    if (Number.isNaN(dt.getTime())) return "";
+    const d = dt.getDate();
+    const suffix = d % 10 === 1 && d % 100 !== 11 ? "st" : d % 10 === 2 && d % 100 !== 12 ? "nd" : d % 10 === 3 && d % 100 !== 13 ? "rd" : "th";
+    const month = dt.toLocaleString("en-IN", { month: "long" });
+    const year = dt.getFullYear();
+    return `${d}${suffix} ${month} ${year}`;
+  };
+
+  const parseDmyToIso = (dmy: string) => {
+    const s = String(dmy ?? "").trim();
+    const m = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/.exec(s);
+    if (!m) return null;
+    const dd = Number(m[1]);
+    const mm = Number(m[2]);
+    const yyyy = Number(m[3]);
+    if (!Number.isFinite(dd) || !Number.isFinite(mm) || !Number.isFinite(yyyy)) return null;
+    if (mm < 1 || mm > 12) return null;
+    if (dd < 1 || dd > 31) return null;
+    const dt = new Date(yyyy, mm - 1, dd);
+    if (Number.isNaN(dt.getTime())) return null;
+    if (dt.getFullYear() !== yyyy || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return null;
+    const iso = `${yyyy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+    return iso;
+  };
 
   const pendingKey = useMemo(() => (id ? `pending_booking:${id}` : ''), [id]);
 
@@ -135,6 +182,16 @@ const Booking = () => {
   }, [pendingKey]);
 
   useEffect(() => {
+    setCheckInText(checkIn ? formatDateDmy(checkIn) : "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkIn]);
+
+  useEffect(() => {
+    setCheckOutText(checkOut ? formatDateDmy(checkOut) : "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkOut]);
+
+  useEffect(() => {
     const controller = new AbortController();
 
     const loadRoom = async () => {
@@ -156,6 +213,9 @@ const Booking = () => {
           title: data?.title ?? data?.name ?? 'Suite',
           description: data?.description ?? '',
           pricePerNight: Number(data?.pricePerNight ?? data?.price ?? 0),
+          epPricePerNight: data?.epPricePerNight ?? null,
+          cpPricePerNight: data?.cpPricePerNight ?? null,
+          mapPricePerNight: data?.mapPricePerNight ?? null,
           person: Number(data?.person ?? 2),
           amenities: (data?.amenities ?? []).map((a: any) => (typeof a === 'string' ? a : a?.name)).filter(Boolean),
           images: data?.images ?? [],
@@ -200,34 +260,24 @@ const Booking = () => {
   }, [checkIn, nights]);
 
   useEffect(() => {
+    const key = `${checkIn || ''}|${checkOut || ''}`;
+    if (key !== lastDateRangeKeyRef.current) {
+      lastDateRangeKeyRef.current = key;
+      setMealPlanByDate({});
+    }
+  }, [checkIn, checkOut]);
+
+  useEffect(() => {
     if (!nightDates.length) return;
     setMealPlanByDate((prev) => {
       const next: Record<string, MealPlan> = {};
       for (const d of nightDates) {
         const plan = prev[d];
-        next[d] = plan === 'EP' || plan === 'CP' || plan === 'MAP' ? plan : 'EP';
+        next[d] = plan === 'EP' || plan === 'CP' || plan === 'MAP' ? plan : 'CP';
       }
       return next;
     });
   }, [nightDates]);
-
-  const cpNights = useMemo(() => {
-    let c = 0;
-    for (const d of nightDates) {
-      const plan = mealPlanByDate[d] ?? 'EP';
-      if (plan === 'CP') c += 1;
-    }
-    return c;
-  }, [mealPlanByDate, nightDates]);
-
-  const mapNights = useMemo(() => {
-    let c = 0;
-    for (const d of nightDates) {
-      const plan = mealPlanByDate[d] ?? 'EP';
-      if (plan === 'MAP') c += 1;
-    }
-    return c;
-  }, [mealPlanByDate, nightDates]);
 
   const todayIso = useMemo(() => {
     const now = new Date();
@@ -256,25 +306,48 @@ const Booking = () => {
     return Number.isFinite(computed) && computed > 0 ? computed : base;
   }, [room?.person, children5To10, extraAdultsAbove10]);
 
-  const cpPlanCharge = useMemo(() => {
-    const guests = Number(totalGuests ?? 0);
-    if (!Number.isFinite(guests) || guests <= 0) return 0;
-    return 500 * guests * cpNights;
-  }, [cpNights, totalGuests]);
-
-  const mapPlanCharge = useMemo(() => {
-    const guests = Number(totalGuests ?? 0);
-    if (!Number.isFinite(guests) || guests <= 0) return 0;
-
+  const planPerNightAddonForMap = useMemo(() => {
     const title = String(room?.title ?? '').toLowerCase();
-    const ratePerGuestPerNight = title.includes('lotus') || title.includes('presidential')
-      ? 2000
-      : title.includes('deluxe') || title.includes('edge')
-      ? 1000
-      : 0;
+    if (title.includes('lotus') || title.includes('presidential')) return 2000;
+    if (title.includes('deluxe') || title.includes('edge')) return 1000;
+    return 0;
+  }, [room?.title]);
 
-    return ratePerGuestPerNight * guests * mapNights;
-  }, [mapNights, room?.title, totalGuests]);
+  const effectivePlanPrice = useMemo(() => {
+    const r = room as any;
+    const base = Number(room?.pricePerNight ?? 0);
+    const epAddon = Number(r?.epPricePerNight ?? NaN);
+    const cpAddon = Number(r?.cpPricePerNight ?? NaN);
+    const mapAddon = Number(r?.mapPricePerNight ?? NaN);
+
+    const epTotal = base + (Number.isFinite(epAddon) ? epAddon : 0);
+    const cpTotal = base + (Number.isFinite(cpAddon) ? cpAddon : 0);
+
+    const mapAddonEffective = Number.isFinite(mapAddon) ? mapAddon : planPerNightAddonForMap;
+    const mapTotal = base + mapAddonEffective;
+    return {
+      EP: Number.isFinite(epTotal) ? epTotal : base,
+      CP: Number.isFinite(cpTotal) ? cpTotal : base,
+      MAP: Number.isFinite(mapTotal) ? mapTotal : base,
+    } as Record<MealPlan, number>;
+  }, [room?.pricePerNight, (room as any)?.epPricePerNight, (room as any)?.cpPricePerNight, (room as any)?.mapPricePerNight, planPerNightAddonForMap]);
+
+  const selectedPlan = useMemo(() => {
+    if (!nightDates.length) return 'CP' as MealPlan;
+    let hasCp = false;
+    let hasMap = false;
+    let hasEp = false;
+    for (const d of nightDates) {
+      const p = mealPlanByDate[d] ?? 'CP';
+      if (p === 'MAP') hasMap = true;
+      if (p === 'CP') hasCp = true;
+      if (p === 'EP') hasEp = true;
+    }
+    if (hasMap) return 'MAP' as MealPlan;
+    if (hasCp) return 'CP' as MealPlan;
+    if (hasEp) return 'EP' as MealPlan;
+    return 'CP' as MealPlan;
+  }, [mealPlanByDate, nightDates]);
 
   const adults = useMemo(() => {
     const baseAdults = Number(room?.person ?? 2);
@@ -301,37 +374,40 @@ const Booking = () => {
 
   const priceBreakdown = useMemo(() => {
     const round2 = (n: number) => Math.round(n * 100) / 100;
-    const perNight = room?.pricePerNight ?? 0;
     const safeRooms = Number.isFinite(rooms) && rooms > 0 ? rooms : 1;
-    const roomTotal = round2(perNight * nights * safeRooms);
+
+    const basePerNight = Number(room?.pricePerNight ?? 0);
+    const roomTotal = round2(
+      nightDates.reduce((sum, d) => {
+        const plan = mealPlanByDate[d] ?? 'CP';
+        const pn = effectivePlanPrice[plan] ?? basePerNight;
+        return sum + pn;
+      }, 0) * safeRooms
+    );
+
     const childCharge = round2(1200 * children5To10 * nights);
     const extraAdultCharge = round2(1500 * extraAdultsAbove10 * nights);
-    const baseAmount = round2(roomTotal + childCharge + extraAdultCharge + round2(cpPlanCharge) + round2(mapPlanCharge));
-    const convenienceFeeAmount = round2(baseAmount * 0.02);
-    const gstAmount = round2(baseAmount * 0.05);
-    const totalAmount = round2(baseAmount + convenienceFeeAmount + gstAmount);
+    const baseAmount = round2(roomTotal + childCharge + extraAdultCharge);
+    const taxAndServiceFeesAmount = round2(baseAmount * 0.07);
+    const totalAmount = round2(baseAmount + taxAndServiceFeesAmount);
     return {
       roomTotal,
       childCharge,
       extraAdultCharge,
-      cpPlanCharge: round2(cpPlanCharge),
-      mapPlanCharge: round2(mapPlanCharge),
       baseAmount,
-      convenienceFeeAmount,
-      gstAmount,
+      taxAndServiceFeesAmount,
       totalAmount,
     };
-  }, [room?.pricePerNight, nights, rooms, children5To10, extraAdultsAbove10, cpPlanCharge, mapPlanCharge]);
+  }, [room?.pricePerNight, (room as any)?.mapPricePerNight, effectivePlanPrice, rooms, nights, nightDates, mealPlanByDate, planPerNightAddonForMap, children5To10, extraAdultsAbove10]);
 
   const discounted = useMemo(() => {
     const round2 = (n: number) => Math.round(n * 100) / 100;
     const base = Number(priceBreakdown.baseAmount ?? 0);
     const discount = round2(Math.max(0, Math.min(base, Number(appliedPromo?.discountAmount ?? 0))));
     const baseAfterDiscount = round2(Math.max(0, base - discount));
-    const convenienceFee = round2(baseAfterDiscount * 0.02);
-    const gst = round2(baseAfterDiscount * 0.05);
-    const total = round2(baseAfterDiscount + convenienceFee + gst);
-    return { discount, baseAfterDiscount, convenienceFee, gst, total };
+    const taxAndServiceFees = round2(baseAfterDiscount * 0.07);
+    const total = round2(baseAfterDiscount + taxAndServiceFees);
+    return { discount, baseAfterDiscount, taxAndServiceFees, total };
   }, [priceBreakdown.baseAmount, appliedPromo?.discountAmount]);
 
   const formattedTotal = useMemo(() => {
@@ -339,13 +415,20 @@ const Booking = () => {
   }, [appliedPromo, discounted.total, priceBreakdown.totalAmount]);
 
   const formattedPerNight = useMemo(() => {
-    const perNight = room?.pricePerNight ?? 0;
+    const basePerNight = Number(room?.pricePerNight ?? 0);
+    const perNight = effectivePlanPrice[selectedPlan] ?? basePerNight;
     try {
       return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(perNight);
     } catch {
       return String(perNight);
     }
-  }, [room?.pricePerNight]);
+  }, [room?.pricePerNight, selectedPlan, effectivePlanPrice]);
+
+  const baseLabel = useMemo(() => {
+    if (selectedPlan === 'CP') return 'Base (Room With Breakfast)';
+    if (selectedPlan === 'MAP') return 'Base (Room With Breakfast & Dinner)';
+    return 'Base (Room)';
+  }, [selectedPlan]);
 
   const validate = () => {
     if (!room) return 'Room not loaded';
@@ -432,7 +515,7 @@ const Booking = () => {
           extraAdults: extraAdultsAbove10,
           additionalInformation: additionalInformation.trim() ? additionalInformation.trim() : null,
           promoCode: appliedPromo?.code ?? null,
-          mealPlanByDate: nightDates.map((d) => ({ date: d, plan: mealPlanByDate[d] ?? 'EP' })),
+          mealPlanByDate: nightDates.map((d) => ({ date: d, plan: mealPlanByDate[d] ?? 'CP' })),
         }),
       });
 
@@ -637,15 +720,61 @@ const Booking = () => {
                   <label className="block text-gray-800 font-medium mb-2" htmlFor="checkIn">
                     Check-in date
                   </label>
-                  <input
-                    id="checkIn"
-                    type="date"
-                    value={checkIn}
-                    onChange={(e) => setCheckIn(e.target.value)}
-                    min={todayIso}
-                    required
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="checkIn"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="dd/mm/yyyy"
+                      value={checkInText}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setCheckInText(v);
+                        const iso = parseDmyToIso(v);
+                        if (iso) setCheckIn(iso);
+                      }}
+                      onBlur={() => {
+                        const iso = parseDmyToIso(checkInText);
+                        if (iso) setCheckIn(iso);
+                      }}
+                      required
+                      className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const el = checkInPickerRef.current;
+                        if (!el) return;
+                        const anyEl = el as any;
+                        if (typeof anyEl.showPicker === 'function') anyEl.showPicker();
+                        else el.click();
+                      }}
+                      className="px-4 py-3 rounded-xl border-2 border-gold/20 bg-white hover:bg-gold/10 transition-colors"
+                      aria-label="Select check-in date"
+                      title="Select check-in date"
+                    >
+                      Select
+                    </button>
+                    <input
+                      ref={checkInPickerRef}
+                      type="date"
+                      value={checkIn}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setCheckIn(v);
+                        setCheckInText(v ? formatDateDmy(v) : '');
+                      }}
+                      min={todayIso}
+                      className="sr-only"
+                      tabIndex={-1}
+                      aria-hidden="true"
+                    />
+                  </div>
+                  {checkIn && (
+                    <div className="text-xs text-gray-800/60 mt-1">
+                      {formatDateDmy(checkIn)} ({formatDateFriendly(checkIn)})
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -666,15 +795,61 @@ const Booking = () => {
                   <label className="block text-gray-800 font-medium mb-2" htmlFor="checkOut">
                     Check-out date
                   </label>
-                  <input
-                    id="checkOut"
-                    type="date"
-                    value={checkOut}
-                    onChange={(e) => setCheckOut(e.target.value)}
-                    min={checkOutMinIso}
-                    required
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="checkOut"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="dd/mm/yyyy"
+                      value={checkOutText}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setCheckOutText(v);
+                        const iso = parseDmyToIso(v);
+                        if (iso) setCheckOut(iso);
+                      }}
+                      onBlur={() => {
+                        const iso = parseDmyToIso(checkOutText);
+                        if (iso) setCheckOut(iso);
+                      }}
+                      required
+                      className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const el = checkOutPickerRef.current;
+                        if (!el) return;
+                        const anyEl = el as any;
+                        if (typeof anyEl.showPicker === 'function') anyEl.showPicker();
+                        else el.click();
+                      }}
+                      className="px-4 py-3 rounded-xl border-2 border-gold/20 bg-white hover:bg-gold/10 transition-colors"
+                      aria-label="Select check-out date"
+                      title="Select check-out date"
+                    >
+                      Select
+                    </button>
+                    <input
+                      ref={checkOutPickerRef}
+                      type="date"
+                      value={checkOut}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setCheckOut(v);
+                        setCheckOutText(v ? formatDateDmy(v) : '');
+                      }}
+                      min={checkOutMinIso}
+                      className="sr-only"
+                      tabIndex={-1}
+                      aria-hidden="true"
+                    />
+                  </div>
+                  {checkOut && (
+                    <div className="text-xs text-gray-800/60 mt-1">
+                      {formatDateDmy(checkOut)} ({formatDateFriendly(checkOut)})
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -724,12 +899,6 @@ const Booking = () => {
                     <label className="block text-gray-800 font-medium">
                       Meal plan (day-wise)
                     </label>
-                    <div className="text-xs text-gray-800/60">
-                      <span className="hidden sm:inline">EP: no meals, CP: +₹500/guest/night(Breakfast only), MAP: Breakfast included and either lunch or dinner</span>
-                      <span className="sm:hidden block">EP: no meals</span>
-                      <span className="sm:hidden block">CP: +₹500/guest/night(Breakfast only)</span>
-                      <span className="sm:hidden block">MAP: Breakfast included and either lunch or dinner</span>
-                    </div>
                   </div>
                   {nightDates.length === 0 ? (
                     <div className="text-sm text-gray-800/60">Select valid dates to choose plan day-wise.</div>
@@ -737,9 +906,9 @@ const Booking = () => {
                     <div className="space-y-3">
                       {nightDates.map((d) => (
                         <div key={d} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                          <div className="text-sm text-gray-800/80 sm:w-44">{new Date(d).toLocaleDateString('en-IN')}</div>
+                          <div className="text-sm text-gray-800/80 sm:w-44">{formatDateFriendly(d)}</div>
                           <select
-                            value={mealPlanByDate[d] ?? 'EP'}
+                            value={mealPlanByDate[d] ?? 'CP'}
                             onChange={(e) => {
                               const v = e.target.value as MealPlan;
                               setMealPlanByDate((prev) => ({ ...prev, [d]: v }));
@@ -843,16 +1012,8 @@ const Booking = () => {
                   </div>
                 )}
 
-                {priceBreakdown.cpPlanCharge > 0 && (
-                  <div className="flex items-center justify-between text-gray-800/80">
-                    <span>CP Plan ({cpNights} night{cpNights === 1 ? '' : 's'})</span>
-                    <span className="font-semibold text-gray-800">{formatInr(priceBreakdown.cpPlanCharge)}</span>
-                  </div>
-                )}
-
                 <div className="flex items-center justify-between text-gray-800/80">
-                  <span>Base (room + addons + meals)</span>
-                  <span className="font-semibold text-gray-800">{formatInr(priceBreakdown.baseAmount)}</span>
+                  <span>{baseLabel}</span>
                 </div>
 
                 {appliedPromo && (
@@ -863,8 +1024,14 @@ const Booking = () => {
                 )}
 
                 <div className="flex items-center justify-between text-gray-800/80">
-                  <span>Convenience Fee (2%)</span>
-                  <span className="font-semibold text-gray-800">{formatInr(appliedPromo ? discounted.convenienceFee : priceBreakdown.convenienceFeeAmount)}</span>
+                  <span>Tax and services fees</span>
+                  <span className="font-semibold text-gray-800">
+                    {formatInr(
+                      appliedPromo
+                        ? discounted.taxAndServiceFees
+                        : priceBreakdown.taxAndServiceFeesAmount
+                    )}
+                  </span>
                 </div>
 
                 <div className="pt-2">
@@ -937,11 +1104,6 @@ const Booking = () => {
                       </button>
                     </div>
                   )}
-                </div>
-
-                <div className="flex items-center justify-between text-gray-800/80">
-                  <span>GST (5%)</span>
-                  <span className="font-semibold text-gray-800">{formatInr(appliedPromo ? discounted.gst : priceBreakdown.gstAmount)}</span>
                 </div>
 
                 <div className="pt-4">

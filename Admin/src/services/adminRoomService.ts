@@ -1,6 +1,13 @@
 import { prisma } from "../../../Backend/src/prisma/client";
 import { HttpError } from "../../../Backend/src/middlewares/errorHandler";
 
+const toOptionalInt = (value: unknown) => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.trunc(n) : undefined;
+};
+
 export const adminRoomService = {
   async listRooms() {
     const rooms = await prisma.room.findMany({
@@ -18,6 +25,9 @@ export const adminRoomService = {
         title: r.title,
         description: r.description,
         pricePerNight: r.pricePerNight,
+        epPricePerNight: r.epPricePerNight ?? null,
+        cpPricePerNight: r.cpPricePerNight ?? null,
+        mapPricePerNight: r.mapPricePerNight ?? null,
         person: r.person,
         images: (r.images ?? []).map((i: any) => i.url),
         amenities: (r.amenities ?? []).map((a: any) => a.name),
@@ -31,6 +41,9 @@ export const adminRoomService = {
     title: string;
     description: string;
     pricePerNight: number;
+    epPricePerNight?: number | null;
+    cpPricePerNight?: number | null;
+    mapPricePerNight?: number | null;
     person: number;
     images: string[];
     amenities: string[];
@@ -42,6 +55,9 @@ export const adminRoomService = {
           title: params.title,
           description: params.description,
           pricePerNight: params.pricePerNight,
+          epPricePerNight: toOptionalInt(params.epPricePerNight),
+          cpPricePerNight: toOptionalInt(params.cpPricePerNight),
+          mapPricePerNight: toOptionalInt(params.mapPricePerNight),
           person: params.person,
           images: {
             create: params.images.map((url, idx) => ({ url, sortOrder: idx })),
@@ -69,6 +85,9 @@ export const adminRoomService = {
       title: r.title,
       description: r.description,
       pricePerNight: r.pricePerNight,
+      epPricePerNight: r.epPricePerNight ?? null,
+      cpPricePerNight: r.cpPricePerNight ?? null,
+      mapPricePerNight: r.mapPricePerNight ?? null,
       person: r.person,
       images: (r.images ?? []).map((i: any) => i.url),
       amenities: (r.amenities ?? []).map((a: any) => a.name),
@@ -77,11 +96,22 @@ export const adminRoomService = {
     };
   },
 
-  async updateRoomPrice(id: number, params: { pricePerNight: number }) {
-    const room = await prisma.room.update({
+  async updateRoomPrice(
+    id: number,
+    params: {
+      pricePerNight: number;
+      epPricePerNight?: number | null;
+      cpPricePerNight?: number | null;
+      mapPricePerNight?: number | null;
+    }
+  ) {
+    const room = await (prisma.room as any).update({
       where: { id },
       data: {
         pricePerNight: params.pricePerNight,
+        epPricePerNight: toOptionalInt(params.epPricePerNight),
+        cpPricePerNight: toOptionalInt(params.cpPricePerNight),
+        mapPricePerNight: toOptionalInt(params.mapPricePerNight),
       },
       include: {
         images: { orderBy: { sortOrder: "asc" } },
@@ -95,6 +125,9 @@ export const adminRoomService = {
       title: r.title,
       description: r.description,
       pricePerNight: r.pricePerNight,
+      epPricePerNight: r.epPricePerNight ?? null,
+      cpPricePerNight: r.cpPricePerNight ?? null,
+      mapPricePerNight: r.mapPricePerNight ?? null,
       person: r.person,
       images: (r.images ?? []).map((i: any) => i.url),
       amenities: (r.amenities ?? []).map((a: any) => a.name),
@@ -109,6 +142,9 @@ export const adminRoomService = {
       title: string;
       description: string;
       pricePerNight: number;
+      epPricePerNight?: number | null;
+      cpPricePerNight?: number | null;
+      mapPricePerNight?: number | null;
       person: number;
       images: string[];
       amenities: string[];
@@ -122,6 +158,9 @@ export const adminRoomService = {
           title: params.title,
           description: params.description,
           pricePerNight: params.pricePerNight,
+          epPricePerNight: toOptionalInt(params.epPricePerNight),
+          cpPricePerNight: toOptionalInt(params.cpPricePerNight),
+          mapPricePerNight: toOptionalInt(params.mapPricePerNight),
           person: params.person,
           images: {
             deleteMany: {},
@@ -151,6 +190,9 @@ export const adminRoomService = {
       title: r.title,
       description: r.description,
       pricePerNight: r.pricePerNight,
+      epPricePerNight: r.epPricePerNight ?? null,
+      cpPricePerNight: r.cpPricePerNight ?? null,
+      mapPricePerNight: r.mapPricePerNight ?? null,
       person: r.person,
       images: (r.images ?? []).map((i: any) => i.url),
       amenities: (r.amenities ?? []).map((a: any) => a.name),

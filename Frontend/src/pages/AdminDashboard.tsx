@@ -11,6 +11,9 @@ const AdminDashboard = () => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [pricePerNight, setPricePerNight] = useState<number>(0);
+  const [epPricePerNight, setEpPricePerNight] = useState<string>("");
+  const [cpPricePerNight, setCpPricePerNight] = useState<string>("");
+  const [mapPricePerNight, setMapPricePerNight] = useState<string>("");
   const [person, setPerson] = useState<number>(2);
   const [imagesRaw, setImagesRaw] = useState("");
   const [amenitiesRaw, setAmenitiesRaw] = useState("");
@@ -23,6 +26,9 @@ const AdminDashboard = () => {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editPricePerNight, setEditPricePerNight] = useState<number>(0);
+  const [editEpPricePerNight, setEditEpPricePerNight] = useState<string>("");
+  const [editCpPricePerNight, setEditCpPricePerNight] = useState<string>("");
+  const [editMapPricePerNight, setEditMapPricePerNight] = useState<string>("");
   const [editPerson, setEditPerson] = useState<number>(2);
   const [editImagesRaw, setEditImagesRaw] = useState("");
   const [editAmenitiesRaw, setEditAmenitiesRaw] = useState("");
@@ -107,6 +113,9 @@ const AdminDashboard = () => {
           title: title.trim(),
           description: description.trim(),
           pricePerNight,
+          epPricePerNight: epPricePerNight.trim() === "" ? undefined : Number(epPricePerNight),
+          cpPricePerNight: cpPricePerNight.trim() === "" ? undefined : Number(cpPricePerNight),
+          mapPricePerNight: mapPricePerNight.trim() === "" ? undefined : Number(mapPricePerNight),
           person,
           images: parsedImages,
           amenities: parsedAmenities,
@@ -126,6 +135,9 @@ const AdminDashboard = () => {
       setTitle("");
       setDescription("");
       setPricePerNight(0);
+      setEpPricePerNight("");
+      setCpPricePerNight("");
+      setMapPricePerNight("");
       setPerson(2);
       setImagesRaw("");
       setAmenitiesRaw("");
@@ -146,6 +158,9 @@ const AdminDashboard = () => {
     setEditTitle(room.title ?? "");
     setEditDescription(room.description ?? "");
     setEditPricePerNight(Number(room.pricePerNight ?? 0));
+    setEditEpPricePerNight(room.epPricePerNight == null ? "" : String(room.epPricePerNight));
+    setEditCpPricePerNight(room.cpPricePerNight == null ? "" : String(room.cpPricePerNight));
+    setEditMapPricePerNight(room.mapPricePerNight == null ? "" : String(room.mapPricePerNight));
     setEditPerson(Number(room.person ?? 2));
     setEditImagesRaw((room.images ?? []).join("\n"));
     setEditAmenitiesRaw((room.amenities ?? []).join(", "));
@@ -176,11 +191,19 @@ const AdminDashboard = () => {
         credentials: "include",
         body: JSON.stringify(
           role === "STAFF"
-            ? { pricePerNight: editPricePerNight }
+            ? {
+                pricePerNight: editPricePerNight,
+                epPricePerNight: editEpPricePerNight.trim() === "" ? undefined : Number(editEpPricePerNight),
+                cpPricePerNight: editCpPricePerNight.trim() === "" ? undefined : Number(editCpPricePerNight),
+                mapPricePerNight: editMapPricePerNight.trim() === "" ? undefined : Number(editMapPricePerNight),
+              }
             : {
                 title: editTitle.trim(),
                 description: editDescription.trim(),
                 pricePerNight: editPricePerNight,
+                epPricePerNight: editEpPricePerNight.trim() === "" ? undefined : Number(editEpPricePerNight),
+                cpPricePerNight: editCpPricePerNight.trim() === "" ? undefined : Number(editCpPricePerNight),
+                mapPricePerNight: editMapPricePerNight.trim() === "" ? undefined : Number(editMapPricePerNight),
                 person: editPerson,
                 images: parsedEditImages,
                 amenities: parsedEditAmenities,
@@ -281,6 +304,42 @@ const AdminDashboard = () => {
               </div>
 
               <div>
+                <label className="block text-gray-800 font-medium mb-2">EP Price Per Night</label>
+                <input
+                  type="number"
+                  value={epPricePerNight}
+                  onChange={(e) => setEpPricePerNight(e.target.value)}
+                  min={0}
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                  placeholder="4000"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-800 font-medium mb-2">CP Price Per Night</label>
+                <input
+                  type="number"
+                  value={cpPricePerNight}
+                  onChange={(e) => setCpPricePerNight(e.target.value)}
+                  min={0}
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                  placeholder="4500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-800 font-medium mb-2">MAP Price Per Night</label>
+                <input
+                  type="number"
+                  value={mapPricePerNight}
+                  onChange={(e) => setMapPricePerNight(e.target.value)}
+                  min={0}
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                  placeholder="6500"
+                />
+              </div>
+
+              <div>
                 <label htmlFor="person" className="block text-gray-800 font-medium mb-2">
                   Person (capacity)
                 </label>
@@ -372,7 +431,12 @@ const AdminDashboard = () => {
                     <div className="flex items-start justify-between gap-4 flex-wrap">
                       <div>
                         <div className="font-playfair text-2xl font-bold text-gray-800">{r.title}</div>
-                        <div className="text-gray-800/70 text-sm mt-1">₹{r.pricePerNight} / night • {r.person ?? 2} person • #{r.id}</div>
+                        <div className="text-gray-800/70 text-sm mt-1">
+                          ₹{r.pricePerNight} / night • {r.person ?? 2} person • #{r.id}
+                        </div>
+                        <div className="text-gray-800/70 text-sm mt-1">
+                          EP: ₹{Number.isFinite(Number(r.epPricePerNight)) ? Number(r.epPricePerNight) : 0} • CP: ₹{Number.isFinite(Number(r.cpPricePerNight)) ? Number(r.cpPricePerNight) : 0} • MAP: ₹{Number.isFinite(Number(r.mapPricePerNight)) ? Number(r.mapPricePerNight) : 0}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <button
@@ -397,23 +461,28 @@ const AdminDashboard = () => {
                     {editingId === r.id && (
                       <div className="mt-5 bg-ivory/60 rounded-3xl p-5 border border-gold/10">
                         <div className="grid grid-cols-1 gap-4">
-                          <div>
-                            <label className="block text-gray-800 font-medium mb-2">Title</label>
-                            <input
-                              value={editTitle}
-                              onChange={(e) => setEditTitle(e.target.value)}
-                              className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-white"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-gray-800 font-medium mb-2">Description</label>
-                            <textarea
-                              value={editDescription}
-                              onChange={(e) => setEditDescription(e.target.value)}
-                              rows={4}
-                              className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-white"
-                            />
-                          </div>
+                          {role !== "STAFF" && (
+                            <>
+                              <div>
+                                <label className="block text-gray-800 font-medium mb-2">Title</label>
+                                <input
+                                  value={editTitle}
+                                  onChange={(e) => setEditTitle(e.target.value)}
+                                  className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-white"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-gray-800 font-medium mb-2">Description</label>
+                                <textarea
+                                  value={editDescription}
+                                  onChange={(e) => setEditDescription(e.target.value)}
+                                  rows={4}
+                                  className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-white"
+                                />
+                              </div>
+                            </>
+                          )}
+
                           <div>
                             <label className="block text-gray-800 font-medium mb-2">Price Per Night</label>
                             <input
@@ -425,32 +494,67 @@ const AdminDashboard = () => {
                             />
                           </div>
                           <div>
-                            <label className="block text-gray-800 font-medium mb-2">Person (capacity)</label>
+                            <label className="block text-gray-800 font-medium mb-2">EP Price Per Night</label>
                             <input
                               type="number"
-                              value={Number.isFinite(editPerson) ? editPerson : 2}
-                              onChange={(e) => setEditPerson(Number(e.target.value))}
-                              min={1}
+                              value={editEpPricePerNight}
+                              onChange={(e) => setEditEpPricePerNight(e.target.value)}
+                              min={0}
                               className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-white"
                             />
                           </div>
                           <div>
-                            <label className="block text-gray-800 font-medium mb-2">Image URLs (one per line)</label>
-                            <textarea
-                              value={editImagesRaw}
-                              onChange={(e) => setEditImagesRaw(e.target.value)}
-                              rows={4}
-                              className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-white"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-gray-800 font-medium mb-2">Amenities (comma separated)</label>
+                            <label className="block text-gray-800 font-medium mb-2">CP Price Per Night</label>
                             <input
-                              value={editAmenitiesRaw}
-                              onChange={(e) => setEditAmenitiesRaw(e.target.value)}
+                              type="number"
+                              value={editCpPricePerNight}
+                              onChange={(e) => setEditCpPricePerNight(e.target.value)}
+                              min={0}
                               className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-white"
                             />
                           </div>
+                          <div>
+                            <label className="block text-gray-800 font-medium mb-2">MAP Price Per Night</label>
+                            <input
+                              type="number"
+                              value={editMapPricePerNight}
+                              onChange={(e) => setEditMapPricePerNight(e.target.value)}
+                              min={0}
+                              className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-white"
+                            />
+                          </div>
+
+                          {role !== "STAFF" && (
+                            <>
+                              <div>
+                                <label className="block text-gray-800 font-medium mb-2">Person (capacity)</label>
+                                <input
+                                  type="number"
+                                  value={Number.isFinite(editPerson) ? editPerson : 2}
+                                  onChange={(e) => setEditPerson(Number(e.target.value))}
+                                  min={1}
+                                  className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-white"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-gray-800 font-medium mb-2">Image URLs (one per line)</label>
+                                <textarea
+                                  value={editImagesRaw}
+                                  onChange={(e) => setEditImagesRaw(e.target.value)}
+                                  rows={4}
+                                  className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-white"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-gray-800 font-medium mb-2">Amenities (comma separated)</label>
+                                <input
+                                  value={editAmenitiesRaw}
+                                  onChange={(e) => setEditAmenitiesRaw(e.target.value)}
+                                  className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-white"
+                                />
+                              </div>
+                            </>
+                          )}
 
                           {editError && (
                             <div className="bg-gold/10 border border-gold/20 text-gray-800 px-4 py-3 rounded-2xl">{editError}</div>

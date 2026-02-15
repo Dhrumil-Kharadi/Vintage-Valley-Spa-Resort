@@ -1,8 +1,8 @@
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { downloadBookingInvoicePdf } from "@/lib/invoicePdf";
 import { toast } from "react-toastify";
-import { Trash2 } from "lucide-react";
+import { Check, Pencil, Trash2, X } from "lucide-react";
 
 const AdminBookings = () => {
   const [loading, setLoading] = useState(false);
@@ -22,6 +22,8 @@ const AdminBookings = () => {
   const [roomId, setRoomId] = useState("");
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
+  const [checkInText, setCheckInText] = useState("");
+  const [checkOutText, setCheckOutText] = useState("");
   const [checkInTime, setCheckInTime] = useState("");
   const [checkOutTime, setCheckOutTime] = useState("");
   const [rooms, setRooms] = useState(1);
@@ -36,7 +38,53 @@ const AdminBookings = () => {
   const [promoLoading, setPromoLoading] = useState(false);
   const [mealPlanByDate, setMealPlanByDate] = useState<Record<string, MealPlan>>({});
 
+  const [priceOverrideBase, setPriceOverrideBase] = useState<number | null>(null);
+  const [isEditingPriceOverride, setIsEditingPriceOverride] = useState(false);
+  const [priceOverrideInput, setPriceOverrideInput] = useState<string>("");
+
+  const checkInPickerRef = useRef<HTMLInputElement | null>(null);
+  const checkOutPickerRef = useRef<HTMLInputElement | null>(null);
+  const lastDateRangeKeyRef = useRef<string>("");
+
   type MealPlan = "EP" | "CP" | "MAP";
+
+  const formatDateDmy = (iso: string) => {
+    if (!iso) return "";
+    const dt = new Date(iso);
+    if (Number.isNaN(dt.getTime())) return "";
+    const dd = String(dt.getDate()).padStart(2, "0");
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    const yyyy = String(dt.getFullYear());
+    return `${dd}/${mm}/${yyyy}`;
+  };
+
+  const formatDateFriendly = (iso: string) => {
+    if (!iso) return "";
+    const dt = new Date(iso);
+    if (Number.isNaN(dt.getTime())) return "";
+    const d = dt.getDate();
+    const suffix = d % 10 === 1 && d % 100 !== 11 ? "st" : d % 10 === 2 && d % 100 !== 12 ? "nd" : d % 10 === 3 && d % 100 !== 13 ? "rd" : "th";
+    const month = dt.toLocaleString("en-IN", { month: "long" });
+    const year = dt.getFullYear();
+    return `${d}${suffix} ${month} ${year}`;
+  };
+
+  const parseDmyToIso = (dmy: string) => {
+    const s = String(dmy ?? "").trim();
+    const m = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/.exec(s);
+    if (!m) return null;
+    const dd = Number(m[1]);
+    const mm = Number(m[2]);
+    const yyyy = Number(m[3]);
+    if (!Number.isFinite(dd) || !Number.isFinite(mm) || !Number.isFinite(yyyy)) return null;
+    if (mm < 1 || mm > 12) return null;
+    if (dd < 1 || dd > 31) return null;
+    const dt = new Date(yyyy, mm - 1, dd);
+    if (Number.isNaN(dt.getTime())) return null;
+    if (dt.getFullYear() !== yyyy || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return null;
+    const iso = `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+    return iso;
+  };
 
   const nights = useMemo(() => {
     if (!checkIn || !checkOut) return 0;
@@ -64,12 +112,20 @@ const AdminBookings = () => {
   }, [checkIn, nights]);
 
   useEffect(() => {
+    const key = `${checkIn || ""}|${checkOut || ""}`;
+    if (key !== lastDateRangeKeyRef.current) {
+      lastDateRangeKeyRef.current = key;
+      setMealPlanByDate({});
+    }
+  }, [checkIn, checkOut]);
+
+  useEffect(() => {
     if (!nightDates.length) return;
     setMealPlanByDate((prev) => {
       const next: Record<string, MealPlan> = {};
       for (const d of nightDates) {
         const plan = prev[d];
-        next[d] = plan === "EP" || plan === "CP" || plan === "MAP" ? plan : "EP";
+        next[d] = plan === "EP" || plan === "CP" || plan === "MAP" ? plan : "CP";
       }
       return next;
     });
@@ -100,6 +156,16 @@ const AdminBookings = () => {
   }, [checkOut, checkOutMinIso]);
 
   useEffect(() => {
+    setCheckInText(checkIn ? formatDateDmy(checkIn) : "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkIn]);
+
+  useEffect(() => {
+    setCheckOutText(checkOut ? formatDateDmy(checkOut) : "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkOut]);
+
+  useEffect(() => {
     if (!checkInTime) setCheckInTime("13:00");
     if (!checkOutTime) setCheckOutTime("11:00");
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -117,10 +183,12 @@ const AdminBookings = () => {
 
     const round2 = (n: number) => Math.round(n * 100) / 100;
 
+    let epNights = 0;
     let cpNights = 0;
     let mapNights = 0;
     for (const d of nightDates) {
-      const plan = mealPlanByDate[d] ?? "EP";
+      const plan = mealPlanByDate[d] ?? "CP";
+      if (plan === "EP") epNights += 1;
       if (plan === "CP") cpNights += 1;
       if (plan === "MAP") mapNights += 1;
     }
@@ -137,11 +205,26 @@ const AdminBookings = () => {
       ? 1000
       : 0;
 
-    const roomTotal = round2(Number(room.pricePerNight ?? 0) * nights * safeRooms);
+    const basePerNight = Number(room.pricePerNight ?? 0);
+    const epAddonRaw = Number(room.epPricePerNight ?? NaN);
+    const cpAddonRaw = Number(room.cpPricePerNight ?? NaN);
+    const mapAddonRaw = Number(room.mapPricePerNight ?? NaN);
+
+    const effectiveEp = basePerNight + (Number.isFinite(epAddonRaw) ? epAddonRaw : 0);
+    const effectiveCp = basePerNight + (Number.isFinite(cpAddonRaw) ? cpAddonRaw : 0);
+    const effectiveMap = basePerNight + (Number.isFinite(mapAddonRaw) ? mapAddonRaw : mapRatePerGuestPerNight);
+
+    const roomTotal = round2(
+      (effectiveEp * epNights + effectiveCp * cpNights + (
+        effectiveMap
+      ) * mapNights) * safeRooms
+    );
     const childCharge = round2(1200 * safeChildren * nights);
     const extraAdultCharge = round2(1500 * safeExtraAdults * nights);
-    const cpCharge = round2(500 * safeGuests * cpNights);
-    const mapCharge = round2(mapRatePerGuestPerNight * safeGuests * mapNights);
+
+    // keep these for UI breakdown compatibility; if explicit plan prices exist, these become 0
+    const cpCharge = Number.isFinite(cpAddonRaw) ? 0 : round2(500 * safeGuests * cpNights);
+    const mapCharge = Number.isFinite(mapAddonRaw) ? 0 : round2(mapRatePerGuestPerNight * safeGuests * mapNights);
     const base = round2(roomTotal + childCharge + extraAdultCharge + cpCharge + mapCharge);
     const convenienceFee = 0;
     const gst = round2(base * 0.05);
@@ -173,6 +256,20 @@ const AdminBookings = () => {
     const total = round2(baseAfterDiscount + gst);
     return { discount, baseAfterDiscount, gst, total };
   }, [priceEstimate, appliedPromo?.discountAmount]);
+
+  const effectiveEstimateForUi = useMemo(() => {
+    const pe = priceEstimate;
+    if (!pe) return null;
+
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+
+    const computedBase = appliedPromo ? Number(discountedEstimate?.baseAfterDiscount ?? pe.base ?? 0) : Number(pe.base ?? 0);
+    const base = priceOverrideBase === null ? computedBase : Number(priceOverrideBase ?? 0);
+    const gst = round2(base * 0.05);
+    const total = round2(base + gst);
+
+    return { base, gst, total, hasOverride: priceOverrideBase !== null };
+  }, [appliedPromo, discountedEstimate?.baseAfterDiscount, priceEstimate, priceOverrideBase]);
 
   const formatInr = (value: any) => {
     const n = Number(value ?? 0);
@@ -349,7 +446,7 @@ const AdminBookings = () => {
           children,
           extraAdults,
           additionalInformation: additionalInformation.trim() ? additionalInformation.trim() : null,
-          mealPlanByDate: nightDates.map((d) => ({ date: d, plan: mealPlanByDate[d] ?? "EP" })),
+          mealPlanByDate: nightDates.map((d) => ({ date: d, plan: mealPlanByDate[d] ?? "CP" })),
         }),
       });
 
@@ -493,23 +590,111 @@ const AdminBookings = () => {
 
               <div className="flex flex-col gap-1">
                 <div className="text-xs text-gray-800/70">Check-in date</div>
-                <input
-                  type="date"
-                  value={checkIn}
-                  onChange={(e) => setCheckIn(e.target.value)}
-                  min={todayIso}
-                  className="px-4 py-3 rounded-2xl border border-gold/20 focus:outline-none focus:ring-2 focus:ring-gold/30"
-                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="dd/mm/yyyy"
+                    value={checkInText}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setCheckInText(v);
+                      const iso = parseDmyToIso(v);
+                      if (iso) setCheckIn(iso);
+                    }}
+                    onBlur={() => {
+                      const iso = parseDmyToIso(checkInText);
+                      if (iso) setCheckIn(iso);
+                    }}
+                    className="flex-1 px-4 py-3 rounded-2xl border border-gold/20 focus:outline-none focus:ring-2 focus:ring-gold/30"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = checkInPickerRef.current;
+                      if (!el) return;
+                      const anyEl = el as any;
+                      if (typeof anyEl.showPicker === "function") anyEl.showPicker();
+                      else el.click();
+                    }}
+                    className="px-4 py-3 rounded-2xl border border-gold/20 bg-white hover:bg-gold/10 transition-colors"
+                  >
+                    Select
+                  </button>
+                  <input
+                    ref={checkInPickerRef}
+                    type="date"
+                    value={checkIn}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setCheckIn(v);
+                      setCheckInText(v ? formatDateDmy(v) : "");
+                    }}
+                    min={todayIso}
+                    className="sr-only"
+                    tabIndex={-1}
+                    aria-hidden="true"
+                  />
+                </div>
+                {checkIn && (
+                  <div className="text-[11px] text-gray-800/60">
+                    {formatDateDmy(checkIn)} ({formatDateFriendly(checkIn)})
+                  </div>
+                )}
               </div>
               <div className="flex flex-col gap-1">
                 <div className="text-xs text-gray-800/70">Check-out date</div>
-                <input
-                  type="date"
-                  value={checkOut}
-                  onChange={(e) => setCheckOut(e.target.value)}
-                  min={checkOutMinIso}
-                  className="px-4 py-3 rounded-2xl border border-gold/20 focus:outline-none focus:ring-2 focus:ring-gold/30"
-                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="dd/mm/yyyy"
+                    value={checkOutText}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setCheckOutText(v);
+                      const iso = parseDmyToIso(v);
+                      if (iso) setCheckOut(iso);
+                    }}
+                    onBlur={() => {
+                      const iso = parseDmyToIso(checkOutText);
+                      if (iso) setCheckOut(iso);
+                    }}
+                    className="flex-1 px-4 py-3 rounded-2xl border border-gold/20 focus:outline-none focus:ring-2 focus:ring-gold/30"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = checkOutPickerRef.current;
+                      if (!el) return;
+                      const anyEl = el as any;
+                      if (typeof anyEl.showPicker === "function") anyEl.showPicker();
+                      else el.click();
+                    }}
+                    className="px-4 py-3 rounded-2xl border border-gold/20 bg-white hover:bg-gold/10 transition-colors"
+                  >
+                    Select
+                  </button>
+                  <input
+                    ref={checkOutPickerRef}
+                    type="date"
+                    value={checkOut}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setCheckOut(v);
+                      setCheckOutText(v ? formatDateDmy(v) : "");
+                    }}
+                    min={checkOutMinIso}
+                    className="sr-only"
+                    tabIndex={-1}
+                    aria-hidden="true"
+                  />
+                </div>
+                {checkOut && (
+                  <div className="text-[11px] text-gray-800/60">
+                    {formatDateDmy(checkOut)} ({formatDateFriendly(checkOut)})
+                  </div>
+                )}
               </div>
               <div className="hidden md:block" />
 
@@ -642,12 +827,6 @@ const AdminBookings = () => {
 
           <div className="mt-4">
             <div className="text-gray-800 font-semibold">Meal plan (day-wise)</div>
-            <div className="text-gray-800/70 text-sm">
-              <span className="hidden sm:inline">EP: no meals, CP: +₹500/guest/night(Breakfast only), MAP: Breakfast included and either lunch or dinner</span>
-              <span className="sm:hidden block">EP: no meals</span>
-              <span className="sm:hidden block">CP: +₹500/guest/night(Breakfast only)</span>
-              <span className="sm:hidden block">MAP: Breakfast included and either lunch or dinner</span>
-            </div>
 
             {nightDates.length === 0 ? (
               <div className="text-gray-800/60 text-sm mt-2">Select check-in and check-out dates to choose meal plans.</div>
@@ -655,9 +834,9 @@ const AdminBookings = () => {
               <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {nightDates.map((d) => (
                   <div key={d} className="px-4 py-3 rounded-2xl border border-gold/20 bg-ivory/40 flex items-center justify-between gap-3">
-                    <div className="text-gray-800/80 text-sm">{new Date(d).toLocaleDateString("en-IN")}</div>
+                    <div className="text-gray-800/80 text-sm">{formatDateFriendly(d)}</div>
                     <select
-                      value={mealPlanByDate[d] ?? "EP"}
+                      value={mealPlanByDate[d] ?? "CP"}
                       onChange={(e) => setMealPlanByDate((prev) => ({ ...prev, [d]: e.target.value as MealPlan }))}
                       className="px-3 py-2 rounded-xl border border-gold/20 bg-white focus:outline-none focus:ring-2 focus:ring-gold/30 text-sm"
                     >
@@ -758,14 +937,81 @@ const AdminBookings = () => {
                 <div className="px-4 py-3 rounded-2xl border border-gold/20 bg-ivory/40">
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-800/70">{baseLabel}</span>
-                    <span className="text-gray-900 font-semibold">{formatInr(priceEstimate.base)}</span>
+                    <div className="flex items-center gap-2">
+                      {isEditingPriceOverride ? (
+                        <>
+                          <input
+                            value={priceOverrideInput}
+                            onChange={(e) => setPriceOverrideInput(e.target.value)}
+                            inputMode="numeric"
+                            className="w-28 px-2 py-1 rounded-lg border border-gold/20 bg-white text-gray-900 text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const raw = String(priceOverrideInput ?? "").trim();
+                              const n = Number(raw);
+                              if (!raw || !Number.isFinite(n) || n < 0) {
+                                toast.error("Enter a valid base amount");
+                                return;
+                              }
+                              setPriceOverrideBase(n);
+                              setIsEditingPriceOverride(false);
+                            }}
+                            className="p-2 rounded-full border border-gold/20 text-gray-800 hover:bg-gold/10 transition-colors"
+                            title="Save"
+                          >
+                            <Check size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingPriceOverride(false);
+                              setPriceOverrideInput(String(effectiveEstimateForUi?.base ?? priceEstimate.base ?? ""));
+                            }}
+                            className="p-2 rounded-full border border-gold/20 text-gray-800 hover:bg-gold/10 transition-colors"
+                            title="Cancel"
+                          >
+                            <X size={16} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-gray-900 font-semibold">{formatInr(effectiveEstimateForUi?.base ?? priceEstimate.base)}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingPriceOverride(true);
+                              setPriceOverrideInput(String(effectiveEstimateForUi?.base ?? priceEstimate.base ?? ""));
+                            }}
+                            className="p-2 rounded-full border border-gold/20 text-gray-800 hover:bg-gold/10 transition-colors"
+                            title="Edit base amount"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          {priceOverrideBase !== null && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPriceOverrideBase(null);
+                                toast.info("Custom price removed");
+                              }}
+                              className="px-3 py-1 rounded-full border border-gold/20 text-gray-800/80 hover:bg-gold/10 transition-colors text-xs"
+                              title="Remove custom price"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-                {((appliedPromo ? discountedEstimate?.gst : priceEstimate.gst) ?? 0) > 0 && (
+                {Number(effectiveEstimateForUi?.gst ?? (appliedPromo ? discountedEstimate?.gst : priceEstimate.gst) ?? 0) > 0 && (
                   <div className="px-4 py-3 rounded-2xl border border-gold/20 bg-ivory/40">
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-800/70">GST (5%)</span>
-                      <span className="text-gray-900 font-semibold">{formatInr(appliedPromo ? discountedEstimate?.gst ?? 0 : priceEstimate.gst)}</span>
+                      <span className="text-gray-900 font-semibold">{formatInr(effectiveEstimateForUi?.gst ?? (appliedPromo ? discountedEstimate?.gst ?? 0 : priceEstimate.gst))}</span>
                     </div>
                   </div>
                 )}
@@ -783,7 +1029,7 @@ const AdminBookings = () => {
                 <div className="px-4 py-3 rounded-2xl border border-gold/20 bg-ivory/40">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium">Total Amount</span>
-                    <span className="text-lg font-bold text-gray-900">{formatInr(appliedPromo ? discountedEstimate?.total ?? priceEstimate.total : priceEstimate.total)}</span>
+                    <span className="text-lg font-bold text-gray-900">{formatInr(effectiveEstimateForUi?.total ?? (appliedPromo ? discountedEstimate?.total ?? priceEstimate.total : priceEstimate.total))}</span>
                   </div>
                 </div>
               </div>

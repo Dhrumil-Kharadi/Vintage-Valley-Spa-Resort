@@ -58,6 +58,9 @@ model Room {
   title         String
   description   String   @db.Text
   pricePerNight Int
+  epPricePerNight  Int?
+  cpPricePerNight  Int?
+  mapPricePerNight Int?
   person        Int      @default(2)
 
   images        RoomImage[]

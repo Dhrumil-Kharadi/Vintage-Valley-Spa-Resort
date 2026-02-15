@@ -10,6 +10,9 @@ type ApiRoom = {
   title: string;
   description: string;
   pricePerNight: number;
+  epPricePerNight?: number | null;
+  cpPricePerNight?: number | null;
+  mapPricePerNight?: number | null;
   images: string[];
   amenities: string[];
 };
@@ -26,6 +29,11 @@ type UiRoom = {
   pricing: {
     weekday: string;
     weekend: string;
+  };
+  planPrices: {
+    ep: string;
+    cp: string;
+    map: string;
   };
   amenities: { icon: any; name: string }[];
 };
@@ -85,6 +93,9 @@ const Rooms = () => {
 
     return (apiRooms ?? []).map((r) => {
       const price = Number(r.pricePerNight ?? 0);
+      const ep = Number((r as any).epPricePerNight ?? NaN);
+      const cp = Number((r as any).cpPricePerNight ?? NaN);
+      const map = Number((r as any).mapPricePerNight ?? NaN);
       const images = Array.isArray(r.images) ? r.images : [];
       const amenities = Array.isArray(r.amenities) ? r.amenities : [];
 
@@ -100,6 +111,11 @@ const Rooms = () => {
         pricing: {
           weekday: fmt(price),
           weekend: fmt(price),
+        },
+        planPrices: {
+          ep: fmt(Number.isFinite(ep) ? ep : 0),
+          cp: fmt(Number.isFinite(cp) ? cp : 0),
+          map: fmt(Number.isFinite(map) ? map : 0),
         },
         amenities: amenities.map((name) => {
           const key = String(name).toLowerCase();
@@ -184,6 +200,9 @@ const Rooms = () => {
                   <div className="absolute top-4 right-4 bg-gold text-charcoal px-4 py-2 rounded-full font-bold">
                     {room.pricing[selectedPricing]}/night
                   </div>
+                </div>
+                <div className="mt-3 text-sm text-gray-800/70">
+                  EP: {room.planPrices.ep} • CP: {room.planPrices.cp} • MAP: {room.planPrices.map}
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   {room.images.slice(1).map((image, imgIndex) => (

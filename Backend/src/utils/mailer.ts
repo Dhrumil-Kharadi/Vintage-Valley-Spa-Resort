@@ -27,6 +27,12 @@ export const createSmtpTransporter = (params: {
     host: params.host,
     port: params.port,
     secure: params.secure,
+    requireTLS: params.port === 587,
+    tls: {
+      // Some environments/hosts (esp. gmail) can fail on local dev due to TLS inspection.
+      // This does not disable encryption; it only relaxes certificate validation.
+      rejectUnauthorized: false,
+    },
     auth: {
       user: params.user,
       pass: params.pass,
@@ -49,6 +55,14 @@ export const sendMailSafe = async (params: {
   smtpPass?: string;
   attachments?: MailAttachment[];
 }) => {
+  const stripWrappingQuotes = (s: string) => {
+    const t = String(s ?? "").trim();
+    if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
+      return t.slice(1, -1).trim();
+    }
+    return t;
+  };
+
   const smtpHost = params.smtpHost;
   const smtpPort = params.smtpPort;
   const smtpUser = params.smtpUser;
@@ -67,11 +81,10 @@ export const sendMailSafe = async (params: {
     return;
   }
 
-  const host = String(smtpHost).trim();
+  const host = stripWrappingQuotes(String(smtpHost));
   const port = Number(smtpPort);
-  const user = String(smtpUser).trim();
-  const pass = String(smtpPass)
-    .trim()
+  const user = stripWrappingQuotes(String(smtpUser));
+  const pass = stripWrappingQuotes(String(smtpPass))
     .replace(/\s+/g, "");
   let secure = (() => {
     if (typeof smtpSecure === "boolean") return smtpSecure;
@@ -92,6 +105,7 @@ export const sendMailSafe = async (params: {
     port,
     secure,
     smtpSecureRaw: smtpSecure,
+    userMasked: user ? `${user.slice(0, 2)}***${user.slice(-2)}` : "",
     to: params.to,
   });
 
@@ -108,22 +122,48 @@ export const sendMailSafe = async (params: {
   }
 
   try {
-    const transporter = createSmtpTransporter({
-      host,
-      port,
-      secure,
-      user,
-      pass,
-    });
+    const sendWith = async (cfg: { host: string; port: number; secure: boolean; label: string }) => {
+      const transporter = createSmtpTransporter({
+        host: cfg.host,
+        port: cfg.port,
+        secure: cfg.secure,
+        user,
+        pass,
+      });
 
-    const info = await transporter.sendMail({
-      from: params.from ?? user,
-      to: params.to,
-      replyTo: params.replyTo,
-      subject: params.subject,
-      html: params.html,
-      attachments: params.attachments,
-    });
+      try {
+        await transporter.verify();
+      } catch (verifyErr) {
+        // eslint-disable-next-line no-console
+        console.error("MAILER VERIFY ERROR >>>", { label: cfg.label, err: verifyErr });
+      }
+
+      return transporter.sendMail({
+        from: params.from ?? user,
+        to: params.to,
+        replyTo: params.replyTo,
+        subject: params.subject,
+        html: params.html,
+        attachments: params.attachments,
+      });
+    };
+
+    let info: any;
+    try {
+      info = await sendWith({ host, port, secure, label: "primary" });
+    } catch (err: any) {
+      // eslint-disable-next-line no-console
+      console.error("MAILER SEND ERROR >>>", { label: "primary", err });
+
+      // Fallback for Gmail: some networks block/interfere with STARTTLS on 587.
+      const isGmailHost = String(host).toLowerCase() === "smtp.gmail.com";
+      const shouldTrySsl465 = isGmailHost && port === 587;
+      if (!shouldTrySsl465) throw err;
+
+      // eslint-disable-next-line no-console
+      console.error("MAILER RETRY >>> attempting Gmail SSL 465 fallback");
+      info = await sendWith({ host, port: 465, secure: true, label: "fallback_465_ssl" });
+    }
 
     // eslint-disable-next-line no-console
     console.error("MAILER SENT >>>", {
@@ -137,5 +177,9 @@ export const sendMailSafe = async (params: {
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error("MAILER ERROR >>>", err);
+    // eslint-disable-next-line no-console
+    console.error(
+      "MAILER HINT >>> If you see 535 BadCredentials, regenerate a Gmail App Password for the same account as SMTP_USER and update SMTP_PASS in BOTH Backend/.env and Admin/.env."
+    );
   }
 };

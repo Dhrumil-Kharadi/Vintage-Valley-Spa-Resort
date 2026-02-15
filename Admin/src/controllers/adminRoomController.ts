@@ -7,6 +7,9 @@ const createRoomSchema = z.object({
   title: z.string().min(1),
   description: z.string().min(1),
   pricePerNight: z.coerce.number().int().nonnegative(),
+  epPricePerNight: z.coerce.number().int().nonnegative().optional(),
+  cpPricePerNight: z.coerce.number().int().nonnegative().optional(),
+  mapPricePerNight: z.coerce.number().int().nonnegative().optional(),
   person: z.coerce.number().int().positive().default(2),
   images: z.array(z.string().min(1)).min(1),
   amenities: z.array(z.string().min(1)).default([]),
@@ -16,6 +19,9 @@ const updateRoomSchema = createRoomSchema;
 
 const updateRoomPriceSchema = z.object({
   pricePerNight: z.coerce.number().int().nonnegative(),
+  epPricePerNight: z.coerce.number().int().nonnegative().optional(),
+  cpPricePerNight: z.coerce.number().int().nonnegative().optional(),
+  mapPricePerNight: z.coerce.number().int().nonnegative().optional(),
 });
 
 export const adminRoomController = {
@@ -43,14 +49,38 @@ export const adminRoomController = {
 
     const role = String((req as AuthedRequest).user?.role ?? "");
     if (role === "STAFF") {
+      console.log("[adminRoomController.update][STAFF]", {
+        id,
+        body: req.body,
+      });
       const body = updateRoomPriceSchema.parse(req.body);
       const room = await adminRoomService.updateRoomPrice(id, body);
+
+      console.log("[adminRoomController.update][STAFF][updated]", {
+        id: room?.id,
+        pricePerNight: (room as any)?.pricePerNight,
+        epPricePerNight: (room as any)?.epPricePerNight,
+        cpPricePerNight: (room as any)?.cpPricePerNight,
+        mapPricePerNight: (room as any)?.mapPricePerNight,
+      });
       res.json({ ok: true, data: { room } });
       return;
     }
 
+    console.log("[adminRoomController.update][ADMIN]", {
+      id,
+      body: req.body,
+    });
     const body = updateRoomSchema.parse(req.body);
     const room = await adminRoomService.updateRoom(id, body);
+
+    console.log("[adminRoomController.update][ADMIN][updated]", {
+      id: room?.id,
+      pricePerNight: (room as any)?.pricePerNight,
+      epPricePerNight: (room as any)?.epPricePerNight,
+      cpPricePerNight: (room as any)?.cpPricePerNight,
+      mapPricePerNight: (room as any)?.mapPricePerNight,
+    });
     res.json({ ok: true, data: { room } });
   }),
 

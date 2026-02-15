@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "react-toastify";
 
 const AdminForgotPassword = () => {
   const [loading, setLoading] = useState(false);
@@ -11,6 +12,15 @@ const AdminForgotPassword = () => {
     e.preventDefault();
     setError(null);
     setOk(false);
+
+    const requested = String(email ?? "").trim().toLowerCase();
+    const allowedAdmin = "admin@vintagevalley.com";
+    const allowedStaff = "staff@vintagevalley.com";
+    if (requested !== allowedAdmin && requested !== allowedStaff) {
+      toast.error("Please enter valid admin/staff mail id");
+      return;
+    }
+
     setLoading(true);
 
     try {

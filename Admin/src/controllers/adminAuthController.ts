@@ -4,6 +4,7 @@ import { adminAuthService } from "../services/adminAuthService";
 import { signAccessToken } from "../../../Backend/src/utils/jwt";
 import { clearAuthCookie, setAuthCookie } from "../../../Backend/src/utils/cookies";
 import { AuthedRequest } from "../../../Backend/src/middlewares/auth";
+import { HttpError } from "../../../Backend/src/middlewares/errorHandler";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -11,7 +12,7 @@ const loginSchema = z.object({
 });
 
 const forgotPasswordSchema = z.object({
-  email: z.string().email().optional(),
+  email: z.string().email(),
 });
 
 const resetPasswordSchema = z.object({
@@ -33,9 +34,16 @@ export const adminAuthController = {
 
   forgotPassword: asyncHandler(async (req, res) => {
     const body = forgotPasswordSchema.parse(req.body ?? {});
-    const staffEmail = String(process.env.STAFF_EMAIL ?? "").trim().toLowerCase();
     const requested = String(body.email ?? "").trim().toLowerCase();
-    if (staffEmail && requested && requested === staffEmail) {
+
+    const allowedAdmin = "admin@vintagevalley.com";
+    const allowedStaff = "staff@vintagevalley.com";
+
+    if (requested !== allowedAdmin && requested !== allowedStaff) {
+      throw new HttpError(400, "Please enter valid admin/staff mail id");
+    }
+
+    if (requested === allowedStaff) {
       await adminAuthService.createStaffResetNotification();
       res.json({ ok: true });
       return;
