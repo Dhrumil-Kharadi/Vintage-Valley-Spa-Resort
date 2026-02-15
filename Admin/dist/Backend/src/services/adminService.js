@@ -281,10 +281,14 @@ exports.adminService = {
         const amountNum = round2(baseAmountNum + gstAmountNum);
         if (!Number.isFinite(amountNum) || amountNum < 1)
             throw new errorHandler_1.HttpError(400, "Invalid amount");
-        const baseAmount = new client_2.Prisma.Decimal(baseAmountNum.toFixed(2));
+        const override = Number(params.amountOverride ?? NaN);
+        const hasOverride = Number.isFinite(override) && override > 0;
+        const overrideBase = hasOverride ? round2(override / 1.05) : null;
+        const overrideGst = hasOverride ? round2(override - Number(overrideBase ?? 0)) : null;
+        const baseAmount = new client_2.Prisma.Decimal((hasOverride ? Number(overrideBase ?? 0) : baseAmountNum).toFixed(2));
         const convenienceFeeAmount = new client_2.Prisma.Decimal("0.00");
-        const gstAmount = new client_2.Prisma.Decimal(gstAmountNum.toFixed(2));
-        const amount = new client_2.Prisma.Decimal(amountNum.toFixed(2));
+        const gstAmount = new client_2.Prisma.Decimal((hasOverride ? Number(overrideGst ?? 0) : gstAmountNum).toFixed(2));
+        const amount = new client_2.Prisma.Decimal((hasOverride ? override : amountNum).toFixed(2));
         try {
             const method = (params.paymentMethod ?? "CASH");
             const bookingData = {

@@ -50,6 +50,7 @@ exports.adminDataController = {
             mealPlanByDate: zod_1.z
                 .array(zod_1.z.object({ date: zod_1.z.string().min(1), plan: zod_1.z.enum(["EP", "CP", "MAP"]) }))
                 .optional(),
+            amountOverride: zod_1.z.number().finite().nonnegative().optional(),
         });
         const body = schema.parse(req.body);
         if (!body.userId && (!body.userEmail || !body.userName)) {
@@ -74,6 +75,7 @@ exports.adminDataController = {
             extraAdults: body.extraAdults,
             additionalInformation: body.additionalInformation ?? null,
             mealPlanByDate: body.mealPlanByDate,
+            amountOverride: body.amountOverride,
         });
         res.json({ ok: true, data: { booking } });
     }),
