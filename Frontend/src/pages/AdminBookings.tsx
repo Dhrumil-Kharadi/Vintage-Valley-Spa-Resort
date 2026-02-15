@@ -42,6 +42,14 @@ const AdminBookings = () => {
   const [isEditingPriceOverride, setIsEditingPriceOverride] = useState(false);
   const [priceOverrideInput, setPriceOverrideInput] = useState<string>("");
 
+  const [totalOverride, setTotalOverride] = useState<number | null>(null);
+  const [isEditingTotalOverride, setIsEditingTotalOverride] = useState(false);
+  const [totalOverrideInput, setTotalOverrideInput] = useState<string>("");
+
+  const [search, setSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
   const checkInPickerRef = useRef<HTMLInputElement | null>(null);
   const checkOutPickerRef = useRef<HTMLInputElement | null>(null);
   const lastDateRangeKeyRef = useRef<string>("");
@@ -236,13 +244,14 @@ const AdminBookings = () => {
   const baseLabel = useMemo(() => {
     if (!priceEstimate) return "Base";
 
-    const hasCp = Number(priceEstimate.cpCharge ?? 0) > 0;
-    const hasMap = Number(priceEstimate.mapCharge ?? 0) > 0;
+    const plans = Object.values(mealPlanByDate ?? {});
+    const hasMap = plans.includes("MAP");
+    const hasCp = plans.includes("CP");
 
-    if (hasMap) return "Base (Room + breakfast + lunch/dinner)";
-    if (hasCp) return "Base (Room + breakfast)";
+    if (hasMap) return "Base (Room With Breakfast & Dinner)";
+    if (hasCp) return "Base (Room With Breakfast)";
     return "Base (Room)";
-  }, [priceEstimate]);
+  }, [priceEstimate, mealPlanByDate]);
 
   const discountedEstimate = useMemo(() => {
     const pe = priceEstimate;
@@ -264,12 +273,20 @@ const AdminBookings = () => {
     const round2 = (n: number) => Math.round(n * 100) / 100;
 
     const computedBase = appliedPromo ? Number(discountedEstimate?.baseAfterDiscount ?? pe.base ?? 0) : Number(pe.base ?? 0);
-    const base = priceOverrideBase === null ? computedBase : Number(priceOverrideBase ?? 0);
-    const gst = round2(base * 0.05);
-    const total = round2(base + gst);
+    const baseCandidate = priceOverrideBase === null ? computedBase : Number(priceOverrideBase ?? 0);
 
-    return { base, gst, total, hasOverride: priceOverrideBase !== null };
-  }, [appliedPromo, discountedEstimate?.baseAfterDiscount, priceEstimate, priceOverrideBase]);
+    const computedGst = round2(baseCandidate * 0.05);
+    const computedTotal = round2(baseCandidate + computedGst);
+
+    if (totalOverride !== null) {
+      const t = round2(Number(totalOverride ?? 0));
+      const base = round2(t / 1.05);
+      const gst = round2(t - base);
+      return { base, gst, total: t, hasOverride: true };
+    }
+
+    return { base: baseCandidate, gst: computedGst, total: computedTotal, hasOverride: priceOverrideBase !== null };
+  }, [appliedPromo, discountedEstimate?.baseAfterDiscount, priceEstimate, priceOverrideBase, totalOverride]);
 
   const formatInr = (value: any) => {
     const n = Number(value ?? 0);
@@ -313,6 +330,80 @@ const AdminBookings = () => {
   };
 
   const confirmedBookings = bookings.filter((b) => b?.status === "CONFIRMED");
+
+  const filteredBookings = useMemo(() => {
+    const q = String(search ?? "").trim().toLowerCase();
+    const from = fromDate ? new Date(fromDate) : null;
+    const to = toDate ? new Date(toDate) : null;
+    const fromMs = from && Number.isFinite(from.getTime()) ? from.getTime() : null;
+    const toMsRaw = to && Number.isFinite(to.getTime()) ? to.getTime() : null;
+    const toMs = toMsRaw === null ? null : toMsRaw + (24 * 60 * 60 * 1000 - 1);
+
+    return (confirmedBookings ?? []).filter((b: any) => {
+      if (q) {
+        const bookingNoForDisplay = Number(b?.bookingNo);
+        const bookingRef = Number.isFinite(bookingNoForDisplay) && bookingNoForDisplay > 0 ? `VVR-${bookingNoForDisplay}` : String(b?.id ?? "");
+        const hay = `${bookingRef} ${b?.id ?? ""} ${b?.staffName ?? ""} ${b?.status ?? ""} ${b?.amount ?? ""} ${b?.user?.name ?? ""} ${b?.user?.email ?? ""} ${b?.user?.phone ?? ""} ${b?.room?.title ?? ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+
+      const created = b?.createdAt ? new Date(b.createdAt) : null;
+      const createdMs = created && Number.isFinite(created.getTime()) ? created.getTime() : null;
+      if (fromMs !== null && createdMs !== null && createdMs < fromMs) return false;
+      if (toMs !== null && createdMs !== null && createdMs > toMs) return false;
+      if ((fromMs !== null || toMs !== null) && createdMs === null) return false;
+      return true;
+    });
+  }, [confirmedBookings, search, fromDate, toDate]);
+
+  const downloadBookingsCsv = () => {
+    const list = filteredBookings;
+
+    const escapeCsv = (v: any) => {
+      const s = String(v ?? "");
+      if (/[\n\r,\"]/g.test(s)) return `"${s.replace(/\"/g, '""')}"`;
+      return s;
+    };
+
+    const rows = (list ?? []).map((b: any) => {
+      const bookingNoForDisplay = Number(b?.bookingNo);
+      const bookingRef = Number.isFinite(bookingNoForDisplay) && bookingNoForDisplay > 0 ? `VVR-${bookingNoForDisplay}` : String(b?.id ?? "");
+      const created = b?.createdAt ? new Date(b.createdAt).toISOString() : "";
+      const checkInIso = b?.checkIn ? new Date(b.checkIn).toISOString().slice(0, 10) : "";
+      const checkOutIso = b?.checkOut ? new Date(b.checkOut).toISOString().slice(0, 10) : "";
+      const method = b?.payments?.[0]?.method ?? b?.payments?.[0]?.provider ?? "";
+
+      return [
+        escapeCsv(bookingRef),
+        escapeCsv(b?.staffName ?? ""),
+        escapeCsv(b?.user?.name ?? ""),
+        escapeCsv(b?.user?.email ?? ""),
+        escapeCsv(b?.user?.phone ?? ""),
+        escapeCsv(b?.room?.title ?? ""),
+        escapeCsv(checkInIso),
+        escapeCsv(checkOutIso),
+        escapeCsv(b?.amount ?? ""),
+        escapeCsv(method),
+        escapeCsv(b?.status ?? ""),
+        escapeCsv(created),
+      ].join(",");
+    });
+
+    const csv = [
+      "bookingId,staff,user,email,phone,room,checkIn,checkOut,amount,payment,status,createdAt",
+      ...rows,
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `bookings_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
 
   const downloadInvoice = async (b: any) => {
     await downloadBookingInvoicePdf(b);
@@ -425,6 +516,8 @@ const AdminBookings = () => {
 
     setCreating(true);
     try {
+      const overrideAmount = effectiveEstimateForUi?.total ?? null;
+      const hasAnyOverride = totalOverride !== null || priceOverrideBase !== null;
       const res = await fetch("/admin-api/bookings/manual", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -447,6 +540,7 @@ const AdminBookings = () => {
           extraAdults,
           additionalInformation: additionalInformation.trim() ? additionalInformation.trim() : null,
           mealPlanByDate: nightDates.map((d) => ({ date: d, plan: mealPlanByDate[d] ?? "CP" })),
+          amountOverride: hasAnyOverride && overrideAmount !== null ? Number(overrideAmount) : undefined,
         }),
       });
 
@@ -1029,7 +1123,74 @@ const AdminBookings = () => {
                 <div className="px-4 py-3 rounded-2xl border border-gold/20 bg-ivory/40">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium">Total Amount</span>
-                    <span className="text-lg font-bold text-gray-900">{formatInr(effectiveEstimateForUi?.total ?? (appliedPromo ? discountedEstimate?.total ?? priceEstimate.total : priceEstimate.total))}</span>
+                    <div className="flex items-center gap-2">
+                      {isEditingTotalOverride ? (
+                        <>
+                          <input
+                            value={totalOverrideInput}
+                            onChange={(e) => setTotalOverrideInput(e.target.value)}
+                            inputMode="numeric"
+                            className="w-28 px-2 py-1 rounded-lg border border-gold/20 bg-white text-gray-900 text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const raw = String(totalOverrideInput ?? "").trim();
+                              const n = Number(raw);
+                              if (!raw || !Number.isFinite(n) || n < 0) {
+                                toast.error("Enter a valid total amount");
+                                return;
+                              }
+                              setTotalOverride(n);
+                              setIsEditingTotalOverride(false);
+                            }}
+                            className="p-2 rounded-full border border-gold/20 text-gray-800 hover:bg-gold/10 transition-colors"
+                            title="Save"
+                          >
+                            <Check size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingTotalOverride(false);
+                              setTotalOverrideInput(String(effectiveEstimateForUi?.total ?? priceEstimate.total ?? ""));
+                            }}
+                            className="p-2 rounded-full border border-gold/20 text-gray-800 hover:bg-gold/10 transition-colors"
+                            title="Cancel"
+                          >
+                            <X size={16} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-lg font-bold text-gray-900">{formatInr(effectiveEstimateForUi?.total ?? (appliedPromo ? discountedEstimate?.total ?? priceEstimate.total : priceEstimate.total))}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingTotalOverride(true);
+                              setTotalOverrideInput(String(effectiveEstimateForUi?.total ?? priceEstimate.total ?? ""));
+                            }}
+                            className="p-2 rounded-full border border-gold/20 text-gray-800 hover:bg-gold/10 transition-colors"
+                            title="Edit total amount"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          {totalOverride !== null && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTotalOverride(null);
+                                toast.info("Custom total removed");
+                              }}
+                              className="px-3 py-1 rounded-full border border-gold/20 text-gray-800/80 hover:bg-gold/10 transition-colors text-xs"
+                              title="Remove custom total"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1057,68 +1218,137 @@ const AdminBookings = () => {
         ) : confirmedBookings.length === 0 ? (
           <div className="text-gray-800/70">No CONFIRMED bookings found.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-left">
-              <thead>
-                <tr className="text-gray-800/60 text-sm">
-                  <th className="py-3 pr-4">Booking ID</th>
-                  <th className="py-3 pr-4">Staff</th>
-                  <th className="py-3 pr-4">User</th>
-                  <th className="py-3 pr-4">Email</th>
-                  <th className="py-3 pr-4">Phone</th>
-                  <th className="py-3 pr-4">Room</th>
-                  <th className="py-3 pr-4">Dates</th>
-                  <th className="py-3 pr-4">Amount</th>
-                  <th className="py-3 pr-4">Payment</th>
-                  <th className="py-3 pr-4">Status</th>
-                  <th className="py-3">Invoice</th>
-                  <th className="py-3">Delete</th>
-                </tr>
-              </thead>
-              <tbody>
-                {confirmedBookings.map((b) => (
-                  (() => {
-                    const paid = b.payments?.find((p: any) => p.status === 'PAID');
-                    return (
-                  <tr key={b.id} className="border-t border-gold/10">
-                    <td className="py-3 pr-4 font-mono text-xs text-gray-800/80">{b.bookingNo ? `VVR-${b.bookingNo}` : b.id}</td>
-                    <td className="py-3 pr-4 text-gray-800/80">{b.staffName ?? "—"}</td>
-                    <td className="py-3 pr-4 text-gray-800/80">{b.user?.name ?? "—"}</td>
-                    <td className="py-3 pr-4 text-gray-800/80">{b.user?.email ?? "—"}</td>
-                    <td className="py-3 pr-4 text-gray-800/80">{b.user?.phone ?? "—"}</td>
-                    <td className="py-3 pr-4 text-gray-800/80">{b.room?.title ?? "—"}</td>
-                    <td className="py-3 pr-4 text-gray-800/70 text-sm">
-                      {b.checkIn ? new Date(b.checkIn).toLocaleDateString() : "—"} - {b.checkOut ? new Date(b.checkOut).toLocaleDateString() : "—"}
-                    </td>
-                    <td className="py-3 pr-4 text-gray-800/80">{formatInr(b.amount)}</td>
-                    <td className="py-3 pr-4 text-gray-800/80">{formatMethod(paid?.method)}</td>
-                    <td className="py-3 pr-4 text-gray-800/80">{b.status}</td>
-                    <td className="py-3">
-                      <button
-                        type="button"
-                        onClick={() => downloadInvoice(b)}
-                        className="px-4 py-2 rounded-full bg-gray-800 text-ivory hover:bg-gray-800/90 transition-colors text-sm"
-                      >
-                        Download
-                      </button>
-                    </td>
-                    <td className="py-3">
-                      <button
-                        type="button"
-                        onClick={() => deleteBooking(b.id)}
-                        className="p-2 rounded-full border border-gold/20 text-gray-800/80 hover:bg-gold/10 transition-colors"
-                        title="Delete booking"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                    );
-                  })()
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between mb-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-end">
+                <div>
+                  <label className="block text-xs text-gray-800/70 mb-1">Search</label>
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search booking / user / room / staff"
+                    className="w-full md:w-72 px-4 py-2.5 rounded-2xl border border-gold/20 focus:outline-none focus:border-gold transition-colors bg-ivory/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-800/70 mb-1">From</label>
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="w-full md:w-44 px-4 py-2.5 rounded-2xl border border-gold/20 focus:outline-none focus:border-gold transition-colors bg-ivory/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-800/70 mb-1">To</label>
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="w-full md:w-44 px-4 py-2.5 rounded-2xl border border-gold/20 focus:outline-none focus:border-gold transition-colors bg-ivory/50"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    setFromDate("");
+                    setToDate("");
+                  }}
+                  className="px-4 py-2.5 rounded-full border-2 border-gold/30 text-gray-800 hover:bg-gold/10 transition-colors md:mb-[1px]"
+                >
+                  Clear
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={downloadBookingsCsv}
+                className="px-4 py-2.5 rounded-full bg-gray-800 text-ivory hover:bg-gray-800/90 transition-colors"
+              >
+                Download CSV
+              </button>
+            </div>
+
+            {filteredBookings.length === 0 ? (
+              <div className="text-gray-800/70">No matching CONFIRMED bookings found.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1100px] text-left">
+                  <thead>
+                    <tr className="text-gray-800/60 text-sm">
+                      <th className="py-3 pr-4">Booking ID</th>
+                      <th className="py-3 pr-4">Staff</th>
+                      <th className="py-3 pr-4">User</th>
+                      <th className="py-3 pr-4">Email</th>
+                      <th className="py-3 pr-4">Phone</th>
+                      <th className="py-3 pr-4">Room</th>
+                      <th className="py-3 pr-4">Dates</th>
+                      <th className="py-3 pr-4">Amount</th>
+                      <th className="py-3 pr-4">Payment</th>
+                      <th className="py-3 pr-4">Status</th>
+                      <th className="py-3">Invoice</th>
+                      <th className="py-3">Delete</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredBookings.map((b) => {
+                      const paid = Array.isArray((b as any)?.payments)
+                        ? (b as any).payments.find((p: any) => String(p?.status ?? "").toUpperCase() === "PAID")
+                        : null;
+
+                      return (
+                        <tr key={b.id} className="border-t border-gold/10">
+                          <td className="py-3 pr-4 font-mono text-xs text-gray-800/80">
+                            {(() => {
+                              const n = Number((b as any)?.bookingNo);
+                              return Number.isFinite(n) && n > 0 ? `VVR-${n}` : b.id;
+                            })()}
+                          </td>
+                          <td className="py-3 pr-4 text-gray-800/80">{String((b as any)?.staffName ?? "—")}</td>
+                          <td className="py-3 pr-4 text-gray-800/80">{String((b as any)?.user?.name ?? "—")}</td>
+                          <td className="py-3 pr-4 text-gray-800/80">{String((b as any)?.user?.email ?? "—")}</td>
+                          <td className="py-3 pr-4 text-gray-800/80">{String((b as any)?.user?.phone ?? "—")}</td>
+                          <td className="py-3 pr-4 text-gray-800/80">{String((b as any)?.room?.title ?? "—")}</td>
+                          <td className="py-3 pr-4 text-gray-800/80">
+                            {(() => {
+                              const ci = (b as any)?.checkIn ? new Date((b as any).checkIn) : null;
+                              const co = (b as any)?.checkOut ? new Date((b as any).checkOut) : null;
+                              const ciTxt = ci && Number.isFinite(ci.getTime()) ? ci.toLocaleDateString("en-IN") : "—";
+                              const coTxt = co && Number.isFinite(co.getTime()) ? co.toLocaleDateString("en-IN") : "—";
+                              return `${ciTxt} - ${coTxt}`;
+                            })()}
+                          </td>
+                          <td className="py-3 pr-4 text-gray-800/80">{formatInr((b as any)?.amount)}</td>
+                          <td className="py-3 pr-4 text-gray-800/80">{formatMethod((paid as any)?.method)}</td>
+                          <td className="py-3 pr-4 text-gray-800/80">{String((b as any)?.status ?? "—")}</td>
+                          <td className="py-3">
+                            <button
+                              type="button"
+                              onClick={() => downloadInvoice(b)}
+                              className="px-4 py-2 rounded-full bg-gray-800 text-ivory hover:bg-gray-800/90 transition-colors text-sm"
+                            >
+                              Download
+                            </button>
+                          </td>
+                          <td className="py-3">
+                            <button
+                              type="button"
+                              onClick={() => deleteBooking(b.id)}
+                              className="p-2 rounded-full border border-gold/20 text-gray-800/80 hover:bg-gold/10 transition-colors"
+                              title="Delete booking"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </div>
     </AdminLayout>
