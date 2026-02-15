@@ -258,12 +258,24 @@ exports.adminService = {
             : title.includes("deluxe") || title.includes("edge")
                 ? 1000
                 : 0;
-        const base = room.pricePerNight * nights * rooms;
+        const basePerNight = Number(room.pricePerNight ?? 0);
+        const epAddonRaw = Number(room.epPricePerNight ?? NaN);
+        const cpAddonRaw = Number(room.cpPricePerNight ?? NaN);
+        const mapAddonRaw = Number(room.mapPricePerNight ?? NaN);
+        const epAddon = Number.isFinite(epAddonRaw) ? epAddonRaw : 0;
+        const cpAddon = Number.isFinite(cpAddonRaw) ? cpAddonRaw : 0;
+        const mapAddon = Number.isFinite(mapAddonRaw) ? mapAddonRaw : 0;
+        const epPerNight = basePerNight + epAddon;
+        const cpPerNight = basePerNight + cpAddon;
+        // If MAP add-on isn't explicitly stored, preserve legacy behaviour by adding the title-based addon.
+        const mapPerNight = basePerNight + (Number.isFinite(mapAddonRaw) ? mapAddon : mapRatePerGuestPerNight);
+        const roomTotal = round2((epPerNight * (nights - cpNights - mapNights) + cpPerNight * cpNights + mapPerNight * mapNights) * rooms);
         const childCharge = 1200 * params.children * nights;
         const extraAdultCharge = 1500 * params.extraAdults * nights;
-        const cpAmountNum = round2(500 * Number(params.guests) * cpNights);
-        const mapAmountNum = round2(mapRatePerGuestPerNight * Number(params.guests) * mapNights);
-        const baseAmountNum = round2(base + childCharge + extraAdultCharge + cpAmountNum + mapAmountNum);
+        // Legacy add-ons (kept only if explicit per-plan pricing isn't provided)
+        const cpAmountNum = Number.isFinite(cpAddonRaw) ? 0 : round2(500 * Number(params.guests) * cpNights);
+        const mapAmountNum = Number.isFinite(mapAddonRaw) ? 0 : round2(mapRatePerGuestPerNight * Number(params.guests) * mapNights);
+        const baseAmountNum = round2(roomTotal + childCharge + extraAdultCharge + cpAmountNum + mapAmountNum);
         const convenienceFeeAmountNum = 0;
         const gstAmountNum = round2(baseAmountNum * 0.05);
         const amountNum = round2(baseAmountNum + gstAmountNum);

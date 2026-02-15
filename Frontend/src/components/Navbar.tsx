@@ -101,12 +101,13 @@ const Navbar = () => {
   }, []);
 
   const navLinks = [
-    { name: 'Home', path: '/' },
+    { name: 'Home', path: '/home' },
     { name: 'Rooms', path: '/rooms' },
     { name: 'Tariff', path: '/tariff' },
     { name: 'Facilities', path: '/facilities' },
     { name: 'Attractions', path: '/attractions' },
     { name: 'Gallery', path: '/gallery' },
+    { name: 'Contact', path: '/contact' },
     { name: 'Book Now', path: '/rooms' },
   ];
 

@@ -8,7 +8,11 @@ const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const candidates = [
     path_1.default.resolve(__dirname, "../../.env"),
+    path_1.default.resolve(__dirname, "../../env"),
+    path_1.default.resolve(__dirname, "../../env (1)"),
     path_1.default.resolve(__dirname, "../../../Backend/.env"),
+    path_1.default.resolve(__dirname, "../../../Backend/env"),
+    path_1.default.resolve(__dirname, "../../../Backend/env (1)"),
     path_1.default.resolve(__dirname, "../../.env.example"),
     path_1.default.resolve(__dirname, "../../../Backend/.env.example"),
     path_1.default.resolve(__dirname, "../.env.example"),
@@ -19,4 +23,10 @@ if (envPath) {
 }
 else {
     dotenv_1.default.config();
+}
+if (String(process.env.NODE_ENV ?? "development").trim().toLowerCase() !== "production") {
+    const user = String(process.env.SMTP_USER ?? "").trim();
+    const masked = user ? `${user.slice(0, 2)}***${user.slice(-2)}` : "";
+    // eslint-disable-next-line no-console
+    console.log("ADMIN ENV LOADED >>>", { envPath: envPath ?? "default", smtpUserMasked: masked });
 }

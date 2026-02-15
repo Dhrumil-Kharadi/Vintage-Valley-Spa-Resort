@@ -6,12 +6,13 @@ const asyncHandler_1 = require("../../../Backend/src/utils/asyncHandler");
 const adminAuthService_1 = require("../services/adminAuthService");
 const jwt_1 = require("../../../Backend/src/utils/jwt");
 const cookies_1 = require("../../../Backend/src/utils/cookies");
+const errorHandler_1 = require("../../../Backend/src/middlewares/errorHandler");
 const loginSchema = zod_1.z.object({
     email: zod_1.z.string().email(),
     password: zod_1.z.string().min(1),
 });
 const forgotPasswordSchema = zod_1.z.object({
-    email: zod_1.z.string().email().optional(),
+    email: zod_1.z.string().email(),
 });
 const resetPasswordSchema = zod_1.z.object({
     token: zod_1.z.string().min(1),
@@ -27,9 +28,13 @@ exports.adminAuthController = {
     }),
     forgotPassword: (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         const body = forgotPasswordSchema.parse(req.body ?? {});
-        const staffEmail = String(process.env.STAFF_EMAIL ?? "").trim().toLowerCase();
         const requested = String(body.email ?? "").trim().toLowerCase();
-        if (staffEmail && requested && requested === staffEmail) {
+        const allowedAdmin = "admin@vintagevalley.com";
+        const allowedStaff = "staff@vintagevalley.com";
+        if (requested !== allowedAdmin && requested !== allowedStaff) {
+            throw new errorHandler_1.HttpError(400, "Please enter valid admin/staff mail id");
+        }
+        if (requested === allowedStaff) {
             await adminAuthService_1.adminAuthService.createStaffResetNotification();
             res.json({ ok: true });
             return;

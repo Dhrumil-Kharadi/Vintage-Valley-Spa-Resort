@@ -8,6 +8,9 @@ const createRoomSchema = zod_1.z.object({
     title: zod_1.z.string().min(1),
     description: zod_1.z.string().min(1),
     pricePerNight: zod_1.z.coerce.number().int().nonnegative(),
+    epPricePerNight: zod_1.z.coerce.number().int().nonnegative().optional(),
+    cpPricePerNight: zod_1.z.coerce.number().int().nonnegative().optional(),
+    mapPricePerNight: zod_1.z.coerce.number().int().nonnegative().optional(),
     person: zod_1.z.coerce.number().int().positive().default(2),
     images: zod_1.z.array(zod_1.z.string().min(1)).min(1),
     amenities: zod_1.z.array(zod_1.z.string().min(1)).default([]),
@@ -15,6 +18,9 @@ const createRoomSchema = zod_1.z.object({
 const updateRoomSchema = createRoomSchema;
 const updateRoomPriceSchema = zod_1.z.object({
     pricePerNight: zod_1.z.coerce.number().int().nonnegative(),
+    epPricePerNight: zod_1.z.coerce.number().int().nonnegative().optional(),
+    cpPricePerNight: zod_1.z.coerce.number().int().nonnegative().optional(),
+    mapPricePerNight: zod_1.z.coerce.number().int().nonnegative().optional(),
 });
 exports.adminRoomController = {
     list: (0, asyncHandler_1.asyncHandler)(async (_req, res) => {
@@ -37,13 +43,35 @@ exports.adminRoomController = {
         }
         const role = String(req.user?.role ?? "");
         if (role === "STAFF") {
+            console.log("[adminRoomController.update][STAFF]", {
+                id,
+                body: req.body,
+            });
             const body = updateRoomPriceSchema.parse(req.body);
             const room = await adminRoomService_1.adminRoomService.updateRoomPrice(id, body);
+            console.log("[adminRoomController.update][STAFF][updated]", {
+                id: room?.id,
+                pricePerNight: room?.pricePerNight,
+                epPricePerNight: room?.epPricePerNight,
+                cpPricePerNight: room?.cpPricePerNight,
+                mapPricePerNight: room?.mapPricePerNight,
+            });
             res.json({ ok: true, data: { room } });
             return;
         }
+        console.log("[adminRoomController.update][ADMIN]", {
+            id,
+            body: req.body,
+        });
         const body = updateRoomSchema.parse(req.body);
         const room = await adminRoomService_1.adminRoomService.updateRoom(id, body);
+        console.log("[adminRoomController.update][ADMIN][updated]", {
+            id: room?.id,
+            pricePerNight: room?.pricePerNight,
+            epPricePerNight: room?.epPricePerNight,
+            cpPricePerNight: room?.cpPricePerNight,
+            mapPricePerNight: room?.mapPricePerNight,
+        });
         res.json({ ok: true, data: { room } });
     }),
     remove: (0, asyncHandler_1.asyncHandler)(async (req, res) => {

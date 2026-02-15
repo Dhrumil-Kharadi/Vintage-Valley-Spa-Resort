@@ -3,6 +3,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.adminRoomService = void 0;
 const client_1 = require("../../../Backend/src/prisma/client");
 const errorHandler_1 = require("../../../Backend/src/middlewares/errorHandler");
+const toOptionalInt = (value) => {
+    if (value === undefined)
+        return undefined;
+    if (value === null)
+        return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.trunc(n) : undefined;
+};
 exports.adminRoomService = {
     async listRooms() {
         const rooms = await client_1.prisma.room.findMany({
@@ -19,6 +27,9 @@ exports.adminRoomService = {
                 title: r.title,
                 description: r.description,
                 pricePerNight: r.pricePerNight,
+                epPricePerNight: r.epPricePerNight ?? null,
+                cpPricePerNight: r.cpPricePerNight ?? null,
+                mapPricePerNight: r.mapPricePerNight ?? null,
                 person: r.person,
                 images: (r.images ?? []).map((i) => i.url),
                 amenities: (r.amenities ?? []).map((a) => a.name),
@@ -35,6 +46,9 @@ exports.adminRoomService = {
                     title: params.title,
                     description: params.description,
                     pricePerNight: params.pricePerNight,
+                    epPricePerNight: toOptionalInt(params.epPricePerNight),
+                    cpPricePerNight: toOptionalInt(params.cpPricePerNight),
+                    mapPricePerNight: toOptionalInt(params.mapPricePerNight),
                     person: params.person,
                     images: {
                         create: params.images.map((url, idx) => ({ url, sortOrder: idx })),
@@ -61,6 +75,9 @@ exports.adminRoomService = {
             title: r.title,
             description: r.description,
             pricePerNight: r.pricePerNight,
+            epPricePerNight: r.epPricePerNight ?? null,
+            cpPricePerNight: r.cpPricePerNight ?? null,
+            mapPricePerNight: r.mapPricePerNight ?? null,
             person: r.person,
             images: (r.images ?? []).map((i) => i.url),
             amenities: (r.amenities ?? []).map((a) => a.name),
@@ -73,6 +90,9 @@ exports.adminRoomService = {
             where: { id },
             data: {
                 pricePerNight: params.pricePerNight,
+                epPricePerNight: toOptionalInt(params.epPricePerNight),
+                cpPricePerNight: toOptionalInt(params.cpPricePerNight),
+                mapPricePerNight: toOptionalInt(params.mapPricePerNight),
             },
             include: {
                 images: { orderBy: { sortOrder: "asc" } },
@@ -85,6 +105,9 @@ exports.adminRoomService = {
             title: r.title,
             description: r.description,
             pricePerNight: r.pricePerNight,
+            epPricePerNight: r.epPricePerNight ?? null,
+            cpPricePerNight: r.cpPricePerNight ?? null,
+            mapPricePerNight: r.mapPricePerNight ?? null,
             person: r.person,
             images: (r.images ?? []).map((i) => i.url),
             amenities: (r.amenities ?? []).map((a) => a.name),
@@ -101,6 +124,9 @@ exports.adminRoomService = {
                     title: params.title,
                     description: params.description,
                     pricePerNight: params.pricePerNight,
+                    epPricePerNight: toOptionalInt(params.epPricePerNight),
+                    cpPricePerNight: toOptionalInt(params.cpPricePerNight),
+                    mapPricePerNight: toOptionalInt(params.mapPricePerNight),
                     person: params.person,
                     images: {
                         deleteMany: {},
@@ -129,6 +155,9 @@ exports.adminRoomService = {
             title: r.title,
             description: r.description,
             pricePerNight: r.pricePerNight,
+            epPricePerNight: r.epPricePerNight ?? null,
+            cpPricePerNight: r.cpPricePerNight ?? null,
+            mapPricePerNight: r.mapPricePerNight ?? null,
             person: r.person,
             images: (r.images ?? []).map((i) => i.url),
             amenities: (r.amenities ?? []).map((a) => a.name),

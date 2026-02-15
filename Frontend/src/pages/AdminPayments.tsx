@@ -16,6 +16,13 @@ const AdminPayments = () => {
     return s.toUpperCase();
   };
 
+  const formatBookingRef = (p: any) => {
+    const no = Number(p?.booking?.bookingNo);
+    if (Number.isFinite(no) && no > 0) return `VVR-${no}`;
+    const id = String(p?.bookingId ?? "").trim();
+    return id || "—";
+  };
+
   useEffect(() => {
     const run = async () => {
       setLoading(true);
@@ -47,7 +54,7 @@ const AdminPayments = () => {
 
     return (paidPayments ?? []).filter((p) => {
       if (q) {
-        const hay = `${p?.id ?? ""} ${p?.bookingId ?? ""} ${p?.status ?? ""} ${p?.provider ?? ""} ${p?.method ?? ""} ${p?.amount ?? ""} ${p?.booking?.user?.name ?? ""} ${p?.booking?.user?.email ?? ""} ${p?.booking?.user?.phone ?? ""}`.toLowerCase();
+        const hay = `${p?.id ?? ""} ${p?.bookingId ?? ""} ${formatBookingRef(p)} ${p?.status ?? ""} ${p?.provider ?? ""} ${p?.method ?? ""} ${p?.amount ?? ""} ${p?.booking?.user?.name ?? ""} ${p?.booking?.user?.email ?? ""} ${p?.booking?.user?.phone ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
 
@@ -75,7 +82,7 @@ const AdminPayments = () => {
       const created = p?.createdAt ? new Date(p.createdAt).toISOString() : "";
       return [
         escapeCsv(p?.id),
-        escapeCsv(p?.bookingId),
+        escapeCsv(formatBookingRef(p)),
         escapeCsv(p?.booking?.user?.name ?? ""),
         escapeCsv(p?.booking?.user?.email ?? ""),
         escapeCsv(p?.booking?.user?.phone ?? ""),
@@ -186,7 +193,7 @@ const AdminPayments = () => {
                     <td className="py-3 pr-4 text-gray-800/80">{p.booking?.user?.email ?? "—"}</td>
                     <td className="py-3 pr-4 text-gray-800/80">{p.booking?.user?.phone ?? "—"}</td>
                     <td className="py-3 pr-4 text-gray-800/80">{formatMethod(p.method)}</td>
-                    <td className="py-3 pr-4 font-mono text-xs text-gray-800/80">{p.bookingId}</td>
+                    <td className="py-3 pr-4 font-mono text-xs text-gray-800/80">{formatBookingRef(p)}</td>
                     <td className="py-3 pr-4 text-gray-800/80">₹{p.amount}</td>
                     <td className="py-3 pr-4 text-gray-800/80">{p.status}</td>
                     <td className="py-3 text-gray-800/80">{p.provider}</td>

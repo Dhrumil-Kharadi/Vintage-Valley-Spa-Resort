@@ -20,6 +20,12 @@ const createSmtpTransporter = (params) => {
         host: params.host,
         port: params.port,
         secure: params.secure,
+        requireTLS: params.port === 587,
+        tls: {
+            // Some environments/hosts (esp. gmail) can fail on local dev due to TLS inspection.
+            // This does not disable encryption; it only relaxes certificate validation.
+            rejectUnauthorized: false,
+        },
         auth: {
             user: params.user,
             pass: params.pass,
@@ -28,6 +34,13 @@ const createSmtpTransporter = (params) => {
 };
 exports.createSmtpTransporter = createSmtpTransporter;
 const sendMailSafe = async (params) => {
+    const stripWrappingQuotes = (s) => {
+        const t = String(s ?? "").trim();
+        if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
+            return t.slice(1, -1).trim();
+        }
+        return t;
+    };
     const smtpHost = params.smtpHost;
     const smtpPort = params.smtpPort;
     const smtpUser = params.smtpUser;
@@ -44,11 +57,10 @@ const sendMailSafe = async (params) => {
         });
         return;
     }
-    const host = String(smtpHost).trim();
+    const host = stripWrappingQuotes(String(smtpHost));
     const port = Number(smtpPort);
-    const user = String(smtpUser).trim();
-    const pass = String(smtpPass)
-        .trim()
+    const user = stripWrappingQuotes(String(smtpUser));
+    const pass = stripWrappingQuotes(String(smtpPass))
         .replace(/\s+/g, "");
     let secure = (() => {
         if (typeof smtpSecure === "boolean")
@@ -72,6 +84,7 @@ const sendMailSafe = async (params) => {
         port,
         secure,
         smtpSecureRaw: smtpSecure,
+        userMasked: user ? `${user.slice(0, 2)}***${user.slice(-2)}` : "",
         to: params.to,
     });
     if (!host || !Number.isFinite(port) || !user || !pass) {
@@ -86,21 +99,46 @@ const sendMailSafe = async (params) => {
         return;
     }
     try {
-        const transporter = (0, exports.createSmtpTransporter)({
-            host,
-            port,
-            secure,
-            user,
-            pass,
-        });
-        const info = await transporter.sendMail({
-            from: params.from ?? user,
-            to: params.to,
-            replyTo: params.replyTo,
-            subject: params.subject,
-            html: params.html,
-            attachments: params.attachments,
-        });
+        const sendWith = async (cfg) => {
+            const transporter = (0, exports.createSmtpTransporter)({
+                host: cfg.host,
+                port: cfg.port,
+                secure: cfg.secure,
+                user,
+                pass,
+            });
+            try {
+                await transporter.verify();
+            }
+            catch (verifyErr) {
+                // eslint-disable-next-line no-console
+                console.error("MAILER VERIFY ERROR >>>", { label: cfg.label, err: verifyErr });
+            }
+            return transporter.sendMail({
+                from: params.from ?? user,
+                to: params.to,
+                replyTo: params.replyTo,
+                subject: params.subject,
+                html: params.html,
+                attachments: params.attachments,
+            });
+        };
+        let info;
+        try {
+            info = await sendWith({ host, port, secure, label: "primary" });
+        }
+        catch (err) {
+            // eslint-disable-next-line no-console
+            console.error("MAILER SEND ERROR >>>", { label: "primary", err });
+            // Fallback for Gmail: some networks block/interfere with STARTTLS on 587.
+            const isGmailHost = String(host).toLowerCase() === "smtp.gmail.com";
+            const shouldTrySsl465 = isGmailHost && port === 587;
+            if (!shouldTrySsl465)
+                throw err;
+            // eslint-disable-next-line no-console
+            console.error("MAILER RETRY >>> attempting Gmail SSL 465 fallback");
+            info = await sendWith({ host, port: 465, secure: true, label: "fallback_465_ssl" });
+        }
         // eslint-disable-next-line no-console
         console.error("MAILER SENT >>>", {
             to: params.to,
@@ -114,6 +152,8 @@ const sendMailSafe = async (params) => {
     catch (err) {
         // eslint-disable-next-line no-console
         console.error("MAILER ERROR >>>", err);
+        // eslint-disable-next-line no-console
+        console.error("MAILER HINT >>> If you see 535 BadCredentials, regenerate a Gmail App Password for the same account as SMTP_USER and update SMTP_PASS in BOTH Backend/.env and Admin/.env.");
     }
 };
 exports.sendMailSafe = sendMailSafe;

@@ -7,7 +7,7 @@ function drawInvoiceHeader(doc, config) {
     const boxX = left;
     const boxY = 32;
     const boxW = right - left;
-    const boxH = 112;
+    const boxH = 132;
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(2);
     doc.rect(boxX, boxY, boxW, boxH);
@@ -31,7 +31,7 @@ function drawInvoiceHeader(doc, config) {
         const imgY = boxY + 8;
         doc.addImage(headerImageDataUrl, "PNG", imgX, imgY, scaledW, imageHeight);
     }
-    const topY = boxY + imageHeight + 22;
+    const topY = boxY + imageHeight + (headerImageDataUrl ? 22 : 26);
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
