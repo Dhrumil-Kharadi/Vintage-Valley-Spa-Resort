@@ -2,20 +2,11 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import FloatingContact from '@/components/FloatingContact';
 import { Wifi, Car, Tv, Bath, Users, Bed, Mountain, Coffee } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-type ApiRoom = {
-  id: number;
-  title: string;
-  description: string;
-  pricePerNight: number;
-  epPricePerNight?: number | null;
-  cpPricePerNight?: number | null;
-  mapPricePerNight?: number | null;
-  images: string[];
-  amenities: string[];
-};
+import { rooms as staticRooms } from '../roomsData';
+import { roomDatabaseService, DatabaseRoom } from '../lib/roomDatabase.service';
+import { roomService, RoomPrice, RoomListResponse } from '../lib/roomService';
 
 type UiRoom = {
   id: number;
@@ -38,35 +29,327 @@ type UiRoom = {
   amenities: { icon: any; name: string }[];
 };
 
+type EzeeRawRoom = any;
+
+const normalizeRoomType = (value: string) => {
+  const raw = String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ");
+  const lower = raw.toLowerCase();
+
+  if (lower === "deluxe studio suite") return "Deluxe Studio Suite";
+  if (lower === "deluxe edge view" || lower === "deluxe edge view ") return "Deluxe Edge View";
+  if (lower === "lotus family suite") return "Lotus Family Suite";
+  if (lower === "presidential suite" || lower === "presidentail suite") return "Presidential Suite";
+
+  return raw;
+};
+
+const ALLOWED_ROOM_TYPES = new Set([
+  "Deluxe Studio Suite",
+  "Deluxe Edge View",
+  "Lotus Family Suite",
+  "Presidential Suite",
+]);
+
+const isPlan = (roomName: string, plan: "EP" | "CP" | "MAP" | "AP") => {
+  const upper = String(roomName ?? "").toUpperCase();
+  const re = new RegExp(`\\b${plan}\\b`, "i");
+  return re.test(upper);
+};
+
 const Rooms = () => {
   const navigate = useNavigate();
-  const [selectedPricing, setSelectedPricing] = useState<'weekday' | 'weekend'>('weekday');
-  const [roomsLoading, setRoomsLoading] = useState(false);
-  const [roomsError, setRoomsError] = useState<string | null>(null);
-  const [apiRooms, setApiRooms] = useState<ApiRoom[]>([]);
+  
+  const [dbRooms, setDbRooms] = useState<DatabaseRoom[]>([]);
+  const [rawRooms, setRawRooms] = useState<EzeeRawRoom[]>([]);
+  const [rawLoading, setRawLoading] = useState(false);
+  const [rawError, setRawError] = useState<string | null>(null);
+  const [liveRoomPrices, setLiveRoomPrices] = useState<RoomPrice[]>([]);
+  const [liveLoading, setLiveLoading] = useState(false);
+  const [liveError, setLiveError] = useState<string | null>(null);
+  const [roomListWithDiscount, setRoomListWithDiscount] = useState<RoomListResponse['data']['rooms']>([]);
+  const [roomListLoading, setRoomListLoading] = useState(false);
+  const [roomListError, setRoomListError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch database rooms on component mount
+  useEffect(() => {
+    fetchDatabaseRooms();
+    fetchRawRooms();
+    fetchLiveRoomPrices();
+    fetchRoomListWithDiscount();
+  }, []);
+
+  const fetchRoomListWithDiscount = async () => {
+    setRoomListLoading(true);
+    setRoomListError(null);
+
+    try {
+      const { checkIn, checkOut } = getValidCheckInCheckOut();
+      const response = await roomService.getRoomList({
+        checkIn,
+        checkOut,
+        adults: 1,
+        children: 0,
+        rooms: 1,
+      });
+
+      if (response.ok) {
+        setRoomListWithDiscount(response.data.rooms || []);
+        console.log('[DEBUG] fetched rooms with discount', response.data.rooms);
+      } else {
+        setRoomListWithDiscount([]);
+        setRoomListError('Failed to fetch rooms');
+      }
+    } catch (_e) {
+      setRoomListWithDiscount([]);
+      setRoomListError('Unable to load rooms.');
+    } finally {
+      setRoomListLoading(false);
+    }
+  };
+
+  const isoToday = () => {
+    const now = new Date();
+    const yyyy = now.getUTCFullYear();
+    const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(now.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const addDaysIso = (iso: string, days: number) => {
+    const dt = new Date(`${iso}T00:00:00.000Z`);
+    if (Number.isNaN(dt.getTime())) return iso;
+    dt.setUTCDate(dt.getUTCDate() + days);
+    const yyyy = dt.getUTCFullYear();
+    const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const getValidCheckInCheckOut = () => {
+    const today = isoToday();
+    let checkIn = addDaysIso(today, 1);
+    let checkOut = addDaysIso(checkIn, 2);
+    // Defensive: ensure checkOut > checkIn
+    if (checkIn >= checkOut) {
+      checkIn = addDaysIso(today, 1);
+      checkOut = addDaysIso(checkIn, 2);
+    }
+    return { checkIn, checkOut };
+  };
+
+  const fetchLiveRoomPrices = async () => {
+    setLiveLoading(true);
+    setLiveError(null);
+
+    try {
+      const { checkIn, checkOut } = getValidCheckInCheckOut();
+
+      const response = await roomService.getRoomPrices({
+        checkIn,
+        checkOut,
+        adults: 1,
+        children: 0,
+        rooms: 1,
+      });
+
+      if (response.success) {
+        setLiveRoomPrices(response.rooms);
+      } else {
+        setLiveRoomPrices([]);
+        setLiveError(response.message || response.error || 'Failed to fetch live prices');
+      }
+    } catch (_e) {
+      setLiveRoomPrices([]);
+      setLiveError('Unable to load live prices.');
+    } finally {
+      setLiveLoading(false);
+    }
+  };
+
+  const fetchRawRooms = async () => {
+    setRawLoading(true);
+    setRawError(null);
+
+    try {
+      const { checkIn, checkOut } = getValidCheckInCheckOut();
+
+      const response = await roomService.getRawRoomList({
+        checkIn,
+        checkOut,
+        adults: 1,
+        children: 0,
+        rooms: 1,
+      });
+
+      if (response.success) {
+        setRawRooms(response.rooms || []);
+      } else {
+        setRawRooms([]);
+        setRawError(response.message || response.error || 'Failed to fetch live rooms');
+      }
+    } catch (_e) {
+      setRawRooms([]);
+      setRawError('Unable to load live rooms.');
+    } finally {
+      setRawLoading(false);
+    }
+  };
+
+  const fetchDatabaseRooms = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await roomDatabaseService.getDatabaseRooms();
+      
+      if (response.success) {
+        setDbRooms(response.rooms);
+      } else {
+        setError(response.error || 'Failed to fetch rooms');
+        setDbRooms([]);
+      }
+    } catch (error) {
+      setError('Unable to load rooms. Please try again.');
+      setDbRooms([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Get database room for a room title
+  const getDatabaseRoom = (roomTitle: string) => {
+    return dbRooms.find(room => 
+      room.title.toLowerCase().includes(roomTitle.toLowerCase()) ||
+      roomTitle.toLowerCase().includes(room.title.toLowerCase())
+    );
+  };
+
+  const getLiveRoomPrice = (roomTitle: string) => {
+    const title = roomTitle.toLowerCase();
+    return liveRoomPrices.find((p) => {
+      const t = String(p.roomType ?? '').toLowerCase();
+      return t.includes(title) || title.includes(t);
+    });
+  };
+
+  const getAvailabilityFromRaw = (r: EzeeRawRoom) => {
+    const minAvail = Number(r?.min_ava_rooms);
+    if (Number.isFinite(minAvail)) return Math.max(0, minAvail);
+
+    const avail = r?.available_rooms;
+    if (avail && typeof avail === 'object') {
+      const values = Object.values(avail)
+        .map((v: any) => Number(v))
+        .filter((v) => Number.isFinite(v));
+      if (values.length > 0) return Math.max(0, Math.min(...values));
+    }
+
+    const fallback = Number(r?.available_rooms ?? 0);
+    return Number.isFinite(fallback) ? Math.max(0, fallback) : 0;
+  };
+
+  const getAvgPriceFromRaw = (r: EzeeRawRoom) => {
+    const exclusiveTaxObj = r?.room_rates_info?.exclusive_tax;
+    if (exclusiveTaxObj && typeof exclusiveTaxObj === 'object') {
+      const values = Object.values(exclusiveTaxObj)
+        .map((v: any) => Number(v))
+        .filter((v) => Number.isFinite(v) && v > 0);
+      if (values.length > 0) return values[0];
+    }
+
+    const avg = Number(r?.room_rates_info?.avg_per_night_after_discount ?? 0);
+    if (Number.isFinite(avg) && avg > 0) return avg;
+
+    const inc = r?.room_rates_info?.inclusive_tax_adjustment;
+    if (inc && typeof inc === 'object') {
+      const values = Object.values(inc)
+        .map((v: any) => Number(v))
+        .filter((v) => Number.isFinite(v) && v > 0);
+      if (values.length > 0) return values[0];
+    }
+
+    return 0;
+  };
+
+  const getCurrencyFromRaw = (r: EzeeRawRoom) => {
+    return String(r?.currency_sign ?? r?.currency_code ?? '₹');
+  };
+
+  const getImagesFromRaw = (r: EzeeRawRoom): string[] => {
+    const images = Array.isArray(r?.RoomImages) ? r.RoomImages : [];
+    const urls = images
+      .map((img: any) => String(img?.room_main_image ?? img?.image ?? '').trim())
+      .filter(Boolean);
+    const main = String(r?.room_main_image ?? '').trim();
+    const merged = [main, ...urls].filter(Boolean);
+    return merged.length > 0 ? merged : ['/images/room/1.jpeg', '/images/room/4.jpeg', '/images/room/5.jpeg'];
+  };
+
+  const getAmenitiesFromRaw = (r: EzeeRawRoom): string[] => {
+    const raw = String(r?.RoomAmenities ?? '').trim();
+    if (!raw) return [];
+    return raw
+      .split(',')
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+  };
+
+  // Get price for selected pricing plan
+  const getPriceForPlan = (room: DatabaseRoom) => room.pricePerNight;
+
+  // Get discount info for a room from the new API
+  const getDiscountInfo = (roomTitle: string) => {
+    const titleNormalized = normalizeRoomType(String(roomTitle ?? '').trim()).toLowerCase();
+    const baseRoomTypeFromApiName = (roomName: string) => {
+      const raw = String(roomName ?? '').trim();
+      if (!raw) return '';
+      // "Deluxe Studio Suite - CP" -> "Deluxe Studio Suite"
+      const base = raw.split(' - ')[0] ?? raw;
+      return normalizeRoomType(base).toLowerCase();
+    };
+    const isMatch = (r: any) => {
+      const apiBase = baseRoomTypeFromApiName(String(r?.Room_Name ?? ''));
+      return apiBase === titleNormalized;
+    };
+
+    const cpRoom = roomListWithDiscount.find((r: any) => {
+      if (!isMatch(r)) return false;
+      return isPlan(String(r?.Room_Name ?? ''), 'CP');
+    });
+    const room = cpRoom ?? roomListWithDiscount.find(isMatch);
+    if (!room) return null;
+    return {
+      originalPrice: room.original_price,
+      discountAmount: room.discount_amount,
+      finalPrice: room.final_price,
+      promoApplied: room.promo_applied,
+    };
+  };
+
+  // Get availability status (page no longer collects rooms count; assume 1 room)
+  const getAvailabilityStatus = (availability: number) => {
+    if (availability < 1) {
+      return { status: 'sold-out', label: 'Sold Out', color: 'bg-red-500' };
+    } else if (availability <= 2) {
+      return { status: 'limited', label: `Only ${availability} Left`, color: 'bg-orange-500' };
+    } else {
+      return { status: 'available', label: `${availability} Available`, color: 'bg-green-500' };
+    }
+  };
 
   const goToBooking = (roomId: number) => {
     navigate(`/booking/${roomId}`);
   };
 
-  useEffect(() => {
-    const run = async () => {
-      setRoomsLoading(true);
-      setRoomsError(null);
-      try {
-        const res = await fetch('/api/rooms', { credentials: 'include' });
-        const data = await res.json().catch(() => null);
-        if (!res.ok) throw new Error(data?.error?.message ?? 'Failed to load rooms');
-        setApiRooms(data?.data?.rooms ?? []);
-      } catch (e: any) {
-        setRoomsError(e?.message ?? 'Failed to load rooms');
-      } finally {
-        setRoomsLoading(false);
-      }
-    };
-
-    run();
-  }, []);
+  const goToBookingByName = (roomName: string) => {
+    const name = String(roomName ?? '').trim();
+    if (!name) return;
+    navigate(`/booking?room=${encodeURIComponent(name)}`);
+  };
 
   const amenityIconByName: Record<string, any> = {
     wifi: Wifi,
@@ -79,62 +362,122 @@ const Rooms = () => {
   };
 
   const toUiRooms = useMemo<UiRoom[]>(() => {
-    const fmt = (amount: number) => {
-      try {
-        return new Intl.NumberFormat('en-IN', {
-          style: 'currency',
-          currency: 'INR',
-          maximumFractionDigits: 0,
-        }).format(amount);
-      } catch {
-        return `₹${amount}`;
+    if (rawRooms.length > 0) {
+      const byRoomType = new Map<string, EzeeRawRoom[]>();
+      for (const r of rawRooms) {
+        const roomTypeRaw = String(r?.Roomtype_Name ?? r?.Roomtype ?? r?.Room_Name ?? '').trim();
+        if (!roomTypeRaw) continue;
+        const key = normalizeRoomType(roomTypeRaw);
+        const list = byRoomType.get(key) ?? [];
+        list.push(r);
+        byRoomType.set(key, list);
       }
-    };
 
-    return (apiRooms ?? []).map((r) => {
-      const price = Number(r.pricePerNight ?? 0);
-      const ep = Number((r as any).epPricePerNight ?? NaN);
-      const cp = Number((r as any).cpPricePerNight ?? NaN);
-      const map = Number((r as any).mapPricePerNight ?? NaN);
-      const images = Array.isArray(r.images) ? r.images : [];
-      const amenities = Array.isArray(r.amenities) ? r.amenities : [];
+      const roomOrder = [
+        'Deluxe Studio Suite',
+        'Deluxe Edge View',
+        'Lotus Family Suite',
+        'Presidential Suite',
+      ];
 
+      const out: UiRoom[] = [];
+      let idx = 0;
+      for (const roomType of roomOrder) {
+        const list = byRoomType.get(roomType);
+        if (!list || !list.length) continue;
+
+        const cp = list.find((rr) => isPlan(String(rr?.Room_Name ?? ''), 'CP'));
+        const ep = list.find((rr) => isPlan(String(rr?.Room_Name ?? ''), 'EP'));
+        const preferred = cp ?? ep ?? list[0];
+        if (!preferred) continue;
+
+        idx += 1;
+
+        const staticRoom = staticRooms.find((sr) => sr.title.toLowerCase() === roomType.toLowerCase());
+        const images = staticRoom?.images && staticRoom.images.length > 0 ? staticRoom.images : getImagesFromRaw(preferred);
+        const price = getAvgPriceFromRaw(preferred);
+        const currency = getCurrencyFromRaw(preferred);
+        const amenities = getAmenitiesFromRaw(preferred);
+
+        out.push({
+          id: idx,
+          title: roomType,
+          subtitle: String(preferred?.Roomtype_Short_code ?? staticRoom?.subtitle ?? 'Luxury Suite'),
+          images,
+          description: String(preferred?.Room_Description ?? '').trim() || staticRoom?.description || 'Luxury accommodation',
+          capacity: `${Number(preferred?.max_adult_occupancy ?? preferred?.Room_Max_adult ?? 0) || 2} Guests`,
+          bedType: staticRoom?.bedType || 'King Bed',
+          size: staticRoom?.size || 'Spacious',
+          pricing: {
+            weekday: `${currency}${price}`,
+            weekend: `${currency}${price}`,
+          },
+          planPrices: {
+            ep: ep ? `${getCurrencyFromRaw(ep)}${getAvgPriceFromRaw(ep)}` : '',
+            cp: cp ? `${getCurrencyFromRaw(cp)}${getAvgPriceFromRaw(cp)}` : '',
+            map: '',
+          },
+          amenities: (amenities.length > 0 ? amenities : []).map((name) => {
+            const key = String(name ?? '').toLowerCase();
+            const Icon =
+              amenityIconByName[
+                Object.keys(amenityIconByName).find((k) => key.includes(k)) ?? ''
+              ] ?? Coffee;
+            return { icon: Icon, name };
+          }),
+        });
+      }
+
+      return out;
+    }
+
+    return dbRooms.map((room) => {
+      // Find matching static room for additional data (images, etc.)
+      const staticRoom = staticRooms.find(sr => 
+        sr.title.toLowerCase().includes(room.title.toLowerCase()) ||
+        room.title.toLowerCase().includes(sr.title.toLowerCase())
+      );
+      
       return {
-        id: r.id,
-        title: r.title,
-        subtitle: 'Elegant Comfort in Nature',
-        images: images.length ? images : ['/images/room/1.jpeg', '/images/room/4.jpeg', '/images/room/5.jpeg'],
-        description: r.description,
-        capacity: '2 Adults',
-        bedType: 'Standard Size Bed',
-        size: '—',
+        id: room.id,
+        title: room.title,
+        subtitle: staticRoom?.subtitle || 'Luxury Suite',
+        images: staticRoom?.images && staticRoom.images.length > 0 
+          ? staticRoom.images 
+          : room.images.length > 0 
+            ? room.images.map(img => img.url)
+            : ['/images/room/1.jpeg', '/images/room/4.jpeg', '/images/room/5.jpeg'],
+        description: room.description,
+        capacity: `${room.person} Guests`,
+        bedType: staticRoom?.bedType || 'King Bed',
+        size: staticRoom?.size || 'Spacious',
         pricing: {
-          weekday: fmt(price),
-          weekend: fmt(price),
+          weekday: `₹${room.pricePerNight}`,
+          weekend: `₹${room.pricePerNight}`,
         },
         planPrices: {
-          ep: fmt(Number.isFinite(ep) ? ep : 0),
-          cp: fmt(Number.isFinite(cp) ? cp : 0),
-          map: fmt(Number.isFinite(map) ? map : 0),
+          ep: `₹${room.epPricePerNight || room.pricePerNight}`,
+          cp: `₹${room.cpPricePerNight || room.pricePerNight}`,
+          map: `₹${room.mapPricePerNight || room.pricePerNight}`,
         },
-        amenities: amenities.map((name) => {
-          const key = String(name).toLowerCase();
+        amenities: room.amenities.map((a) => {
+          const key = String(a?.name ?? '').toLowerCase();
           const Icon =
             amenityIconByName[
               Object.keys(amenityIconByName).find((k) => key.includes(k)) ?? ''
             ] ?? Coffee;
-          return { icon: Icon, name };
+          return { icon: Icon, name: String(a?.name ?? '') };
         }),
       };
     });
-  }, [apiRooms]);
+  }, [dbRooms, rawRooms]);
 
   return (
     <div className="min-h-screen bg-ivory">
       <Navbar />
       <FloatingContact />
 
-      {/* Hero Section */}
+      {/* Hero Section with Date Picker */}
       <section className="pt-24 pb-16 bg-gradient-to-br from-gray-800 to-gray-800/90">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="font-playfair text-5xl md:text-6xl font-bold text-ivory mb-6">
@@ -144,42 +487,48 @@ const Rooms = () => {
             Discover our collection of thoughtfully designed suites, each offering a unique blend of comfort and elegance
           </p>
           
-          {/* Pricing Toggle */}
-          <div className="inline-flex bg-ivory/10 rounded-full p-1 backdrop-blur-sm">
-            <button
-              onClick={() => setSelectedPricing('weekday')}
-              className={`px-6 py-2 rounded-full font-medium transition-all ${
-                selectedPricing === 'weekday'
-                  ? 'bg-gold text-gray-800'
-                  : 'text-ivory hover:text-gold'
-              }`}
-            >
-              Weekday Rates
-            </button>
-            <button
-              onClick={() => setSelectedPricing('weekend')}
-              className={`px-6 py-2 rounded-full font-medium transition-all ${
-                selectedPricing === 'weekend'
-                  ? 'bg-gold text-gray-800'
-                  : 'text-ivory hover:text-gold'
-              }`}
-            >
-              Weekend Rates
-            </button>
-          </div>
+          {error && (
+            <div className="text-ivory/90 text-sm mb-4">
+              {error}
+            </div>
+          )}
+
+          {liveError && (
+            <div className="text-ivory/90 text-sm mb-4">
+              {liveError}
+            </div>
+          )}
+
+          {rawError && (
+            <div className="text-ivory/90 text-sm mb-4">
+              {rawError}
+            </div>
+          )}
+
+          {loading && (
+            <div className="text-ivory/90 text-sm">
+              Loading rooms...
+            </div>
+          )}
+
+          {liveLoading && (
+            <div className="text-ivory/90 text-sm">
+              Loading live prices...
+            </div>
+          )}
+
+          {rawLoading && (
+            <div className="text-ivory/90 text-sm">
+              Loading live rooms...
+            </div>
+          )}
         </div>
       </section>
 
       {/* Rooms Section */}
       <section className="section-padding">
         <div className="max-w-7xl mx-auto space-y-16">
-          {roomsError && (
-            <div className="bg-gold/10 border border-gold/20 text-gray-800 px-4 py-3 rounded-2xl">{roomsError}</div>
-          )}
-
-          {roomsLoading ? (
-            <div className="text-gray-800/70">Loading rooms…</div>
-          ) : toUiRooms.length === 0 ? (
+          {toUiRooms.length === 0 ? (
             <div className="text-gray-800/70">No rooms found.</div>
           ) : (
             toUiRooms.map((room, index) => (
@@ -197,12 +546,98 @@ const Rooms = () => {
                     alt={room.title}
                     className="w-full h-96 object-cover rounded-3xl luxury-shadow"
                   />
-                  <div className="absolute top-4 right-4 bg-gold text-charcoal px-4 py-2 rounded-full font-bold">
-                    {room.pricing[selectedPricing]}/night
-                  </div>
+                  {(() => {
+                    const candidates = rawRooms.filter((rr: any) => {
+                      const rt = normalizeRoomType(String(rr?.Roomtype_Name ?? rr?.Roomtype ?? rr?.Room_Name ?? ''));
+                      return rt.toLowerCase() === room.title.toLowerCase();
+                    });
+                    const cp = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'CP'));
+                    const ep = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'EP'));
+                    const preferred = cp ?? ep;
+                    if (preferred) {
+                      const availabilityStatus = getAvailabilityStatus(getAvailabilityFromRaw(preferred));
+                      return (
+                        <div className={`absolute top-4 left-4 ${availabilityStatus.color} text-white px-3 py-1 rounded-full text-sm font-semibold`}>
+                          {availabilityStatus.label}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                  {(() => {
+                    const candidates = rawRooms.filter((rr: any) => {
+                      const rt = normalizeRoomType(String(rr?.Roomtype_Name ?? rr?.Roomtype ?? rr?.Room_Name ?? ''));
+                      return rt.toLowerCase() === room.title.toLowerCase();
+                    });
+                    const cp = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'CP'));
+                    const currency = cp ? getCurrencyFromRaw(cp) : '₹';
+                    const discountInfo = getDiscountInfo(room.title);
+
+                    if (
+                      discountInfo &&
+                      discountInfo.promoApplied &&
+                      Number.isFinite(Number(discountInfo.finalPrice)) &&
+                      Number(discountInfo.finalPrice) > 0
+                    ) {
+                      return (
+                        <div className="absolute top-4 right-4 bg-gradient-to-r from-gold to-bronze text-gray-800 px-4 py-2 rounded-2xl text-sm font-bold shadow-lg">
+                          {currency}{Number(discountInfo.finalPrice)}/Night
+                        </div>
+                      );
+                    }
+
+                    if (cp) {
+                      const price = getAvgPriceFromRaw(cp);
+                      if (Number.isFinite(price) && price > 0) {
+                        return (
+                          <div className="absolute top-4 right-4 bg-gradient-to-r from-gold to-bronze text-gray-800 px-4 py-2 rounded-2xl text-sm font-bold shadow-lg">
+                            {currency}{price}/Night
+                          </div>
+                        );
+                      }
+                    }
+                    return null;
+                  })()}
                 </div>
                 <div className="mt-3 text-sm text-gray-800/70">
-                  EP: {room.planPrices.ep} • CP: {room.planPrices.cp} • MAP: {room.planPrices.map}
+                  {loading || liveLoading || rawLoading || roomListLoading ? (
+                    'Loading rooms...'
+                  ) : error || liveError || rawError || roomListError ? (
+                    'Price unavailable. Please try again.'
+                  ) : (() => {
+                    const discountInfo = getDiscountInfo(room.title);
+                    if (discountInfo && discountInfo.promoApplied && discountInfo.originalPrice && discountInfo.finalPrice !== discountInfo.originalPrice) {
+                      return (
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="line-through text-gray-500">
+                              ₹{discountInfo.originalPrice}
+                            </span>
+                            <span className="font-bold text-green-600">
+                              ₹{discountInfo.finalPrice}
+                            </span>
+                          </div>
+                          <div className="text-xs text-red-600 font-semibold mt-1">
+                            Flat ₹{discountInfo.discountAmount} OFF
+                          </div>
+                        </div>
+                      );
+                    }
+                    // Fallback to existing logic
+                    const candidates = rawRooms.filter((rr: any) => {
+                      const rt = normalizeRoomType(String(rr?.Roomtype_Name ?? rr?.Roomtype ?? rr?.Room_Name ?? ''));
+                      return rt.toLowerCase() === room.title.toLowerCase();
+                    });
+                    const cp = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'CP'));
+                    const ep = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'EP'));
+                    const preferred = cp ?? ep;
+                    if (preferred) {
+                      const price = getAvgPriceFromRaw(preferred);
+                      const currency = getCurrencyFromRaw(preferred);
+                      if (Number.isFinite(price) && price > 0) return `${currency}${price}/night`;
+                    }
+                    return 'Price unavailable';
+                  })()}
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   {room.images.slice(1).map((image, imgIndex) => (
@@ -262,18 +697,38 @@ const Rooms = () => {
 
                 {/* CTA Buttons */}
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <button
-                    className="bg-gold text-gray-800 px-6 py-3 rounded-full font-semibold hover:bg-bronze transition-colors duration-200 flex-1 sm:flex-none"
-                    onClick={() => {
-                      goToBooking(room.id);
-                    }}
-                  >
-                    Book This Suite
-                  </button>
+                  {(() => {
+                    const candidates = rawRooms.filter((rr: any) => {
+                      const rt = normalizeRoomType(String(rr?.Roomtype_Name ?? rr?.Roomtype ?? rr?.Room_Name ?? ''));
+                      return rt.toLowerCase() === room.title.toLowerCase();
+                    });
+                    const cp = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'CP'));
+                    const ep = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'EP'));
+                    const preferred = cp ?? ep;
+                    const isSoldOut = preferred ? getAvailabilityFromRaw(preferred) < 1 : true;
+                    
+                    return (
+                      <button
+                        className={`px-6 py-3 rounded-full font-semibold transition-colors duration-200 flex-1 sm:flex-none ${
+                          isSoldOut
+                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                            : 'bg-gold text-gray-800 hover:bg-bronze'
+                        }`}
+                        onClick={() => {
+                          if (!isSoldOut) {
+                            goToBookingByName(room.title);
+                          }
+                        }}
+                        disabled={isSoldOut}
+                      >
+                        {isSoldOut ? 'Sold Out' : 'Book This Suite'}
+                      </button>
+                    );
+                  })()}
                   <button
                     className="border-2 border-gray-800 text-gray-800 px-6 py-3 rounded-full font-semibold hover:bg-gray-800 hover:text-ivory transition-colors duration-200 flex-1 sm:flex-none"
                     onClick={() => {
-                      const msg = encodeURIComponent("Hey there! 👋 I’m interested in planning my stay and would love to know more about availability, rates, and any current offers. Could you please assist me? ");
+                      const msg = encodeURIComponent("Hey there! 👋 I'm interested in planning my stay and would love to know more about availability, rates, and any current offers. Could you please assist me? ");
                       window.open(`https://wa.me/919371179888?text=${msg}`, '_blank');
                     }}
                   >

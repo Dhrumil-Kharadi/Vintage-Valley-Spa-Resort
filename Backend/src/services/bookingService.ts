@@ -6,8 +6,31 @@ import { getRazorpayClient } from "../utils/razorpay";
 import { promoService } from "./promoService";
 import { sendMailSafe } from "../utils/mailer";
 import { generateBookingInvoicePdfBuffer } from "../utils/invoicePdf";
+import { ezeeLivePriceService } from "./ezeeLivePrice.service";
 
 export const bookingService = {
+  // Helper to get active global flat promo
+  async getActiveGlobalFlatPromo() {
+    return await (prisma as any).promoCode.findFirst({
+      where: {
+        promoScope: 'GLOBAL_FLAT',
+        isGlobalActive: true,
+      },
+      select: {
+        id: true,
+        discountValue: true,
+      },
+    });
+  },
+
+  // Apply global flat discount to a base amount
+  applyGlobalFlatDiscount(baseAmount: number, promo: any) {
+    if (!promo || !promo.discountValue) return { originalAmount: baseAmount, discountAmount: 0, finalAmount: baseAmount, promoApplied: false };
+    const discountAmount = Number(promo.discountValue);
+    const finalAmount = Math.max(baseAmount - discountAmount, 0);
+    return { originalAmount: baseAmount, discountAmount, finalAmount, promoApplied: true };
+  },
+
   async allocateNextBookingNo(tx: any): Promise<number> {
     const existing = await tx.bookingCounter.findUnique({ where: { id: 1 } });
     if (!existing) {
@@ -91,15 +114,16 @@ export const bookingService = {
       throw new HttpError(400, "Invalid rooms");
     }
 
-    const round2 = (n: number) => Math.round(n * 100) / 100;
-
+    // Normalize date key helpers
     const normalizeDateKey = (d: Date) => {
       const yyyy = d.getFullYear();
       const mm = String(d.getMonth() + 1).padStart(2, "0");
       const dd = String(d.getDate()).padStart(2, "0");
       return `${yyyy}-${mm}-${dd}`;
     };
+    const round2 = (n: number) => Math.round(n * 100) / 100;
 
+    // Determine meal plan per date
     const dayPlansRaw = Array.isArray(params.mealPlanByDate) ? params.mealPlanByDate : [];
     const planMap = new Map<string, "EP" | "CP" | "MAP">();
     for (const item of dayPlansRaw) {
@@ -110,55 +134,163 @@ export const bookingService = {
       if (plan !== "EP" && plan !== "CP" && plan !== "MAP") continue;
       planMap.set(key, plan);
     }
+    const nightDates: string[] = [];
+    const cursor = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
+    for (let i = 0; i < nights; i++) {
+      nightDates.push(normalizeDateKey(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
 
-    let cpNights = 0;
-    let mapNights = 0;
-    const mealPlanByDate: Array<{ date: string; plan: "EP" | "CP" | "MAP" }> = [];
-    {
-      const cursor = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
-      for (let i = 0; i < nights; i++) {
-        const key = normalizeDateKey(cursor);
-        const plan = planMap.get(key) ?? "EP";
-        if (plan === "CP") cpNights += 1;
-        if (plan === "MAP") mapNights += 1;
-        mealPlanByDate.push({ date: key, plan });
-        cursor.setDate(cursor.getDate() + 1);
+    // Fetch eZee live prices for the date range
+    let ezeeLivePrices: any[] = [];
+    try {
+      ezeeLivePrices = await ezeeLivePriceService.fetchLivePrices({
+        checkIn: params.checkIn,
+        checkOut: params.checkOut,
+        adults: params.adults,
+        children: params.children,
+        rooms,
+      });
+    } catch (err) {
+      console.debug('[DEBUG] eZee live prices fetch failed', err);
+    }
+
+    // Find matching room in eZee data
+    const ezeeRoom = ezeeLivePrices.find(
+      (r) =>
+        String(r.Room_Name ?? "").toLowerCase().includes(String(room.title ?? "").toLowerCase()) ||
+        String(room.title ?? "").toLowerCase().includes(String(r.Room_Name ?? "").toLowerCase())
+    );
+    console.debug('[DEBUG] ezeeRoom raw', ezeeRoom);
+
+    // If the matched eZee room is EP, try to find a CP variant for correct CP pricing
+    let ezeeRoomForPricing = ezeeRoom;
+    if (ezeeRoom) {
+      if (String(ezeeRoom.Room_Name ?? "").toUpperCase().includes('EP')) {
+        const cpVariant = ezeeLivePrices.find(
+          (r) =>
+            String(r.Room_Name ?? "").toUpperCase().includes('CP') &&
+            (String(r.Room_Name ?? "").toLowerCase().includes(String(room.title ?? "").toLowerCase()) ||
+             String(room.title ?? "").toLowerCase().includes(String(r.Room_Name ?? "").toLowerCase()))
+        );
+        if (cpVariant) {
+          console.debug('[DEBUG] using CP variant for pricing', cpVariant);
+          ezeeRoomForPricing = cpVariant;
+        }
+      } else if (String(ezeeRoom.Room_Name ?? "").toUpperCase().includes('CP')) {
+        // Already CP, use it for pricing
+        console.debug('[DEBUG] using matched CP room for pricing', ezeeRoom);
+        ezeeRoomForPricing = ezeeRoom;
       }
     }
 
-    const title = String(room?.title ?? "").toLowerCase();
-    const mapRatePerGuestPerNight = title.includes("lotus") || title.includes("presidential")
-      ? 2000
-      : title.includes("deluxe") || title.includes("edge")
-      ? 1000
-      : 0;
+    // Helper to extract per-night plan price from eZee
+    const getEzeePlanPrice = (plan: "EP" | "CP" | "MAP"): number => {
+      if (!ezeeRoom) {
+        // Fallback to DB base price if eZee missing
+        return Number(room?.pricePerNight ?? 0);
+      }
+      const key = plan === "EP" ? "Room_Price_EP" : plan === "CP" ? "Room_Price_CP" : "Room_Price_MAP";
+      const val = Number(ezeeRoom[key] ?? 0);
+      if (Number.isFinite(val) && val > 0) {
+        console.debug('[DEBUG] getEzeePlanPrice using eZee', { plan, key, val });
+        return val;
+      }
+      // For CP, use exclusive_tax from CP variant to match frontend
+      if (plan === "CP" && ezeeRoomForPricing?.room_rates_info?.exclusive_tax) {
+        const exclusiveTaxObj = ezeeRoomForPricing.room_rates_info.exclusive_tax;
+        if (typeof exclusiveTaxObj === "object") {
+          const values = Object.values(exclusiveTaxObj)
+            .map((v: any) => Number(v))
+            .filter((v) => Number.isFinite(v) && v > 0);
+          if (values.length > 0) {
+            // Use the first value (for single night) or average if multiple
+            const exclusivePrice = values.length === 1 ? values[0] : values.reduce((a, b) => a + b, 0) / values.length;
+            console.debug('[DEBUG] getEzeePlanPrice using exclusive_tax for CP', { plan, exclusivePrice });
+            return exclusivePrice;
+          }
+        }
+      }
+      // Fallback to avg_price_per_night from CP variant if above missing
+      if (plan === "CP") {
+        const avg = Number(ezeeRoomForPricing?.avg_price_per_night ?? 0);
+        if (Number.isFinite(avg) && avg > 0) {
+          console.debug('[DEBUG] getEzeePlanPrice fallback to eZee avg_price_per_night for CP', { plan, avg });
+          return avg;
+        }
+      }
+      // For EP/MAP, fallback to DB plan prices if needed
+      if (plan === "EP") {
+        const dbEp = Number((room as any).epPricePerNight ?? 0);
+        if (Number.isFinite(dbEp) && dbEp > 0) {
+          console.debug('[DEBUG] getEzeePlanPrice fallback to DB epPricePerNight', { plan, dbEp });
+          return dbEp;
+        }
+      }
+      if (plan === "MAP") {
+        const dbMap = Number((room as any).mapPricePerNight ?? 0);
+        if (Number.isFinite(dbMap) && dbMap > 0) {
+          console.debug('[DEBUG] getEzeePlanPrice fallback to DB mapPricePerNight', { plan, dbMap });
+          return dbMap;
+        }
+      }
+      const fallback = Number(room?.pricePerNight ?? 0);
+      console.debug('[DEBUG] getEzeePlanPrice fallback to DB base price', { plan, fallback });
+      return fallback;
+    };
 
-    const basePerNight = Number((room as any).pricePerNight ?? 0);
-    const epAddonRaw = Number((room as any).epPricePerNight ?? NaN);
-    const cpAddonRaw = Number((room as any).cpPricePerNight ?? NaN);
-    const mapAddonRaw = Number((room as any).mapPricePerNight ?? NaN);
+    // Helper to extract extra per-night rates from eZee
+    const extractExtraPerNight = (extra: any): number => {
+      if (!extra || typeof extra !== "object") return 0;
+      const inc = extra?.inclusive_tax_adjustment;
+      if (inc && typeof inc === "object") {
+        const values = Object.values(inc)
+          .map((v: any) => Number(v))
+          .filter((v) => Number.isFinite(v) && v > 0);
+        if (values.length > 0) return values[0];
+      }
+      const excl = extra?.exclusive_tax;
+      if (excl && typeof excl === "object") {
+        const values = Object.values(excl)
+          .map((v: any) => Number(v))
+          .filter((v) => Number.isFinite(v) && v > 0);
+        if (values.length > 0) return values[0];
+      }
+      const rack = Number(extra?.rack_rate ?? 0);
+      return Number.isFinite(rack) && rack > 0 ? rack : 0;
+    };
 
-    const epAddon = Number.isFinite(epAddonRaw) ? epAddonRaw : 0;
-    const cpAddon = Number.isFinite(cpAddonRaw) ? cpAddonRaw : 0;
-    const mapAddon = Number.isFinite(mapAddonRaw) ? mapAddonRaw : 0;
+    // Compute room total per night based on meal plan per date
+    let roomTotal = 0;
+    nightDates.forEach((date) => {
+      let plan = planMap.get(date) ?? "CP";
+      // If the plan is EP, treat it as CP to match frontend default-to-CP behavior
+      if (plan === "EP") plan = "CP";
+      const perNight = getEzeePlanPrice(plan);
+      roomTotal += perNight;
+    });
+    roomTotal = round2(roomTotal * rooms);
 
-    const epPerNight = basePerNight + epAddon;
-    const cpPerNight = basePerNight + cpAddon;
+    // Compute child and extra adult charges using eZee rates
+    const childPerNight = extractExtraPerNight(ezeeRoom?.extra_child_rates_info);
+    const extraAdultPerNight = extractExtraPerNight(ezeeRoom?.extra_adult_rates_info);
+    const childCharge = round2(childPerNight * params.children * nights * rooms);
+    const extraAdultCharge = round2(extraAdultPerNight * params.extraAdults * nights * rooms);
 
-    // If MAP add-on isn't explicitly stored, preserve legacy behaviour by adding the title-based addon.
-    const mapPerNight = basePerNight + (Number.isFinite(mapAddonRaw) ? mapAddon : mapRatePerGuestPerNight);
-
-    // Compute room total based on selected meal plan per date.
-    // EP/CP/MAP values represent base+add-on totals for that plan.
-    const roomTotal = round2((epPerNight * (nights - cpNights - mapNights) + cpPerNight * cpNights + mapPerNight * mapNights) * rooms);
-    const childCharge = 1200 * params.children * nights;
-    const extraAdultCharge = 1500 * params.extraAdults * nights;
-
-    // Legacy add-ons (kept only if explicit per-plan pricing isn't provided)
-    const cpAmountNum = Number.isFinite(cpAddonRaw) ? 0 : round2(500 * Number(params.guests) * cpNights);
-    const mapAmountNum = Number.isFinite(mapAddonRaw) ? 0 : round2(mapRatePerGuestPerNight * Number(params.guests) * mapNights);
-
-    const originalBaseAmountNum = round2(roomTotal + childCharge + extraAdultCharge + cpAmountNum + mapAmountNum);
+    // Base amount before taxes
+    const originalBaseAmountNum = round2(roomTotal + childCharge + extraAdultCharge);
+    const cpAmountNum = 0; // No legacy CP add-on in new logic
+    // Reconstruct mealPlanByDate array for DB storage from planMap
+    const mealPlanByDate: Array<{ date: string; plan: "EP" | "CP" | "MAP" }> = nightDates.map(d => ({ date: d, plan: planMap.get(d) ?? "CP" }));
+    console.debug('[DEBUG] rewritten calculation', {
+      nightDates,
+      planPerNight: Object.fromEntries(nightDates.map(d => [d, planMap.get(d) ?? "CP"])),
+      ezeeRoom: ezeeRoom ? { Room_Name: ezeeRoom.Room_Name, avg_price_per_night: ezeeRoom.avg_price_per_night } : null,
+      roomTotal,
+      childCharge,
+      extraAdultCharge,
+      originalBaseAmountNum,
+    });
 
     let promoToAttach: { id: string; code: string } | null = null;
     let discountAmountNum = 0;
@@ -169,12 +301,24 @@ export const bookingService = {
       });
       promoToAttach = { id: validated.promo.id, code: validated.promo.code };
       discountAmountNum = round2(validated.discountAmount);
+    } else {
+      // If no promo code, check for active global flat discount
+      const globalFlatPromo = await this.getActiveGlobalFlatPromo();
+      if (globalFlatPromo) {
+        const { discountAmount } = this.applyGlobalFlatDiscount(originalBaseAmountNum, globalFlatPromo);
+        discountAmountNum = round2(discountAmount);
+        // Note: we don't attach global flat promo to booking (no code), but we apply the discount
+        console.debug('[DEBUG] applied global flat discount', { discountAmount: discountAmountNum });
+      }
     }
 
+    // Apply the same tax+fee calculation as frontend: 5% GST on base, then 2% service on (base+GST)
     const discountedBaseAmountNum = round2(Math.max(0, originalBaseAmountNum - discountAmountNum));
-    const convenienceFeeAmountNum = round2(discountedBaseAmountNum * 0.02);
     const gstAmountNum = round2(discountedBaseAmountNum * 0.05);
-    const amountNum = round2(discountedBaseAmountNum + convenienceFeeAmountNum + gstAmountNum);
+    const amountAfterGstNum = round2(discountedBaseAmountNum + gstAmountNum);
+    const serviceFeeAmountNum = round2(amountAfterGstNum * 0.02);
+    const amountNum = round2(discountedBaseAmountNum + gstAmountNum + serviceFeeAmountNum);
+    console.debug('[DEBUG] tax/fee calc', { originalBaseAmountNum, discountAmountNum, discountedBaseAmountNum, gstAmountNum, amountAfterGstNum, serviceFeeAmountNum, amountNum });
 
     const amountPaise = Math.round(amountNum * 100);
     if (!Number.isFinite(amountNum) || amountNum < 1 || amountPaise < 100) {
@@ -183,12 +327,13 @@ export const bookingService = {
 
     const baseAmount = new Prisma.Decimal(discountedBaseAmountNum.toFixed(2));
     const mealPlanCpAmount = new Prisma.Decimal(cpAmountNum.toFixed(2));
-    const convenienceFeeAmount = new Prisma.Decimal(convenienceFeeAmountNum.toFixed(2));
+    const convenienceFeeAmount = new Prisma.Decimal(serviceFeeAmountNum.toFixed(2));
     const gstAmount = new Prisma.Decimal(gstAmountNum.toFixed(2));
     const amount = new Prisma.Decimal(amountNum.toFixed(2));
     const discountAmount = new Prisma.Decimal(round2(discountAmountNum).toFixed(2));
 
-    const existing: any = await (prisma.booking as any).findFirst({
+    // Delete any existing PENDING booking for this room/dates to avoid stale Razorpay amounts
+    await (prisma.booking as any).deleteMany({
       where: {
         userId: params.userId,
         roomId: params.roomId,
@@ -196,45 +341,7 @@ export const bookingService = {
         checkIn: checkInDate,
         checkOut: checkOutDate,
       },
-      include: {
-        room: { select: { id: true, title: true, pricePerNight: true } },
-        payments: true,
-      },
     });
-
-    if (existing) {
-      const existingPayment = existing.payments?.find((p: any) => p.status === "CREATED" && p.provider === "RAZORPAY");
-      if (existingPayment?.razorpayOrderId) {
-        try {
-          await (prisma.booking as any).update({
-            where: { id: existing.id },
-            data: {
-              checkInTime: params.checkInTime ?? null,
-              checkOutTime: params.checkOutTime ?? null,
-              rooms,
-              nights,
-              promoCodeId: promoToAttach?.id ?? null,
-              promoCode: promoToAttach?.code ?? null,
-              discountAmount,
-              mealPlanByDate,
-              mealPlanCpAmount,
-              baseAmount,
-              convenienceFeeAmount,
-              gstAmount,
-              amount,
-            },
-          });
-        } catch {
-          // best-effort
-        }
-
-        return {
-          booking: existing,
-          room,
-          razorpayOrder: { id: existingPayment.razorpayOrderId, amount: amountPaise, currency: "INR" },
-        };
-      }
-    }
 
     let razorpayOrder: any;
     try {
@@ -249,107 +356,58 @@ export const bookingService = {
 
     let booking: any;
     try {
-      if (existing) {
-        booking = await prisma.$transaction(async (tx) => {
-          const updated = await (tx.booking as any).update({
-            where: { id: existing.id },
-            data: {
-              guests: params.guests,
-              adults: params.adults,
-              children: params.children,
-              extraAdults: params.extraAdults,
-              additionalInformation: params.additionalInformation ?? null,
-              nights,
-              checkInTime: params.checkInTime ?? null,
-              checkOutTime: params.checkOutTime ?? null,
-              rooms,
-              promoCodeId: promoToAttach?.id ?? null,
-              promoCode: promoToAttach?.code ?? null,
-              discountAmount,
-              mealPlanByDate,
-              mealPlanCpAmount,
-              baseAmount,
-              convenienceFeeAmount,
-              gstAmount,
-              amount,
-              payments: {
-                create: {
-                  provider: "RAZORPAY",
-                  status: "CREATED",
-                  currency: "INR",
-                  amount,
-                  razorpayOrderId: razorpayOrder.id,
-                },
+      booking = await prisma.$transaction(async (tx) => {
+        const bookingNo = await bookingService.allocateNextBookingNo(tx);
+        const created = await (tx.booking as any).create({
+          data: {
+            bookingNo,
+            userId: params.userId,
+            roomId: params.roomId,
+            promoCodeId: promoToAttach?.id ?? null,
+            promoCode: promoToAttach?.code ?? null,
+            discountAmount,
+            mealPlanByDate,
+            mealPlanCpAmount,
+            checkIn: checkInDate,
+            checkOut: checkOutDate,
+            checkInTime: params.checkInTime ?? null,
+            checkOutTime: params.checkOutTime ?? null,
+            rooms,
+            guests: params.guests,
+            adults: params.adults,
+            children: params.children,
+            extraAdults: params.extraAdults,
+            additionalInformation: params.additionalInformation ?? null,
+            nights,
+            baseAmount,
+            convenienceFeeAmount,
+            gstAmount,
+            amount,
+            status: "PENDING",
+            payments: {
+              create: {
+                provider: "RAZORPAY",
+                status: "CREATED",
+                currency: "INR",
+                amount,
+                razorpayOrderId: razorpayOrder.id,
               },
             },
-            include: {
-              room: { select: { id: true, title: true, pricePerNight: true } },
-            },
-          });
-
-          if (promoToAttach?.id) {
-            await (tx as any).promoCode.update({
-              where: { id: promoToAttach.id },
-              data: { usedCount: { increment: 1 } },
-            });
-          }
-
-          return updated;
+          },
+          include: {
+            room: { select: { id: true, title: true, pricePerNight: true } },
+          },
         });
-      } else {
-        booking = await prisma.$transaction(async (tx) => {
-          const bookingNo = await bookingService.allocateNextBookingNo(tx);
-          const created = await (tx.booking as any).create({
-            data: {
-              bookingNo,
-              userId: params.userId,
-              roomId: params.roomId,
-              promoCodeId: promoToAttach?.id ?? null,
-              promoCode: promoToAttach?.code ?? null,
-              discountAmount,
-              mealPlanByDate,
-              mealPlanCpAmount,
-              checkIn: checkInDate,
-              checkOut: checkOutDate,
-              checkInTime: params.checkInTime ?? null,
-              checkOutTime: params.checkOutTime ?? null,
-              rooms,
-              guests: params.guests,
-              adults: params.adults,
-              children: params.children,
-              extraAdults: params.extraAdults,
-              additionalInformation: params.additionalInformation ?? null,
-              nights,
-              baseAmount,
-              convenienceFeeAmount,
-              gstAmount,
-              amount,
-              status: "PENDING",
-              payments: {
-                create: {
-                  provider: "RAZORPAY",
-                  status: "CREATED",
-                  currency: "INR",
-                  amount,
-                  razorpayOrderId: razorpayOrder.id,
-                },
-              },
-            },
-            include: {
-              room: { select: { id: true, title: true, pricePerNight: true } },
-            },
+
+        if (promoToAttach?.id) {
+          await (tx as any).promoCode.update({
+            where: { id: promoToAttach.id },
+            data: { usedCount: { increment: 1 } },
           });
+        }
 
-          if (promoToAttach?.id) {
-            await (tx as any).promoCode.update({
-              where: { id: promoToAttach.id },
-              data: { usedCount: { increment: 1 } },
-            });
-          }
-
-          return created;
-        });
-      }
+        return created;
+      });
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error("BOOKING ERROR >>>", error);

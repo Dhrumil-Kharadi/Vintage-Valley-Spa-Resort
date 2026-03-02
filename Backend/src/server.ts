@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import rateLimit from "express-rate-limit";
 
 import { env } from "./config/env";
 import { errorHandler } from "./middlewares/errorHandler";
@@ -10,10 +11,23 @@ import { apiRouter } from "./routes";
 export const createServer = () => {
   const app = express();
 
+  app.set("trust proxy", 1);
+
   app.use(
     cors({
-      origin: env.CLIENT_URL,
+      origin: [env.CLIENT_URL, "http://localhost:8081"],
       credentials: true,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    })
+  );
+
+  app.use(
+    rateLimit({
+      windowMs: 60 * 1000,
+      max: 120,
+      standardHeaders: true,
+      legacyHeaders: false,
     })
   );
 

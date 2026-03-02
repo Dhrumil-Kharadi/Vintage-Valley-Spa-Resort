@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 
 import { env } from "../config/env";
+import { z } from "zod";
 
 export class HttpError extends Error {
   statusCode: number;
@@ -21,6 +22,14 @@ export const errorHandler = (
     return res.status(err.statusCode).json({
       ok: false,
       error: { message: err.message },
+    });
+  }
+
+  if (err instanceof z.ZodError) {
+    const msg = err.issues?.[0]?.message ? String(err.issues[0].message) : "Invalid request";
+    return res.status(400).json({
+      ok: false,
+      error: { message: msg },
     });
   }
 

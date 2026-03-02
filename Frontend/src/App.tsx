@@ -10,6 +10,10 @@ import { PolicyModalsProvider } from "@/components/PolicyModals";
 import ScrollToTop from "@/components/ScrollToTop";
 import Index from "./pages/Index";
 import Rooms from "./pages/Rooms";
+import Room from "./pages/Room";
+import RoomMinimal from "./pages/RoomMinimal";
+import RoomLive from "./pages/RoomLive";
+import RoomsSynced from "./pages/RoomsSynced";
 import Login from "./pages/login";
 import AdminLogin from "./pages/AdminLogin";
 import AdminForgotPassword from "./pages/AdminForgotPassword";
@@ -45,6 +49,10 @@ const App = () => (
             <Route path="/" element={<Navigate to="/rooms" replace />} />
             <Route path="/home" element={<Index />} />
             <Route path="/rooms" element={<Rooms />} />
+            <Route path="/rooms-synced" element={<RoomsSynced />} />
+            <Route path="/room" element={<Room />} />
+            <Route path="/room-minimal" element={<RoomMinimal />} />
+            <Route path="/room-live" element={<RoomLive />} />
             <Route path="/login" element={<Login />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin/forgot-password" element={<AdminForgotPassword />} />
@@ -56,6 +64,7 @@ const App = () => (
             <Route path="/admin/payments" element={<AdminPayments />} />
             <Route path="/admin/inquiries" element={<AdminInquiries />} />
             <Route path="/admin/promos" element={<AdminPromoCodes />} />
+            <Route path="/booking" element={<Booking />} />
             <Route path="/booking/:id" element={<Booking />} />
             <Route path="/tariff" element={<Tariff />} />
             <Route path="/facilities" element={<Facilities />} />

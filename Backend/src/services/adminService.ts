@@ -297,18 +297,24 @@ export const adminService = {
     const mapAmountNum = Number.isFinite(mapAddonRaw) ? 0 : round2(mapRatePerGuestPerNight * Number(params.guests) * mapNights);
     const baseAmountNum = round2(roomTotal + childCharge + extraAdultCharge + cpAmountNum + mapAmountNum);
     const convenienceFeeAmountNum = 0;
+    // Apply the same tax+fee calculation as frontend/invoice: 5% GST on base, then 2% service on (base+GST)
     const gstAmountNum = round2(baseAmountNum * 0.05);
-    const amountNum = round2(baseAmountNum + gstAmountNum);
+    const amountAfterGstNum = round2(baseAmountNum + gstAmountNum);
+    const serviceFeeAmountNum = round2(amountAfterGstNum * 0.02);
+    const amountNum = round2(baseAmountNum + gstAmountNum + serviceFeeAmountNum);
     if (!Number.isFinite(amountNum) || amountNum < 1) throw new HttpError(400, "Invalid amount");
 
     const override = Number((params as any).amountOverride ?? NaN);
     const hasOverride = Number.isFinite(override) && override > 0;
 
-    const overrideBase = hasOverride ? round2(override / 1.05) : null;
-    const overrideGst = hasOverride ? round2(override - Number(overrideBase ?? 0)) : null;
+    // If overriding total, split it into base + GST + service fee using the same 1.07 factor
+    const overrideBase = hasOverride ? round2(override / 1.07) : null;
+    const overrideGst = hasOverride ? round2(Number(overrideBase ?? 0) * 0.05) : null;
+    const overrideAfterGst = hasOverride ? round2(Number(overrideBase ?? 0) + Number(overrideGst ?? 0)) : null;
+    const overrideServiceFee = hasOverride ? round2(Number(overrideAfterGst ?? 0) * 0.02) : null;
 
     const baseAmount = new Prisma.Decimal((hasOverride ? Number(overrideBase ?? 0) : baseAmountNum).toFixed(2));
-    const convenienceFeeAmount = new Prisma.Decimal("0.00");
+    const convenienceFeeAmount = new Prisma.Decimal((hasOverride ? Number(overrideServiceFee ?? 0) : serviceFeeAmountNum).toFixed(2));
     const gstAmount = new Prisma.Decimal((hasOverride ? Number(overrideGst ?? 0) : gstAmountNum).toFixed(2));
     const amount = new Prisma.Decimal((hasOverride ? override : amountNum).toFixed(2));
 

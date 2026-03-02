@@ -1,0 +1,20 @@
+{
+  "rooms": [
+    {
+      "name": "Deluxe Studio Suite",
+      "weekday_price": 2800
+    },
+    {
+      "name": "Deluxe Edge View",
+      "weekday_price": 3500
+    },
+    {
+      "name": "Lotus Family Suite",
+      "weekday_price": 5000
+    },
+    {
+      "name": "Presidential Suite",
+      "weekday_price": 6000
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { downloadBookingInvoicePdf } from "@/lib/invoicePdf";
 import { toast } from "react-toastify";
 import { Check, Pencil, Trash2, X } from "lucide-react";
+import { roomService } from "../lib/roomService";
 
 const AdminBookings = () => {
   const [loading, setLoading] = useState(false);
@@ -55,6 +56,95 @@ const AdminBookings = () => {
   const lastDateRangeKeyRef = useRef<string>("");
 
   type MealPlan = "EP" | "CP" | "MAP";
+
+  const normalizeRoomType = (value: string) => {
+    const raw = String(value ?? "")
+      .trim()
+      .replace(/\s+/g, " ");
+    const lower = raw.toLowerCase();
+
+    if (lower === "deluxe studio suite") return "Deluxe Studio Suite";
+    if (lower === "deluxe edge view" || lower === "deluxe edge view ") return "Deluxe Edge View";
+    if (lower === "lotus family suite") return "Lotus Family Suite";
+    if (lower === "presidential suite" || lower === "presidentail suite") return "Presidential Suite";
+
+    return raw;
+  };
+
+  const baseRoomTypeFromApiName = (roomName: string) => {
+    const raw = String(roomName ?? "").trim();
+    if (!raw) return "";
+    const base = raw.split(" - ")[0] ?? raw;
+    return normalizeRoomType(base);
+  };
+
+  const getPlanFromRoomName = (name: string): MealPlan | null => {
+    const upper = String(name ?? "").toUpperCase();
+    if (upper.includes(" - EP") || upper.endsWith("EP")) return "EP";
+    if (upper.includes(" - CP") || upper.endsWith("CP")) return "CP";
+    if (upper.includes(" - MAP") || upper.endsWith("MAP")) return "MAP";
+    return null;
+  };
+
+  const extractAvailabilityFromRaw = (r: any): number => {
+    const minAvail = Number(r?.min_ava_rooms);
+    if (Number.isFinite(minAvail)) return Math.max(0, minAvail);
+    const avail = r?.available_rooms;
+    if (avail && typeof avail === "object") {
+      const values = Object.values(avail)
+        .map((v: any) => Number(v))
+        .filter((v) => Number.isFinite(v));
+      if (values.length > 0) return Math.max(0, Math.min(...values));
+    }
+    const fallback = Number(r?.available_rooms ?? 0);
+    return Number.isFinite(fallback) ? Math.max(0, fallback) : 0;
+  };
+
+  const extractPricePerNightFromRaw = (r: any): number => {
+    const name = String(r?.Room_Name ?? "");
+    const isCp = name.toUpperCase().includes("CP");
+    if (isCp && r?.room_rates_info?.exclusive_tax && typeof r.room_rates_info.exclusive_tax === "object") {
+      const values = Object.values(r.room_rates_info.exclusive_tax)
+        .map((v: any) => Number(v))
+        .filter((v) => Number.isFinite(v) && v > 0);
+      if (values.length > 0) return values[0];
+    }
+
+    const exclusiveTaxObj = r?.room_rates_info?.exclusive_tax;
+    if (exclusiveTaxObj && typeof exclusiveTaxObj === "object") {
+      const values = Object.values(exclusiveTaxObj)
+        .map((v: any) => Number(v))
+        .filter((v) => Number.isFinite(v) && v > 0);
+      if (values.length > 0) return values[0];
+    }
+
+    const avg = Number(r?.room_rates_info?.avg_per_night_after_discount ?? 0);
+    if (Number.isFinite(avg) && avg > 0) return avg;
+
+    const inc = r?.room_rates_info?.inclusive_tax_adjustment;
+    if (inc && typeof inc === "object") {
+      const values = Object.values(inc)
+        .map((v: any) => Number(v))
+        .filter((v) => Number.isFinite(v) && v > 0);
+      if (values.length > 0) return values[0];
+    }
+
+    return 0;
+  };
+
+  const [livePlans, setLivePlans] = useState<{
+    EP?: { pricePerNight: number; availability: number };
+    CP?: { pricePerNight: number; availability: number };
+    MAP?: { pricePerNight: number; availability: number };
+  }>({});
+
+  const [livePlansLoading, setLivePlansLoading] = useState(false);
+  const [livePlansError, setLivePlansError] = useState<string | null>(null);
+
+  const [globalPromo, setGlobalPromo] = useState<{
+    promoApplied: boolean;
+    discountPerNight: number;
+  } | null>(null);
 
   const formatDateDmy = (iso: string) => {
     if (!iso) return "";
@@ -185,6 +275,94 @@ const AdminBookings = () => {
     return roomsList.find((r) => Number(r?.id) === idNum) ?? null;
   }, [roomId, roomsList]);
 
+  useEffect(() => {
+    const title = String(selectedRoom?.title ?? "").trim();
+    if (!title) {
+      setLivePlans({});
+      setGlobalPromo(null);
+      return;
+    }
+    if (!checkIn || !checkOut) return;
+
+    let cancelled = false;
+    const run = async () => {
+      setLivePlansLoading(true);
+      setLivePlansError(null);
+      try {
+        const rawResp = await roomService.getRawRoomList({
+          checkIn,
+          checkOut,
+          adults: 1,
+          children: 0,
+          rooms: 1,
+        });
+
+        if (!rawResp.success) {
+          throw new Error(rawResp.message || rawResp.error || "Failed to fetch live rooms");
+        }
+
+        const titleNorm = normalizeRoomType(title);
+        const list = (rawResp.rooms ?? []) as any[];
+        const roomTypeMatches = list.filter((r) => {
+          const rt = normalizeRoomType(String(r?.Roomtype_Name ?? "").trim());
+          return rt.toLowerCase() === titleNorm.toLowerCase();
+        });
+
+        const plans: any = {};
+        for (const r of roomTypeMatches) {
+          const plan = getPlanFromRoomName(String(r?.Room_Name ?? ""));
+          if (!plan) continue;
+          const pricePerNight = extractPricePerNightFromRaw(r);
+          const availability = extractAvailabilityFromRaw(r);
+          plans[plan] = {
+            pricePerNight: Number.isFinite(pricePerNight) ? pricePerNight : 0,
+            availability: Number.isFinite(availability) ? availability : 0,
+          };
+        }
+
+        const listResp = await roomService.getRoomList({
+          checkIn,
+          checkOut,
+          adults: 1,
+          children: 0,
+          rooms: 1,
+        });
+
+        let promo: { promoApplied: boolean; discountPerNight: number } | null = null;
+        if (listResp.ok) {
+          const match = (r: any) => baseRoomTypeFromApiName(String(r?.Room_Name ?? "")) === titleNorm;
+          const isCp = (r: any) => String(r?.Room_Name ?? "").toUpperCase().includes("CP");
+          const cpRoom = (listResp.data.rooms ?? []).find((r: any) => match(r) && isCp(r));
+          const anyRoom = cpRoom ?? (listResp.data.rooms ?? []).find((r: any) => match(r));
+          if (anyRoom) {
+            promo = {
+              promoApplied: Boolean((anyRoom as any)?.promo_applied),
+              discountPerNight: Number((anyRoom as any)?.discount_amount ?? 0),
+            };
+          }
+        }
+
+        if (!cancelled) {
+          setLivePlans(plans);
+          setGlobalPromo(promo);
+        }
+      } catch (e: any) {
+        if (!cancelled) {
+          setLivePlans({});
+          setGlobalPromo(null);
+          setLivePlansError(e?.message ?? "Failed to fetch live pricing");
+        }
+      } finally {
+        if (!cancelled) setLivePlansLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedRoom?.title, checkIn, checkOut]);
+
   const priceEstimate = useMemo(() => {
     const room = selectedRoom;
     if (!room || nights <= 0) return null;
@@ -214,13 +392,13 @@ const AdminBookings = () => {
       : 0;
 
     const basePerNight = Number(room.pricePerNight ?? 0);
-    const epAddonRaw = Number(room.epPricePerNight ?? NaN);
-    const cpAddonRaw = Number(room.cpPricePerNight ?? NaN);
-    const mapAddonRaw = Number(room.mapPricePerNight ?? NaN);
+    const liveEp = Number(livePlans?.EP?.pricePerNight ?? 0);
+    const liveCp = Number(livePlans?.CP?.pricePerNight ?? 0);
+    const liveMap = Number(livePlans?.MAP?.pricePerNight ?? 0);
 
-    const effectiveEp = basePerNight + (Number.isFinite(epAddonRaw) ? epAddonRaw : 0);
-    const effectiveCp = basePerNight + (Number.isFinite(cpAddonRaw) ? cpAddonRaw : 0);
-    const effectiveMap = basePerNight + (Number.isFinite(mapAddonRaw) ? mapAddonRaw : mapRatePerGuestPerNight);
+    const effectiveEp = Number.isFinite(liveEp) && liveEp > 0 ? liveEp : basePerNight;
+    const effectiveCp = Number.isFinite(liveCp) && liveCp > 0 ? liveCp : basePerNight;
+    const effectiveMap = Number.isFinite(liveMap) && liveMap > 0 ? liveMap : basePerNight + mapRatePerGuestPerNight;
 
     const roomTotal = round2(
       (effectiveEp * epNights + effectiveCp * cpNights + (
@@ -230,16 +408,19 @@ const AdminBookings = () => {
     const childCharge = round2(1200 * safeChildren * nights);
     const extraAdultCharge = round2(1500 * safeExtraAdults * nights);
 
-    // keep these for UI breakdown compatibility; if explicit plan prices exist, these become 0
-    const cpCharge = Number.isFinite(cpAddonRaw) ? 0 : round2(500 * safeGuests * cpNights);
-    const mapCharge = Number.isFinite(mapAddonRaw) ? 0 : round2(mapRatePerGuestPerNight * safeGuests * mapNights);
-    const base = round2(roomTotal + childCharge + extraAdultCharge + cpCharge + mapCharge);
+    const globalFlatPerNight = globalPromo?.promoApplied ? Number(globalPromo?.discountPerNight ?? 0) : 0;
+    const globalFlatDiscount = round2(Math.max(0, globalFlatPerNight) * nights * safeRooms);
+
+    // keep these for UI breakdown compatibility
+    const cpCharge = 0;
+    const mapCharge = 0;
+    const base = round2(Math.max(0, roomTotal - globalFlatDiscount) + childCharge + extraAdultCharge + cpCharge + mapCharge);
     const convenienceFee = 0;
     const gst = round2(base * 0.05);
     const total = round2(base + gst);
 
     return { roomTotal, childCharge, extraAdultCharge, cpCharge, mapCharge, base, convenienceFee, gst, total };
-  }, [selectedRoom, nights, rooms, guests, children, extraAdults, nightDates, mealPlanByDate]);
+  }, [selectedRoom, nights, rooms, guests, children, extraAdults, nightDates, mealPlanByDate, livePlans, globalPromo?.promoApplied, globalPromo?.discountPerNight]);
 
   const baseLabel = useMemo(() => {
     if (!priceEstimate) return "Base";
@@ -517,7 +698,6 @@ const AdminBookings = () => {
     setCreating(true);
     try {
       const overrideAmount = effectiveEstimateForUi?.total ?? null;
-      const hasAnyOverride = totalOverride !== null || priceOverrideBase !== null;
       const res = await fetch("/admin-api/bookings/manual", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -540,7 +720,7 @@ const AdminBookings = () => {
           extraAdults,
           additionalInformation: additionalInformation.trim() ? additionalInformation.trim() : null,
           mealPlanByDate: nightDates.map((d) => ({ date: d, plan: mealPlanByDate[d] ?? "CP" })),
-          amountOverride: hasAnyOverride && overrideAmount !== null ? Number(overrideAmount) : undefined,
+          amountOverride: overrideAmount !== null ? Number(overrideAmount) : undefined,
         }),
       });
 
@@ -1024,6 +1204,46 @@ const AdminBookings = () => {
 
           <div className="mt-6">
             <div className="text-gray-800 font-semibold">Price estimate</div>
+            <div className="mt-2">
+              {!selectedRoom ? (
+                <div className="text-gray-800/60 text-sm">Select a room to load live pricing.</div>
+              ) : !checkIn || !checkOut ? (
+                <div className="text-gray-800/60 text-sm">Select check-in and check-out dates to load live pricing.</div>
+              ) : livePlansLoading ? (
+                <div className="text-gray-800/60 text-sm">Loading live prices…</div>
+              ) : livePlansError ? (
+                <div className="text-red-600 text-sm">{livePlansError}</div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="px-4 py-3 rounded-2xl border border-gold/20 bg-ivory/40">
+                    <div className="text-xs text-gray-800/70">EP (per night)</div>
+                    <div className="text-gray-900 font-semibold">{formatInr(livePlans?.EP?.pricePerNight ?? 0)}</div>
+                    <div className="text-xs text-gray-800/70 mt-1">Avail: {Number(livePlans?.EP?.availability ?? 0)}</div>
+                  </div>
+                  <div className="px-4 py-3 rounded-2xl border border-gold/20 bg-ivory/40">
+                    <div className="text-xs text-gray-800/70">CP (per night)</div>
+                    <div className="text-gray-900 font-semibold">{formatInr(livePlans?.CP?.pricePerNight ?? 0)}</div>
+                    <div className="text-xs text-gray-800/70 mt-1">Avail: {Number(livePlans?.CP?.availability ?? 0)}</div>
+                  </div>
+                  <div className="px-4 py-3 rounded-2xl border border-gold/20 bg-ivory/40">
+                    <div className="text-xs text-gray-800/70">MAP (per night)</div>
+                    <div className="text-gray-900 font-semibold">{formatInr(livePlans?.MAP?.pricePerNight ?? 0)}</div>
+                    <div className="text-xs text-gray-800/70 mt-1">Avail: {Number(livePlans?.MAP?.availability ?? 0)}</div>
+                  </div>
+                  <div className="px-4 py-3 rounded-2xl border border-gold/20 bg-ivory/40">
+                    <div className="text-xs text-gray-800/70">Global promo</div>
+                    {globalPromo?.promoApplied ? (
+                      <>
+                        <div className="text-green-700 font-semibold">ACTIVE</div>
+                        <div className="text-xs text-gray-800/70 mt-1">Flat OFF / night: {formatInr(globalPromo?.discountPerNight ?? 0)}</div>
+                      </>
+                    ) : (
+                      <div className="text-gray-900 font-semibold">INACTIVE</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             {!priceEstimate ? (
               <div className="text-gray-800/60 text-sm mt-2">Select room and dates to see an estimate.</div>
             ) : (
@@ -1284,6 +1504,8 @@ const AdminBookings = () => {
                       <th className="py-3 pr-4">Phone</th>
                       <th className="py-3 pr-4">Room</th>
                       <th className="py-3 pr-4">Dates</th>
+                      <th className="py-3 pr-4">Promo</th>
+                      <th className="py-3 pr-4">Discount</th>
                       <th className="py-3 pr-4">Amount</th>
                       <th className="py-3 pr-4">Payment</th>
                       <th className="py-3 pr-4">Status</th>
@@ -1317,6 +1539,21 @@ const AdminBookings = () => {
                               const ciTxt = ci && Number.isFinite(ci.getTime()) ? ci.toLocaleDateString("en-IN") : "—";
                               const coTxt = co && Number.isFinite(co.getTime()) ? co.toLocaleDateString("en-IN") : "—";
                               return `${ciTxt} - ${coTxt}`;
+                            })()}
+                          </td>
+                          <td className="py-3 pr-4 text-gray-800/80">
+                            {(() => {
+                              const code = String((b as any)?.promoCode ?? '').trim();
+                              const d = Number((b as any)?.discountAmount ?? 0);
+                              const hasDiscount = Number.isFinite(d) && d > 0;
+                              if (code) return code;
+                              return hasDiscount ? 'GLOBAL' : '—';
+                            })()}
+                          </td>
+                          <td className="py-3 pr-4 text-gray-800/80">
+                            {(() => {
+                              const d = Number((b as any)?.discountAmount ?? 0);
+                              return Number.isFinite(d) && d > 0 ? formatInr(d) : '—';
                             })()}
                           </td>
                           <td className="py-3 pr-4 text-gray-800/80">{formatInr((b as any)?.amount)}</td>

@@ -7,15 +7,25 @@ exports.createServer = void 0;
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
+const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const env_1 = require("./config/env");
 const errorHandler_1 = require("./middlewares/errorHandler");
 const notFoundHandler_1 = require("./middlewares/notFoundHandler");
 const routes_1 = require("./routes");
 const createServer = () => {
     const app = (0, express_1.default)();
+    app.set("trust proxy", 1);
     app.use((0, cors_1.default)({
         origin: env_1.env.CLIENT_URL,
         credentials: true,
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization"],
+    }));
+    app.use((0, express_rate_limit_1.default)({
+        windowMs: 60 * 1000,
+        max: 120,
+        standardHeaders: true,
+        legacyHeaders: false,
     }));
     app.use(express_1.default.json({ limit: "1mb" }));
     app.use(express_1.default.urlencoded({ extended: true }));

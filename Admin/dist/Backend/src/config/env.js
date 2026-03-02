@@ -32,5 +32,8 @@ const envSchema = zod_1.z.object({
     GOOGLE_CLIENT_ID: zod_1.z.string().optional(),
     GOOGLE_CLIENT_SECRET: zod_1.z.string().optional(),
     GOOGLE_REDIRECT_URL: zod_1.z.string().optional(),
+    EZEE_BASE_URL: zod_1.z.string().min(1),
+    EZEE_HOTEL_CODE: zod_1.z.string().min(1),
+    EZEE_API_KEY: zod_1.z.string().min(1),
 });
 exports.env = envSchema.parse(process.env);

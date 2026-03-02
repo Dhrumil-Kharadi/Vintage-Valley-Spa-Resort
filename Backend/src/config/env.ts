@@ -36,6 +36,10 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_REDIRECT_URL: z.string().optional(),
+
+  EZEE_BASE_URL: z.string().min(1).optional(),
+  EZEE_HOTEL_CODE: z.string().min(1).optional(),
+  EZEE_API_KEY: z.string().min(1).optional(),
 });
 
 export const env = envSchema.parse(process.env);

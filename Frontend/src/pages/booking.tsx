@@ -2,10 +2,12 @@ import Navbar from '@/components/Navbar';
 import Footer from '../components/Footer';
 import FloatingContact from '../components/FloatingContact';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { usePolicyModals } from '@/components/PolicyModals';
 import { Star } from 'lucide-react';
+import { roomDatabaseService, DatabaseRoom } from '../lib/roomDatabase.service';
+import { roomService } from '../lib/roomService';
 
 type RoomDetails = {
   id: string | number;
@@ -18,29 +20,58 @@ type RoomDetails = {
   person: number;
   amenities: string[];
   images: string[];
+  availableRooms: number;
 };
 
 type MealPlan = 'EP' | 'CP' | 'MAP';
 
-const parseRoomFromRoomsData = async (id: string): Promise<RoomDetails | null> => {
+type EzeeRawRoom = any;
+
+const normalizeRoomType = (value: string) => {
+  const raw = String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ");
+  const lower = raw.toLowerCase();
+
+  if (lower === "deluxe studio suite") return "Deluxe Studio Suite";
+  if (lower === "deluxe edge view" || lower === "deluxe edge view ") return "Deluxe Edge View";
+  if (lower === "lotus family suite") return "Lotus Family Suite";
+  if (lower === "presidential suite" || lower === "presidentail suite") return "Presidential Suite";
+
+  return raw;
+};
+
+const baseRoomTypeFromApiName = (roomName: string) => {
+  const raw = String(roomName ?? '').trim();
+  if (!raw) return '';
+  const base = raw.split(' - ')[0] ?? raw;
+  return normalizeRoomType(base);
+};
+
+const parseRoomFromDatabase = async (id: string): Promise<RoomDetails | null> => {
   try {
-    const mod = await import('../roomsData');
-    const rooms = (mod as any).rooms as Array<any>;
-    const room = rooms?.find((r) => String(r.id) === String(id));
+    const response = await roomDatabaseService.getDatabaseRooms();
+    
+    if (!response.success) {
+      return null;
+    }
+
+    const room = response.rooms.find((r: DatabaseRoom) => String(r.id) === String(id));
 
     if (!room) return null;
-
-    const raw = room?.pricing?.weekday ?? '';
-    const numeric = Number(String(raw).replace(/[^0-9]/g, ''));
 
     return {
       id: room.id,
       title: room.title,
       description: room.description,
-      pricePerNight: Number.isFinite(numeric) && numeric > 0 ? numeric : 0,
-      person: Number(room?.person ?? 2),
-      amenities: (room.amenities ?? []).map((a: any) => a?.name).filter(Boolean),
-      images: room.images ?? [],
+      pricePerNight: room.pricePerNight,
+      epPricePerNight: room.epPricePerNight,
+      cpPricePerNight: room.cpPricePerNight,
+      mapPricePerNight: room.mapPricePerNight,
+      person: room.person,
+      amenities: room.amenities.map((a: any) => a?.name).filter(Boolean),
+      images: room.images.length > 0 ? room.images.map((img: any) => img.url) : ['/images/room/1.jpeg'],
+      availableRooms: room.availableRooms,
     };
   } catch {
     return null;
@@ -50,9 +81,28 @@ const parseRoomFromRoomsData = async (id: string): Promise<RoomDetails | null> =
 const Booking = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const roomNameFromQuery = useMemo(() => {
+    const raw = searchParams.get('room');
+    return raw ? String(raw).trim() : '';
+  }, [searchParams]);
 
   const [room, setRoom] = useState<RoomDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const [resolvedRoomId, setResolvedRoomId] = useState<number | null>(() => {
+    const n = Number(id);
+    return Number.isFinite(n) ? n : null;
+  });
+
+  const [ezeeLoading, setEzeeLoading] = useState(false);
+  const [ezeeError, setEzeeError] = useState<string | null>(null);
+  const [ezeePlans, setEzeePlans] = useState<{
+    EP?: { pricePerNight: number; availability: number; extraAdultPerNight: number; extraChildPerNight: number };
+    CP?: { pricePerNight: number; availability: number; extraAdultPerNight: number; extraChildPerNight: number };
+    MAP?: { pricePerNight: number; availability: number; extraAdultPerNight: number; extraChildPerNight: number };
+  }>({});
 
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
@@ -70,10 +120,22 @@ const Booking = () => {
   const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountAmount: number } | null>(null);
   const [promoLoading, setPromoLoading] = useState(false);
 
+  const [globalPromo, setGlobalPromo] = useState<{
+    promoApplied: boolean;
+    originalPerNight: number;
+    finalPerNight: number;
+    discountPerNight: number;
+  } | null>(null);
+
   const [termsAccepted, setTermsAccepted] = useState(false);
   const { openTerms } = usePolicyModals();
 
   const [mealPlanByDate, setMealPlanByDate] = useState<Record<string, MealPlan>>({});
+
+  const epAvailable = useMemo(() => {
+    const p = Number(ezeePlans?.EP?.pricePerNight ?? 0);
+    return Number.isFinite(p) && p > 0;
+  }, [ezeePlans?.EP?.pricePerNight]);
 
   const checkInPickerRef = useRef<HTMLInputElement | null>(null);
   const checkOutPickerRef = useRef<HTMLInputElement | null>(null);
@@ -197,7 +259,23 @@ const Booking = () => {
     const loadRoom = async () => {
       if (!id) {
         setIsLoading(false);
-        setRoom(null);
+        setRoom(
+          roomNameFromQuery
+            ? {
+                id: roomNameFromQuery,
+                title: roomNameFromQuery,
+                description: '',
+                pricePerNight: 0,
+                epPricePerNight: null,
+                cpPricePerNight: null,
+                mapPricePerNight: null,
+                person: 2,
+                amenities: [],
+                images: ['/images/room/1.jpeg'],
+                availableRooms: 0,
+              }
+            : null
+        );
         return;
       }
 
@@ -219,11 +297,12 @@ const Booking = () => {
           person: Number(data?.person ?? 2),
           amenities: (data?.amenities ?? []).map((a: any) => (typeof a === 'string' ? a : a?.name)).filter(Boolean),
           images: data?.images ?? [],
+          availableRooms: data?.availableRooms ?? 0,
         };
 
         setRoom(normalized);
       } catch {
-        const fallback = await parseRoomFromRoomsData(id);
+        const fallback = await parseRoomFromDatabase(id);
         setRoom(fallback);
       } finally {
         setIsLoading(false);
@@ -232,7 +311,235 @@ const Booking = () => {
 
     loadRoom();
     return () => controller.abort();
+  }, [id, roomNameFromQuery]);
+
+  useEffect(() => {
+    const n = Number(id);
+    if (Number.isFinite(n)) {
+      setResolvedRoomId(n);
+    }
   }, [id]);
+
+  useEffect(() => {
+    const title = String(roomNameFromQuery ?? '').trim();
+    if (!title) return;
+    if (resolvedRoomId) return;
+
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const response = await roomDatabaseService.getDatabaseRooms();
+        if (!response.success) return;
+
+        const match = response.rooms.find((r: DatabaseRoom) => {
+          const t = String(r?.title ?? '').trim().toLowerCase();
+          const q = title.toLowerCase();
+          return t === q || t.includes(q) || q.includes(t);
+        });
+        if (!cancelled && match?.id != null) {
+          setResolvedRoomId(Number(match.id));
+          setRoom((prev) => (prev ? { ...prev, id: match.id, title: match.title } : prev));
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [roomNameFromQuery, resolvedRoomId]);
+
+  const getPlanFromRoomName = (name: string): MealPlan | null => {
+    const upper = String(name ?? '').toUpperCase();
+    if (upper.includes(' - EP') || upper.endsWith('EP')) return 'EP';
+    if (upper.includes(' - CP') || upper.endsWith('CP')) return 'CP';
+    if (upper.includes(' - MAP') || upper.endsWith('MAP')) return 'MAP';
+    if (upper.includes(' - AP') || upper.endsWith('AP')) return null;
+    return null;
+  };
+
+  const extractPricePerNight = (r: EzeeRawRoom): number => {
+    const avg = Number(r?.room_rates_info?.avg_per_night_after_discount ?? 0);
+    if (Number.isFinite(avg) && avg > 0) return avg;
+    const inc = r?.room_rates_info?.inclusive_tax_adjustment;
+    if (inc && typeof inc === 'object') {
+      const values = Object.values(inc)
+        .map((v: any) => Number(v))
+        .filter((v) => Number.isFinite(v) && v > 0);
+      if (values.length > 0) return values[0];
+    }
+    return 0;
+  };
+
+  const extractAvailability = (r: EzeeRawRoom): number => {
+    const minAvail = Number(r?.min_ava_rooms);
+    if (Number.isFinite(minAvail)) return Math.max(0, minAvail);
+    const avail = r?.available_rooms;
+    if (avail && typeof avail === 'object') {
+      const values = Object.values(avail)
+        .map((v: any) => Number(v))
+        .filter((v) => Number.isFinite(v));
+      if (values.length > 0) return Math.max(0, Math.min(...values));
+    }
+    const fallback = Number(r?.available_rooms ?? 0);
+    return Number.isFinite(fallback) ? Math.max(0, fallback) : 0;
+  };
+
+  const extractExtraPerNight = (extra: any): number => {
+    if (!extra || typeof extra !== 'object') return 0;
+    // Prefer inclusive_tax_adjustment (first night), fallback to exclusive_tax
+    const inc = extra?.inclusive_tax_adjustment;
+    if (inc && typeof inc === 'object') {
+      const values = Object.values(inc)
+        .map((v: any) => Number(v))
+        .filter((v) => Number.isFinite(v) && v > 0);
+      if (values.length > 0) return values[0];
+    }
+    const excl = extra?.exclusive_tax;
+    if (excl && typeof excl === 'object') {
+      const values = Object.values(excl)
+        .map((v: any) => Number(v))
+        .filter((v) => Number.isFinite(v) && v > 0);
+      if (values.length > 0) return values[0];
+    }
+    const rack = Number(extra?.rack_rate ?? 0);
+    return Number.isFinite(rack) && rack > 0 ? rack : 0;
+  };
+
+  useEffect(() => {
+    const title = String(room?.title ?? roomNameFromQuery ?? '').trim();
+    if (!title) return;
+    if (!checkIn || !checkOut) return;
+
+    let cancelled = false;
+    const run = async () => {
+      setEzeeLoading(true);
+      setEzeeError(null);
+      try {
+        const adultsCount = (() => {
+          const baseAdults = Number(room?.person ?? 2);
+          const extraAdults = Number(extraAdultsAbove10 ?? 0);
+          const computed = baseAdults + extraAdults;
+          return Number.isFinite(computed) && computed > 0 ? computed : baseAdults;
+        })();
+
+        const resp = await roomService.getRawRoomList({
+          checkIn,
+          checkOut,
+          adults: Number.isFinite(adultsCount) ? adultsCount : 1,
+          children: Number.isFinite(children5To10) ? children5To10 : 0,
+          rooms: Number.isFinite(rooms) ? rooms : 1,
+        });
+
+        if (!resp.success) {
+          throw new Error(resp.message || resp.error || 'Failed to fetch live rooms');
+        }
+
+        const list = (resp.rooms ?? []) as EzeeRawRoom[];
+        const roomTypeMatches = list.filter(
+          (r) => String(r?.Roomtype_Name ?? '').trim().toLowerCase() === title.toLowerCase()
+        );
+
+        const plans: any = {};
+        for (const r of roomTypeMatches) {
+          const plan = getPlanFromRoomName(String(r?.Room_Name ?? ''));
+          if (!plan) continue;
+          const price = extractPricePerNight(r);
+          const availability = extractAvailability(r);
+          const extraAdultPerNight = extractExtraPerNight(r?.extra_adult_rates_info);
+          const extraChildPerNight = extractExtraPerNight(r?.extra_child_rates_info);
+          plans[plan] = { pricePerNight: price, availability, extraAdultPerNight, extraChildPerNight };
+        }
+
+        if (!cancelled) {
+          setEzeePlans(plans);
+          const anyAvail = Math.max(
+            Number(plans?.EP?.availability ?? 0),
+            Number(plans?.CP?.availability ?? 0),
+            Number(plans?.MAP?.availability ?? 0)
+          );
+          setRoom((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  availableRooms: Number.isFinite(anyAvail) ? anyAvail : prev.availableRooms,
+                }
+              : prev
+          );
+        }
+      } catch (e: any) {
+        if (!cancelled) {
+          setEzeePlans({});
+          setEzeeError(String(e?.message ?? 'Unable to fetch live prices'));
+        }
+      } finally {
+        if (!cancelled) setEzeeLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [room?.title, roomNameFromQuery, checkIn, checkOut, room?.person, extraAdultsAbove10, children5To10, rooms]);
+
+  useEffect(() => {
+    const title = String(room?.title ?? roomNameFromQuery ?? '').trim();
+    if (!title) return;
+    if (!checkIn || !checkOut) return;
+
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const resp = await roomService.getRoomList({
+          checkIn,
+          checkOut,
+          adults: 1,
+          children: 0,
+          rooms: 1,
+        });
+
+        if (!resp.ok) {
+          if (!cancelled) setGlobalPromo(null);
+          return;
+        }
+
+        const titleNorm = normalizeRoomType(title);
+        const match = (r: any) => baseRoomTypeFromApiName(String(r?.Room_Name ?? '')) === titleNorm;
+        const isCp = (r: any) => String(r?.Room_Name ?? '').toUpperCase().includes('CP');
+
+        const cpRoom = (resp.data.rooms ?? []).find((r: any) => match(r) && isCp(r));
+        const anyRoom = cpRoom ?? (resp.data.rooms ?? []).find((r: any) => match(r));
+        if (!anyRoom) {
+          if (!cancelled) setGlobalPromo(null);
+          return;
+        }
+
+        const promoApplied = Boolean(anyRoom?.promo_applied);
+        const originalPerNight = Number(anyRoom?.original_price ?? 0);
+        const finalPerNight = Number(anyRoom?.final_price ?? 0);
+        const discountPerNight = Number(anyRoom?.discount_amount ?? 0);
+
+        if (!cancelled) {
+          setGlobalPromo({
+            promoApplied,
+            originalPerNight: Number.isFinite(originalPerNight) ? originalPerNight : 0,
+            finalPerNight: Number.isFinite(finalPerNight) ? finalPerNight : 0,
+            discountPerNight: Number.isFinite(discountPerNight) ? discountPerNight : 0,
+          });
+        }
+      } catch {
+        if (!cancelled) setGlobalPromo(null);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [room?.title, roomNameFromQuery, checkIn, checkOut]);
 
   const nights = useMemo(() => {
     if (!checkIn || !checkOut) return 0;
@@ -279,6 +586,23 @@ const Booking = () => {
     });
   }, [nightDates]);
 
+  useEffect(() => {
+    // If EP isn't available for this room/date range, remove EP from any previously-selected day-wise plans.
+    if (!nightDates.length) return;
+    if (epAvailable) return;
+    setMealPlanByDate((prev) => {
+      const next: Record<string, MealPlan> = { ...prev };
+      let changed = false;
+      for (const d of nightDates) {
+        if (next[d] === 'EP') {
+          next[d] = 'CP';
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [epAvailable, nightDates]);
+
   const todayIso = useMemo(() => {
     const now = new Date();
     const yyyy = now.getFullYear();
@@ -306,31 +630,40 @@ const Booking = () => {
     return Number.isFinite(computed) && computed > 0 ? computed : base;
   }, [room?.person, children5To10, extraAdultsAbove10]);
 
-  const planPerNightAddonForMap = useMemo(() => {
-    const title = String(room?.title ?? '').toLowerCase();
-    if (title.includes('lotus') || title.includes('presidential')) return 2000;
-    if (title.includes('deluxe') || title.includes('edge')) return 1000;
-    return 0;
-  }, [room?.title]);
-
   const effectivePlanPrice = useMemo(() => {
-    const r = room as any;
-    const base = Number(room?.pricePerNight ?? 0);
-    const epAddon = Number(r?.epPricePerNight ?? NaN);
-    const cpAddon = Number(r?.cpPricePerNight ?? NaN);
-    const mapAddon = Number(r?.mapPricePerNight ?? NaN);
+    const fallback = Number(room?.pricePerNight ?? 0);
+    const ep = Number(ezeePlans?.EP?.pricePerNight ?? 0);
+    const cp = Number(ezeePlans?.CP?.pricePerNight ?? 0);
+    const map = Number(ezeePlans?.MAP?.pricePerNight ?? 0);
 
-    const epTotal = base + (Number.isFinite(epAddon) ? epAddon : 0);
-    const cpTotal = base + (Number.isFinite(cpAddon) ? cpAddon : 0);
-
-    const mapAddonEffective = Number.isFinite(mapAddon) ? mapAddon : planPerNightAddonForMap;
-    const mapTotal = base + mapAddonEffective;
     return {
-      EP: Number.isFinite(epTotal) ? epTotal : base,
-      CP: Number.isFinite(cpTotal) ? cpTotal : base,
-      MAP: Number.isFinite(mapTotal) ? mapTotal : base,
+      EP: Number.isFinite(ep) && ep > 0 ? ep : fallback,
+      CP: Number.isFinite(cp) && cp > 0 ? cp : fallback,
+      MAP: Number.isFinite(map) && map > 0 ? map : fallback,
     } as Record<MealPlan, number>;
-  }, [room?.pricePerNight, (room as any)?.epPricePerNight, (room as any)?.cpPricePerNight, (room as any)?.mapPricePerNight, planPerNightAddonForMap]);
+  }, [ezeePlans?.CP?.pricePerNight, ezeePlans?.EP?.pricePerNight, ezeePlans?.MAP?.pricePerNight, room?.pricePerNight]);
+
+  const effectiveExtraAdultPerNight = useMemo(() => {
+    const ep = Number(ezeePlans?.EP?.extraAdultPerNight ?? 0);
+    const cp = Number(ezeePlans?.CP?.extraAdultPerNight ?? 0);
+    const map = Number(ezeePlans?.MAP?.extraAdultPerNight ?? 0);
+    return {
+      EP: Number.isFinite(ep) ? ep : 0,
+      CP: Number.isFinite(cp) ? cp : 0,
+      MAP: Number.isFinite(map) ? map : 0,
+    } as Record<MealPlan, number>;
+  }, [ezeePlans?.CP?.extraAdultPerNight, ezeePlans?.EP?.extraAdultPerNight, ezeePlans?.MAP?.extraAdultPerNight]);
+
+  const effectiveExtraChildPerNight = useMemo(() => {
+    const ep = Number(ezeePlans?.EP?.extraChildPerNight ?? 0);
+    const cp = Number(ezeePlans?.CP?.extraChildPerNight ?? 0);
+    const map = Number(ezeePlans?.MAP?.extraChildPerNight ?? 0);
+    return {
+      EP: Number.isFinite(ep) ? ep : 0,
+      CP: Number.isFinite(cp) ? cp : 0,
+      MAP: Number.isFinite(map) ? map : 0,
+    } as Record<MealPlan, number>;
+  }, [ezeePlans?.CP?.extraChildPerNight, ezeePlans?.EP?.extraChildPerNight, ezeePlans?.MAP?.extraChildPerNight]);
 
   const selectedPlan = useMemo(() => {
     if (!nightDates.length) return 'CP' as MealPlan;
@@ -359,13 +692,12 @@ const Booking = () => {
   const formatInr = (value: any) => {
     const n = Number(value ?? 0);
     if (!Number.isFinite(n)) return String(value ?? '0');
-    const hasFraction = Math.abs(n % 1) > 0.000001;
     try {
       return new Intl.NumberFormat('en-IN', {
         style: 'currency',
         currency: 'INR',
-        minimumFractionDigits: hasFraction ? 2 : 0,
-        maximumFractionDigits: hasFraction ? 2 : 0,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
       }).format(n);
     } catch {
       return String(n);
@@ -385,27 +717,61 @@ const Booking = () => {
       }, 0) * safeRooms
     );
 
-    const childCharge = round2(1200 * children5To10 * nights);
-    const extraAdultCharge = round2(1500 * extraAdultsAbove10 * nights);
-    const baseAmount = round2(roomTotal + childCharge + extraAdultCharge);
-    const taxAndServiceFeesAmount = round2(baseAmount * 0.07);
+    const childCharge = round2(
+      nightDates.reduce((sum, d) => {
+        const plan = mealPlanByDate[d] ?? 'CP';
+        const perNight = effectiveExtraChildPerNight[plan] ?? 0;
+        return sum + perNight;
+      }, 0) * children5To10 * safeRooms
+    );
+    const extraAdultCharge = round2(
+      nightDates.reduce((sum, d) => {
+        const plan = mealPlanByDate[d] ?? 'CP';
+        const perNight = effectiveExtraAdultPerNight[plan] ?? 0;
+        return sum + perNight;
+      }, 0) * extraAdultsAbove10 * safeRooms
+    );
+
+    const globalFlatPerNight = globalPromo?.promoApplied ? Number(globalPromo?.discountPerNight ?? 0) : 0;
+    const globalFlatDiscount = round2(Math.max(0, globalFlatPerNight) * nightDates.length * safeRooms);
+    const discountedRoomTotal = round2(Math.max(0, roomTotal - globalFlatDiscount));
+
+    const baseAmount = round2(Math.max(0, discountedRoomTotal + childCharge + extraAdultCharge));
+    const gstAmount = round2(baseAmount * 0.05);
+    const amountAfterGst = round2(baseAmount + gstAmount);
+    const serviceFeeAmount = round2(amountAfterGst * 0.02);
+    const taxAndServiceFeesAmount = round2(gstAmount + serviceFeeAmount);
     const totalAmount = round2(baseAmount + taxAndServiceFeesAmount);
+    console.log('[FRONTEND DEBUG] priceBreakdown', {
+      roomTotal,
+      childCharge,
+      extraAdultCharge,
+      baseAmount,
+      gstAmount,
+      serviceFeeAmount,
+      taxAndServiceFeesAmount,
+      totalAmount,
+    });
     return {
       roomTotal,
+      discountedRoomTotal,
       childCharge,
       extraAdultCharge,
       baseAmount,
       taxAndServiceFeesAmount,
       totalAmount,
     };
-  }, [room?.pricePerNight, (room as any)?.mapPricePerNight, effectivePlanPrice, rooms, nights, nightDates, mealPlanByDate, planPerNightAddonForMap, children5To10, extraAdultsAbove10]);
+  }, [room?.pricePerNight, (room as any)?.mapPricePerNight, effectivePlanPrice, rooms, nights, nightDates, mealPlanByDate, children5To10, extraAdultsAbove10, effectiveExtraAdultPerNight, effectiveExtraChildPerNight, globalPromo?.promoApplied, globalPromo?.discountPerNight]);
 
   const discounted = useMemo(() => {
     const round2 = (n: number) => Math.round(n * 100) / 100;
     const base = Number(priceBreakdown.baseAmount ?? 0);
     const discount = round2(Math.max(0, Math.min(base, Number(appliedPromo?.discountAmount ?? 0))));
     const baseAfterDiscount = round2(Math.max(0, base - discount));
-    const taxAndServiceFees = round2(baseAfterDiscount * 0.07);
+    const gstAmount = round2(baseAfterDiscount * 0.05);
+    const amountAfterGst = round2(baseAfterDiscount + gstAmount);
+    const serviceFeeAmount = round2(amountAfterGst * 0.02);
+    const taxAndServiceFees = round2(gstAmount + serviceFeeAmount);
     const total = round2(baseAfterDiscount + taxAndServiceFees);
     return { discount, baseAfterDiscount, taxAndServiceFees, total };
   }, [priceBreakdown.baseAmount, appliedPromo?.discountAmount]);
@@ -417,12 +783,14 @@ const Booking = () => {
   const formattedPerNight = useMemo(() => {
     const basePerNight = Number(room?.pricePerNight ?? 0);
     const perNight = effectivePlanPrice[selectedPlan] ?? basePerNight;
+    const globalFlat = globalPromo?.promoApplied ? Number(globalPromo?.discountPerNight ?? 0) : 0;
+    const finalPerNight = Math.max(0, perNight - (Number.isFinite(globalFlat) ? globalFlat : 0));
     try {
-      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(perNight);
+      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(finalPerNight);
     } catch {
-      return String(perNight);
+      return String(finalPerNight);
     }
-  }, [room?.pricePerNight, selectedPlan, effectivePlanPrice]);
+  }, [room?.pricePerNight, selectedPlan, effectivePlanPrice, globalPromo?.promoApplied, globalPromo?.discountPerNight]);
 
   const baseLabel = useMemo(() => {
     if (selectedPlan === 'CP') return 'Base (Room With Breakfast)';
@@ -497,13 +865,20 @@ const Booking = () => {
       return;
     }
 
+    if (!resolvedRoomId || !Number.isFinite(resolvedRoomId)) {
+      const msg = 'Room not loaded. Please go back and select a room again.';
+      setFormError(msg);
+      toast.error(msg);
+      return;
+    }
+
     try {
       const res = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          roomId: Number(id),
+          roomId: resolvedRoomId,
           checkIn,
           checkOut,
           checkInTime,
@@ -660,6 +1035,17 @@ const Booking = () => {
                       Guests: {totalGuests}
                     </div>
                   </div>
+
+                  {(ezeeLoading || ezeeError) && (
+                    <div className="mb-6">
+                      {ezeeLoading && (
+                        <div className="text-sm text-gray-800/70">Loading live plan prices...</div>
+                      )}
+                      {ezeeError && (
+                        <div className="text-sm text-red-700">{ezeeError}</div>
+                      )}
+                    </div>
+                  )}
 
                   {room.images?.length > 0 && (
                     <>
@@ -915,7 +1301,7 @@ const Booking = () => {
                             }}
                             className="w-full sm:w-52 px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
                           >
-                            <option value="EP">EP</option>
+                            {epAvailable && <option value="EP">EP</option>}
                             <option value="CP">CP</option>
                             <option value="MAP">MAP</option>
                           </select>
@@ -938,7 +1324,6 @@ const Booking = () => {
                     required
                     className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
                   />
-                  <div className="text-xs text-gray-800/60 mt-1">₹1200 per child (per night)</div>
                 </div>
 
                 <div>
@@ -954,7 +1339,6 @@ const Booking = () => {
                     required
                     className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
                   />
-                  <div className="text-xs text-gray-800/60 mt-1">₹1500 per person (per night, incl. extra mattress)</div>
                 </div>
 
                 <div>
@@ -992,7 +1376,13 @@ const Booking = () => {
 
                 <div className="flex items-center justify-between text-gray-800/80">
                   <span>Room total</span>
-                  <span className="font-semibold text-gray-800">{formatInr(priceBreakdown.roomTotal)}</span>
+                  <span className="font-semibold text-gray-800">
+                    {formatInr(
+                      globalPromo?.promoApplied
+                        ? (priceBreakdown as any).discountedRoomTotal ?? priceBreakdown.roomTotal
+                        : priceBreakdown.roomTotal
+                    )}
+                  </span>
                 </div>
 
                 {(children5To10 > 0 || extraAdultsAbove10 > 0) && (
@@ -1116,7 +1506,13 @@ const Booking = () => {
                       <input
                         type="checkbox"
                         checked={termsAccepted}
-                        onChange={(e) => setTermsAccepted(e.target.checked)}
+                        onChange={(e) => {
+                          const next = e.target.checked;
+                          setTermsAccepted(next);
+                          if (next && formError === 'Please accept Terms & Conditions to proceed') {
+                            setFormError(null);
+                          }
+                        }}
                         className="mt-1 h-4 w-4 accent-gray-800"
                       />
                       <span>
@@ -1133,6 +1529,9 @@ const Booking = () => {
                       i
                     </button>
                   </div>
+                  {!termsAccepted && formError === 'Please accept Terms & Conditions to proceed' && (
+                    <p className="mt-2 text-sm text-red-600">Please accept Terms & Conditions</p>
+                  )}
                 </div>
 
                 {appliedPromo && discounted.discount > 0 && (
@@ -1148,7 +1547,7 @@ const Booking = () => {
                 </div>
 
                 <button
-                  disabled={nights === 0 || !termsAccepted}
+                  disabled={nights === 0}
                   className="w-full bg-gold text-gray-800 px-6 py-3 rounded-full font-semibold hover:bg-bronze transition-colors duration-200"
                   onClick={() => {
                     submitBooking();
