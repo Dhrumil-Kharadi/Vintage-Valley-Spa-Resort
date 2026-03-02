@@ -22,7 +22,7 @@ const Login = () => {
     if (raw && raw.startsWith('/')) return raw;
     try {
       const last = sessionStorage.getItem('last_booking_redirect') ?? '';
-      if (last && last.startsWith('/booking/')) return last;
+      if (last && last.startsWith('/booking')) return last;
     } catch {
     }
     return '/rooms';

@@ -2,7 +2,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '../components/Footer';
 import FloatingContact from '../components/FloatingContact';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { usePolicyModals } from '@/components/PolicyModals';
 import { Star } from 'lucide-react';
@@ -80,6 +80,7 @@ const parseRoomFromDatabase = async (id: string): Promise<RoomDetails | null> =>
 
 const Booking = () => {
   const { id } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -179,7 +180,11 @@ const Booking = () => {
     return iso;
   };
 
-  const pendingKey = useMemo(() => (id ? `pending_booking:${id}` : ''), [id]);
+  const pendingKey = useMemo(() => {
+    if (id) return `pending_booking:id:${id}`;
+    if (roomNameFromQuery) return `pending_booking:room:${normalizeRoomType(roomNameFromQuery)}`;
+    return '';
+  }, [id, roomNameFromQuery]);
 
   const savePendingBooking = () => {
     if (!pendingKey) return;
@@ -209,7 +214,7 @@ const Booking = () => {
   useEffect(() => {
     if (!pendingKey) return;
     try {
-      sessionStorage.setItem('last_booking_redirect', `/booking/${id ?? ''}`);
+      sessionStorage.setItem('last_booking_redirect', `${location.pathname}${location.search}`);
     } catch {
       // ignore
     }
@@ -896,7 +901,7 @@ const Booking = () => {
 
       if (res.status === 401) {
         savePendingBooking();
-        navigate(`/login?redirect=${encodeURIComponent(`/booking/${id ?? ''}`)}`, { replace: true });
+        navigate(`/login?redirect=${encodeURIComponent(`${location.pathname}${location.search}`)}`, { replace: true });
         return;
       }
 
