@@ -145,20 +145,9 @@ const Profile = () => {
   const handleRetryPayment = async (booking: Booking) => {
     setRetryingBookingId(booking.id);
     try {
-      const res = await fetch('/api/bookings', {
+      const res = await fetch(`/api/bookings/${booking.id}/retry-payment`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          roomId: booking.room?.id,
-          checkIn: booking.checkIn,
-          checkOut: booking.checkOut,
-          guests: booking.guests,
-          adults: booking.adults,
-          children: booking.children,
-          extraAdults: booking.extraAdults,
-          additionalInformation: '',
-        }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error?.message ?? 'Failed to retry payment');

@@ -6,6 +6,8 @@ import { HttpError } from "../middlewares/errorHandler";
 export type EzeeRoom = {
   roomtypeunkid: string;
   Room_Name: string;
+  Roomtype_Name?: string;
+  Roomtype?: string;
   Room_Description: string;
   max_adult_occupancy: number;
   max_child_occupancy: number;
@@ -15,6 +17,7 @@ export type EzeeRoom = {
   currency_sign: string;
   RoomAmenities: string;
   room_main_image?: string;
+  room_rates_info?: any;
 };
 
 const toIsoDateOnly = (value: string) => {
@@ -225,6 +228,8 @@ export const ezeeService = {
         return {
           roomtypeunkid: String(r?.roomtypeunkid ?? r?.Roomtypeunkid ?? r?.RoomTypeUNKID ?? ""),
           Room_Name: String(r?.Room_Name ?? r?.room_name ?? r?.RoomName ?? ""),
+          Roomtype_Name: String(r?.Roomtype_Name ?? r?.roomtype_name ?? r?.RoomTypeName ?? ""),
+          Roomtype: String(r?.Roomtype ?? r?.roomtype ?? ""),
           Room_Description: String(r?.Room_Description ?? r?.room_description ?? r?.RoomDescription ?? ""),
           max_adult_occupancy: toInt(r?.max_adult_occupancy, 0),
           max_child_occupancy: toInt(r?.max_child_occupancy, 0),
@@ -234,10 +239,15 @@ export const ezeeService = {
           currency_sign: currencySign,
           RoomAmenities: String(r?.RoomAmenities ?? r?.room_amenities ?? ""),
           room_main_image: r?.room_main_image ? String(r.room_main_image) : undefined,
+          room_rates_info: r?.room_rates_info,
         };
       });
 
-      return cleaned.filter((r) => r.roomtypeunkid && r.Room_Name);
+      return cleaned.filter((r) => {
+        if (!r.roomtypeunkid) return false;
+        const hasAnyName = Boolean(String(r.Room_Name ?? '').trim() || String(r.Roomtype_Name ?? '').trim() || String(r.Roomtype ?? '').trim());
+        return hasAnyName;
+      });
     } catch (e: any) {
       if (e instanceof HttpError) throw e;
 

@@ -443,13 +443,20 @@ const Booking = () => {
         }
 
         const list = (resp.rooms ?? []) as EzeeRawRoom[];
-        const roomTypeMatches = list.filter(
-          (r) => String(r?.Roomtype_Name ?? '').trim().toLowerCase() === title.toLowerCase()
-        );
+        const titleNorm = normalizeRoomType(title);
+        const getAnyRoomTypeName = (r: any) => {
+          return String(r?.Roomtype_Name ?? r?.Roomtype ?? r?.Room_Name ?? '').trim();
+        };
+        const roomTypeMatches = list.filter((r) => {
+          const recordName = getAnyRoomTypeName(r);
+          if (!recordName) return false;
+          return baseRoomTypeFromApiName(recordName) === titleNorm;
+        });
 
         const plans: any = {};
         for (const r of roomTypeMatches) {
-          const plan = getPlanFromRoomName(String(r?.Room_Name ?? ''));
+          const planHint = String(r?.Room_Name ?? r?.Roomtype_Name ?? r?.Roomtype ?? '');
+          const plan = getPlanFromRoomName(planHint);
           if (!plan) continue;
           const price = extractPricePerNight(r);
           const availability = extractAvailability(r);
@@ -512,7 +519,14 @@ const Booking = () => {
         }
 
         const titleNorm = normalizeRoomType(title);
-        const match = (r: any) => baseRoomTypeFromApiName(String(r?.Room_Name ?? '')) === titleNorm;
+        const getAnyRoomTypeName = (r: any) => {
+          return String(r?.Roomtype_Name ?? r?.Roomtype ?? r?.Room_Name ?? '').trim();
+        };
+        const match = (r: any) => {
+          const raw = getAnyRoomTypeName(r);
+          if (!raw) return false;
+          return baseRoomTypeFromApiName(raw) === titleNorm;
+        };
         const isCp = (r: any) => String(r?.Room_Name ?? '').toUpperCase().includes('CP');
 
         const cpRoom = (resp.data.rooms ?? []).find((r: any) => match(r) && isCp(r));

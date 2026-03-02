@@ -8,6 +8,7 @@ bookingRouter.get("/", requireAuth, bookingController.me);
 bookingRouter.get("/me", requireAuth, bookingController.me);
 bookingRouter.get("/total-count", requireAuth, bookingController.totalCount);
 bookingRouter.post("/", requireAuth, bookingController.create);
+bookingRouter.post("/:id/retry-payment", requireAuth, bookingController.retryPayment);
 bookingRouter.post("/:id/verify", requireAuth, bookingController.verify);
 bookingRouter.delete("/:id", requireAuth, bookingController.deletePending);
 bookingRouter.get("/:id/invoice", requireAuth, bookingController.invoice);

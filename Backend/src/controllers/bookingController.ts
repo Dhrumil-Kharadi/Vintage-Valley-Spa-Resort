@@ -45,7 +45,7 @@ const verifySchema = z.object({
   razorpaySignature: z.string().min(1),
 });
 
-export const bookingController: Record<"me" | "totalCount" | "create" | "verify" | "deletePending" | "invoice", RequestHandler> = {
+export const bookingController: Record<"me" | "totalCount" | "create" | "verify" | "deletePending" | "invoice" | "retryPayment", RequestHandler> = {
   me: asyncHandler(async (req: AuthedRequest, res) => {
     const bookings = await bookingService.listUserBookings({ userId: req.user!.userId });
     res.json({ ok: true, data: { bookings } });
@@ -123,5 +123,24 @@ export const bookingController: Record<"me" | "totalCount" | "create" | "verify"
     const bookingId = req.params.id;
     const invoice = await bookingService.getUserInvoiceData({ userId: req.user!.userId, bookingId });
     res.json({ ok: true, data: { booking: invoice } });
+  }),
+
+  retryPayment: asyncHandler(async (req: AuthedRequest, res) => {
+    const bookingId = req.params.id;
+    if (!bookingId) throw new HttpError(400, "Booking ID is required");
+
+    const result = await bookingService.retryPaymentForPendingBooking({ userId: req.user!.userId, bookingId });
+
+    res.json({
+      ok: true,
+      data: {
+        razorpay: {
+          keyId: env.RAZORPAY_KEY_ID,
+          orderId: result.razorpayOrder.id,
+          amount: result.razorpayOrder.amount,
+          currency: result.razorpayOrder.currency,
+        },
+      },
+    });
   }),
 };

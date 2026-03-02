@@ -26,6 +26,13 @@ const addDaysIso = (iso: string, days: number) => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
+const normalizeIsoDateQuery = (value: unknown, fallbackIso: string) => {
+  const s = String(value ?? "").trim();
+  if (!s) return fallbackIso;
+  const iso = s.includes("T") ? s.slice(0, 10) : s;
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : fallbackIso;
+};
+
 const toInt = (value: unknown, fallback: number) => {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
@@ -94,8 +101,8 @@ const toRoomPayloadFromCache = (r: any) => {
 export const roomController = {
   list: asyncHandler(async (req, res) => {
     const today = isoToday();
-    const checkIn = String(req.query.checkIn ?? today);
-    const checkOut = String(req.query.checkOut ?? addDaysIso(today, 1));
+    const checkIn = normalizeIsoDateQuery(req.query.checkIn, today);
+    const checkOut = normalizeIsoDateQuery(req.query.checkOut, addDaysIso(checkIn, 1));
     const adults = toInt(req.query.adults, 1);
     const children = toInt(req.query.children, 0);
     const rooms = toInt(req.query.rooms, 1);
@@ -238,8 +245,9 @@ export const roomController = {
   }),
 
   listRaw: asyncHandler(async (req, res) => {
-    const checkIn = String(req.query.checkIn ?? isoToday());
-    const checkOut = String(req.query.checkOut ?? addDaysIso(isoToday(), 1));
+    const today = isoToday();
+    const checkIn = normalizeIsoDateQuery(req.query.checkIn, today);
+    const checkOut = normalizeIsoDateQuery(req.query.checkOut, addDaysIso(checkIn, 1));
     const adults = toInt(req.query.adults, 1);
     const children = toInt(req.query.children, 0);
     const rooms = toInt(req.query.rooms, 1);
@@ -301,8 +309,9 @@ export const roomController = {
   }),
 
   getPrices: asyncHandler(async (req, res) => {
-    const checkIn = String(req.query.checkIn ?? isoToday());
-    const checkOut = String(req.query.checkOut ?? addDaysIso(isoToday(), 1));
+    const today = isoToday();
+    const checkIn = normalizeIsoDateQuery(req.query.checkIn, today);
+    const checkOut = normalizeIsoDateQuery(req.query.checkOut, addDaysIso(checkIn, 1));
     const adults = toInt(req.query.adults, 1);
     const children = toInt(req.query.children, 0);
     const rooms = toInt(req.query.rooms, 1);

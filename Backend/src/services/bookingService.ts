@@ -13,7 +13,7 @@ export const bookingService = {
   async getActiveGlobalFlatPromo() {
     return await (prisma as any).promoCode.findFirst({
       where: {
-        promoScope: 'GLOBAL_FLAT',
+        promoScope: "GLOBAL_FLAT",
         isGlobalActive: true,
       },
       select: {
@@ -21,6 +21,67 @@ export const bookingService = {
         discountValue: true,
       },
     });
+  },
+
+  async retryPaymentForPendingBooking(params: {
+    userId: string;
+    bookingId: string;
+  }): Promise<{ razorpayOrder: { id: string; amount: number; currency: string } }> {
+    const user = await prisma.user.findUnique({
+      where: { id: params.userId },
+      select: { id: true },
+    });
+    if (!user) throw new HttpError(401, "Unauthorized");
+
+    const razorpay = getRazorpayClient();
+    if (!razorpay) throw new HttpError(500, "Payment provider not configured");
+
+    const booking: any = await (prisma.booking as any).findUnique({
+      where: { id: params.bookingId },
+      include: { payments: true },
+    });
+
+    if (!booking) throw new HttpError(404, "Booking not found");
+    if (booking.userId !== params.userId) throw new HttpError(403, "Forbidden");
+    if (booking.status !== "PENDING") throw new HttpError(400, "Only pending bookings can be retried");
+
+    const amountNum = Number(booking.amount ?? 0);
+    const amountPaise = Math.round(amountNum * 100);
+    if (!Number.isFinite(amountNum) || amountNum < 1 || amountPaise < 100) {
+      throw new HttpError(400, "Invalid amount");
+    }
+
+    let razorpayOrder: any;
+    try {
+      razorpayOrder = await razorpay.orders.create({
+        amount: amountPaise,
+        currency: "INR",
+        receipt: `bk_retry_${String(booking.id).slice(0, 12)}_${Date.now()}`,
+      });
+    } catch (e: any) {
+      throw new HttpError(500, e?.error?.description ?? e?.message ?? "Failed to initialize payment");
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await (tx.payment as any).create({
+        data: {
+          bookingId: booking.id,
+          provider: "RAZORPAY",
+          status: "CREATED",
+          currency: "INR",
+          amount: booking.amount,
+          razorpayOrderId: razorpayOrder.id,
+        },
+      });
+    });
+
+    return {
+      razorpayOrder: {
+        id: razorpayOrder.id,
+        amount: Number(razorpayOrder.amount),
+        currency: String(razorpayOrder.currency),
+      },
+    };
   },
 
   // Apply global flat discount to a base amount
@@ -155,48 +216,66 @@ export const bookingService = {
       console.debug('[DEBUG] eZee live prices fetch failed', err);
     }
 
-    // Find matching room in eZee data
-    const ezeeRoom = ezeeLivePrices.find(
-      (r) =>
-        String(r.Room_Name ?? "").toLowerCase().includes(String(room.title ?? "").toLowerCase()) ||
-        String(room.title ?? "").toLowerCase().includes(String(r.Room_Name ?? "").toLowerCase())
-    );
-    console.debug('[DEBUG] ezeeRoom raw', ezeeRoom);
+    const normalizeRoomType = (value: string) => {
+      const raw = String(value ?? "")
+        .trim()
+        .replace(/\s+/g, " ");
+      const lower = raw.toLowerCase();
+      if (lower === "deluxe studio suite") return "Deluxe Studio Suite";
+      if (lower === "deluxe edge view" || lower === "deluxe edge view ") return "Deluxe Edge View";
+      if (lower === "lotus family suite") return "Lotus Family Suite";
+      if (lower === "presidential suite" || lower === "presidentail suite") return "Presidential Suite";
+      return raw;
+    };
 
-    // If the matched eZee room is EP, try to find a CP variant for correct CP pricing
-    let ezeeRoomForPricing = ezeeRoom;
-    if (ezeeRoom) {
-      if (String(ezeeRoom.Room_Name ?? "").toUpperCase().includes('EP')) {
-        const cpVariant = ezeeLivePrices.find(
-          (r) =>
-            String(r.Room_Name ?? "").toUpperCase().includes('CP') &&
-            (String(r.Room_Name ?? "").toLowerCase().includes(String(room.title ?? "").toLowerCase()) ||
-             String(room.title ?? "").toLowerCase().includes(String(r.Room_Name ?? "").toLowerCase()))
-        );
-        if (cpVariant) {
-          console.debug('[DEBUG] using CP variant for pricing', cpVariant);
-          ezeeRoomForPricing = cpVariant;
-        }
-      } else if (String(ezeeRoom.Room_Name ?? "").toUpperCase().includes('CP')) {
-        // Already CP, use it for pricing
-        console.debug('[DEBUG] using matched CP room for pricing', ezeeRoom);
-        ezeeRoomForPricing = ezeeRoom;
-      }
-    }
+    const stripPlanSuffix = (value: string) => {
+      const raw = String(value ?? "").trim();
+      if (!raw) return "";
+      // Handle patterns like "Deluxe Edge View - CP" or "Deluxe Edge View-CP"
+      return raw
+        .replace(/\s*[-–—]\s*(EP|CP|MAP)\s*$/i, "")
+        .trim();
+    };
+
+    const getEzeeRoomTypeRaw = (r: any) => {
+      return String(r?.Roomtype_Name ?? r?.Roomtype ?? r?.RoomtypeName ?? r?.Room_Name ?? "").trim();
+    };
+
+    const baseRoomTypeFromEzeeRecord = (r: any) => {
+      const raw = getEzeeRoomTypeRaw(r);
+      if (!raw) return "";
+      const baseBeforeDash = raw.split(" - ")[0] ?? raw;
+      const base = stripPlanSuffix(baseBeforeDash);
+      return normalizeRoomType(base);
+    };
+
+    const bookingRoomType = normalizeRoomType(String(room.title ?? "").trim());
+    const candidates = ezeeLivePrices.filter((r) => baseRoomTypeFromEzeeRecord(r) === bookingRoomType);
+
+    // Prefer CP variant when available (because frontend defaults to CP exclusive_tax)
+    const cpCandidate = candidates.find((r) => {
+      const name = String(r?.Room_Name ?? "").toUpperCase();
+      const type = String(r?.Roomtype_Name ?? r?.Roomtype ?? "").toUpperCase();
+      return name.includes("CP") || type.includes("CP");
+    });
+    const anyCandidate = candidates[0];
+
+    const ezeeRoomForPricing = cpCandidate ?? anyCandidate ?? null;
+    const ezeeRoom = anyCandidate ?? cpCandidate ?? null;
+    console.debug('[DEBUG] ezee match', {
+      bookingRoomType,
+      candidates: candidates.map((c) => String(c?.Room_Name ?? "")).slice(0, 8),
+      chosenForPricing: ezeeRoomForPricing ? String((ezeeRoomForPricing as any).Room_Name ?? "") : null,
+      chosenForExtras: ezeeRoom ? String((ezeeRoom as any).Room_Name ?? "") : null,
+    });
 
     // Helper to extract per-night plan price from eZee
     const getEzeePlanPrice = (plan: "EP" | "CP" | "MAP"): number => {
-      if (!ezeeRoom) {
+      if (!ezeeRoomForPricing) {
         // Fallback to DB base price if eZee missing
         return Number(room?.pricePerNight ?? 0);
       }
-      const key = plan === "EP" ? "Room_Price_EP" : plan === "CP" ? "Room_Price_CP" : "Room_Price_MAP";
-      const val = Number(ezeeRoom[key] ?? 0);
-      if (Number.isFinite(val) && val > 0) {
-        console.debug('[DEBUG] getEzeePlanPrice using eZee', { plan, key, val });
-        return val;
-      }
-      // For CP, use exclusive_tax from CP variant to match frontend
+      // For CP, prefer exclusive_tax from CP variant to match frontend
       if (plan === "CP" && ezeeRoomForPricing?.room_rates_info?.exclusive_tax) {
         const exclusiveTaxObj = ezeeRoomForPricing.room_rates_info.exclusive_tax;
         if (typeof exclusiveTaxObj === "object") {
@@ -218,6 +297,13 @@ export const bookingService = {
           console.debug('[DEBUG] getEzeePlanPrice fallback to eZee avg_price_per_night for CP', { plan, avg });
           return avg;
         }
+      }
+
+      const key = plan === "EP" ? "Room_Price_EP" : plan === "CP" ? "Room_Price_CP" : "Room_Price_MAP";
+      const val = Number((ezeeRoomForPricing as any)[key] ?? 0);
+      if (Number.isFinite(val) && val > 0) {
+        console.debug('[DEBUG] getEzeePlanPrice using eZee', { plan, key, val });
+        return val;
       }
       // For EP/MAP, fallback to DB plan prices if needed
       if (plan === "EP") {
@@ -305,10 +391,12 @@ export const bookingService = {
       // If no promo code, check for active global flat discount
       const globalFlatPromo = await this.getActiveGlobalFlatPromo();
       if (globalFlatPromo) {
-        const { discountAmount } = this.applyGlobalFlatDiscount(originalBaseAmountNum, globalFlatPromo);
-        discountAmountNum = round2(discountAmount);
+        const perNightDiscount = Number(globalFlatPromo?.discountValue ?? 0);
+        const computed = round2(Math.max(0, perNightDiscount) * nights * rooms);
+        // Apply global flat promo only to the room portion (match frontend); don't discount extras beyond roomTotal
+        discountAmountNum = round2(Math.min(computed, roomTotal));
         // Note: we don't attach global flat promo to booking (no code), but we apply the discount
-        console.debug('[DEBUG] applied global flat discount', { discountAmount: discountAmountNum });
+        console.debug('[DEBUG] applied global flat discount', { perNightDiscount, nights, rooms, computed, discountAmount: discountAmountNum });
       }
     }
 

@@ -311,8 +311,12 @@ const Rooms = () => {
       const base = raw.split(' - ')[0] ?? raw;
       return normalizeRoomType(base).toLowerCase();
     };
+    const getAnyRoomTypeName = (r: any) => {
+      return String(r?.Roomtype_Name ?? r?.Roomtype ?? r?.Room_Name ?? '').trim();
+    };
     const isMatch = (r: any) => {
-      const apiBase = baseRoomTypeFromApiName(String(r?.Room_Name ?? ''));
+      const raw = getAnyRoomTypeName(r);
+      const apiBase = baseRoomTypeFromApiName(raw);
       return apiBase === titleNormalized;
     };
 
