@@ -4,17 +4,35 @@ set -e
 echo "📥 Pulling latest code..."
 git pull origin main
 
-echo "📦 Building Backend..."
-cd Backend && npm install && npm run build
+echo "📦 Setting up Backend..."
+cd Backend
 
-echo "📦 Building Frontend..."
-cd ../Frontend && npm install && npm run build
+echo "📦 Installing dependencies..."
+npm install
+
+echo "🛠 Syncing Prisma schema (SAFE)..."
+npx prisma db push
+
+echo "🔧 Generating Prisma client..."
+npx prisma generate
+
+echo "🏗 Building Backend..."
+npm run build
+
+echo "📦 Setting up Frontend..."
+cd ../Frontend
+
+echo "📦 Installing dependencies..."
+npm install
+
+echo "🏗 Building Frontend..."
+npm run build
 
 echo "🚚 Deploying Frontend to Nginx..."
 cp -r dist/* /var/www/html/
 
-echo "🔄 Reloading PM2..."
-pm2 reload all
+echo "🔄 Restarting PM2..."
+pm2 restart all
 
 echo "🔄 Reloading Nginx..."
 systemctl reload nginx
