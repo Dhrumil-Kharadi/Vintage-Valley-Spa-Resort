@@ -6,41 +6,29 @@ import { useState } from 'react';
 
 const Tariff = () => {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [tariffData, setTariffData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const toggleSection = (section: string) => {
     setExpandedSection(expandedSection === section ? null : section);
   };
 
-  const tariffData = [
-    {
-      category: 'DELUXE STUDIO SUITE',
-      mealPlan: 'BREAKFAST INCLUDED',
-      persons: '2 ADULTS',
-      weekday: '4500/-',
-      weekend: '5500/-'
-    },
-    {
-      category: 'DELUXE EDGE VIEW',
-      mealPlan: 'BREAKFAST INCLUDED',
-      persons: '2 ADULTS',
-      weekday: '5000/-',
-      weekend: '6000/-'
-    },
-    {
-      category: 'LOTUS FAMILY SUITE',
-      mealPlan: 'BREAKFAST INCLUDED',
-      persons: '4 ADULTS',
-      weekday: '8000/-',
-      weekend: '9000/-'
-    },
-    {
-      category: 'PRESIDENTIAL SUITE',
-      mealPlan: 'BREAKFAST INCLUDED',
-      persons: '4 ADULTS',
-      weekday: '9000/-',
-      weekend: '10000/-'
-    }
-  ];
+  useState(() => {
+    const fetchTariffs = async () => {
+      try {
+        const res = await fetch('/api/tariff');
+        const data = await res.json();
+        if (data.ok) {
+          setTariffData(data.data.tariffs);
+        }
+      } catch (err) {
+        console.error('Error fetching tariffs:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTariffs();
+  });
 
   const policies = [
     {
@@ -214,61 +202,69 @@ const Tariff = () => {
 
             {/* Desktop Table */}
             <div className="hidden md:block overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gold/10">
-                  <tr>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-800">ROOM CATEGORIES</th>
-                    <th className="px-6 py-4 text-center font-semibold text-gray-800">MEAL PLAN</th>
-                    <th className="px-6 py-4 text-center font-semibold text-gray-800">PERSONS</th>
-                    <th className="px-6 py-4 text-center font-semibold text-gray-800">MON-THURS</th>
-                    <th className="px-6 py-4 text-center font-semibold text-gray-800">FRI-SUN</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tariffData.map((row, index) => (
-                    <tr key={index} className="border-b border-gold/10 hover:bg-gold/5 transition-colors">
-                      <td className="px-6 py-6 font-semibold text-gray-800">{row.category}</td>
-                      <td className="px-6 py-6 text-center text-gray-800/80">{row.mealPlan}</td>
-                      <td className="px-6 py-6 text-center text-gray-800/80">{row.persons}</td>
-                      <td className="px-6 py-6 text-center font-bold text-gold">{row.weekday}</td>
-                      <td className="px-6 py-6 text-center font-bold text-gold">{row.weekend}</td>
+              {loading ? (
+                <div className="p-12 text-center text-gray-600">Loading tariffs...</div>
+              ) : (
+                <table className="w-full">
+                  <thead className="bg-gold/10">
+                    <tr>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-800">ROOM CATEGORIES</th>
+                      <th className="px-6 py-4 text-center font-semibold text-gray-800">MEAL PLAN</th>
+                      <th className="px-6 py-4 text-center font-semibold text-gray-800">PERSONS</th>
+                      <th className="px-6 py-4 text-center font-semibold text-gray-800">MON-THURS</th>
+                      <th className="px-6 py-4 text-center font-semibold text-gray-800">FRI-SUN</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {tariffData.map((row, index) => (
+                      <tr key={index} className="border-b border-gold/10 hover:bg-gold/5 transition-colors">
+                        <td className="px-6 py-6 font-semibold text-gray-800">{row.category}</td>
+                        <td className="px-6 py-6 text-center text-gray-800/80">{row.mealPlan}</td>
+                        <td className="px-6 py-6 text-center text-gray-800/80">{row.persons}</td>
+                        <td className="px-6 py-6 text-center font-bold text-gold">{row.weekday}</td>
+                        <td className="px-6 py-6 text-center font-bold text-gold">{row.weekend}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
 
             {/* Mobile Cards */}
             <div className="md:hidden p-4 space-y-4">
-              {tariffData.map((row, index) => (
-                <div key={index} className="bg-gold/5 rounded-2xl p-6 border border-gold/20">
-                  <h3 className="font-playfair text-xl font-bold text-gray-800 mb-4">{row.category}</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center text-gray-800/80">
-                        <Coffee className="h-4 w-4 mr-2" />
-                        {row.mealPlan}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center text-gray-800/80">
-                        <Users className="h-4 w-4 mr-2" />
-                        {row.persons}
-                      </span>
-                    </div>
-                    <div className="flex justify-between pt-3 border-t border-gold/20">
-                      <div className="text-center">
-                        <p className="text-sm text-gray-800/60">MON-THURS</p>
-                        <p className="font-bold text-gold text-lg">{row.weekday}</p>
+              {loading ? (
+                <div className="p-8 text-center text-gray-600">Loading...</div>
+              ) : (
+                tariffData.map((row, index) => (
+                  <div key={index} className="bg-gold/5 rounded-2xl p-6 border border-gold/20">
+                    <h3 className="font-playfair text-xl font-bold text-gray-800 mb-4">{row.category}</h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center text-gray-800/80">
+                          <Coffee className="h-4 w-4 mr-2" />
+                          {row.mealPlan}
+                        </span>
                       </div>
-                      <div className="text-center">
-                        <p className="text-sm text-gray-800/60">FRI-SUN</p>
-                        <p className="font-bold text-gold text-lg">{row.weekend}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center text-gray-800/80">
+                          <Users className="h-4 w-4 mr-2" />
+                          {row.persons}
+                        </span>
+                      </div>
+                      <div className="flex justify-between pt-3 border-t border-gold/20">
+                        <div className="text-center">
+                          <p className="text-sm text-gray-800/60">MON-THURS</p>
+                          <p className="font-bold text-gold text-lg">{row.weekday}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm text-gray-800/60">FRI-SUN</p>
+                          <p className="font-bold text-gold text-lg">{row.weekend}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             <div className="p-6 bg-gold/5 border-t border-gold/20">
