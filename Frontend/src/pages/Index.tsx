@@ -4,7 +4,7 @@ import Hero from '@/components/Hero';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Waves, TreePine, Crown, Star, MapPin, Phone, Mail, Calendar, Users, Award, Gamepad2, ChevronLeft, ChevronRight, X, Maximize2, Heart } from 'lucide-react';
 import { rooms, Room } from '../roomsData';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 
 // Enhanced Gallery Component with Lightbox
@@ -283,6 +283,22 @@ const Index = () => {
   const navigate = useNavigate();
   const [expandedRoom, setExpandedRoom] = useState<string | null>(null);
   const [expandedRoomIndex, setExpandedRoomIndex] = useState<number | null>(null);
+
+  // Fetch active promo codes from API
+  const [apiPromos, setApiPromos] = useState<any[]>([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/promos', { credentials: 'include' });
+        const data = await res.json().catch(() => null);
+        if (data?.ok && Array.isArray(data?.data?.promos)) {
+          setApiPromos(data.data.promos.filter((p: any) => p.isActive && p.promoScope !== 'GLOBAL_FLAT'));
+        }
+      } catch {
+        // ignore — will fall back to static cards
+      }
+    })();
+  }, []);
 
   const handleRoomClick = (roomTitle: string) => {
     // Navigate to rooms page and scroll to specific room
@@ -563,109 +579,148 @@ const Index = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-            {/* Offer 1: Stay 3 Nights, Pay for 2 */}
-            <div className="group cursor-pointer">
-              <div className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gold/20">
-                <div className="relative overflow-hidden">
-                  <img
-                    src="/images/offer.jpeg"
-                    alt="Stay 3 Nights, Pay for 2"
-                    className="w-full h-80 object-cover group-hover:scale-110 transition-transform duration-700"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 via-transparent to-transparent" />
-                  <div className="absolute top-4 left-4">
-                    <span className="bg-gold text-charcoal px-4 py-2 rounded-full text-sm font-bold animate-bounce">
-                      SAVE 33%
-                    </span>
+            {apiPromos.length > 0 ? (
+              apiPromos.map((promo, index) => (
+                <div key={promo.id || index} className="group cursor-pointer">
+                  <div className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gold/20">
+                    <div className="relative overflow-hidden">
+                      <img
+                        src={index % 2 === 0 ? '/images/offer.jpeg' : '/images/offer1.jpeg'}
+                        alt={`${promo.code} offer`}
+                        className="w-full h-80 object-cover group-hover:scale-110 transition-transform duration-700"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 via-transparent to-transparent" />
+                      <div className="absolute top-4 left-4">
+                        <span className="bg-gold text-charcoal px-4 py-2 rounded-full text-sm font-bold animate-pulse">
+                          {promo.type === 'PERCENT' ? `SAVE ${promo.value}%` : `SAVE ₹${promo.value}`}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-8">
+                      <h3 className="font-playfair text-2xl font-bold text-charcoal mb-2">
+                        {promo.type === 'PERCENT' ? `${promo.value}% OFF` : `₹${promo.value} OFF`}
+                      </h3>
+                      {promo.applicableLabel && (
+                        <p className="text-lg text-charcoal/60 mb-2 italic">
+                          on {promo.applicableLabel}
+                        </p>
+                      )}
+                      {(promo.minNights != null || promo.maxNights != null) && (
+                        <p className="text-sm text-charcoal/50 mb-4 font-medium">
+                          {promo.minNights != null && promo.maxNights != null
+                            ? promo.minNights === promo.maxNights
+                              ? `For ${promo.minNights} night${promo.minNights === 1 ? '' : 's'} only`
+                              : `For ${promo.minNights}–${promo.maxNights} nights`
+                            : promo.minNights != null
+                              ? `Min ${promo.minNights} night${promo.minNights === 1 ? '' : 's'}`
+                              : `Up to ${promo.maxNights} night${promo.maxNights === 1 ? '' : 's'}`}
+                        </p>
+                      )}
+                      {!promo.applicableLabel && (promo.minNights == null && promo.maxNights == null) && (
+                        <div className="mb-4" />
+                      )}
+                      <div className="mb-6 bg-ivory/50 p-4 rounded-xl flex items-center gap-3">
+                        <span className="text-charcoal/70">Use Code:</span>
+                        <span className="font-mono font-bold text-gold text-lg tracking-wider">{promo.code}</span>
+                      </div>
+                      <a
+                        href={`https://wa.me/919371179888?text=Hello,%20I'm%20interested%20in%20the%20'${encodeURIComponent(promo.code)}'%20promo%20offer.%20Please%20provide%20more%20details.`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-full"
+                      >
+                        <button
+                          className="w-full bg-gradient-to-r from-gold to-bronze text-charcoal font-semibold py-3 rounded-full hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                        >
+                          Book This Offer
+                        </button>
+                      </a>
+                    </div>
                   </div>
                 </div>
-                <div className="p-8">
-                  <h3 className="font-playfair text-2xl font-bold text-charcoal mb-4">
-                    Stay 3 Nights, Pay for 2
-                  </h3>
-                  <p className="text-charcoal/70 mb-6 leading-relaxed">
-                    Ideal for couples or families planning a short vacation. Enjoy an extra night on us!
-                  </p>
-                  <div className="mb-6 bg-ivory/50 p-4 rounded-xl">
-                    <h4 className="font-semibold text-charcoal mb-2">Terms & Conditions:</h4>
-                    <ul className="space-y-2">
-                      <li className="flex items-start">
-                        <div className="w-2 h-2 bg-gold rounded-full mt-2 mr-2"></div>
-                        <span className="text-charcoal/70">Valid only on weekdays (Sunday to Thursday)</span>
-                      </li>
-                      <li className="flex items-start">
-                        <div className="w-2 h-2 bg-gold rounded-full mt-2 mr-2"></div>
-                        <span className="text-charcoal/70">Not applicable on weekends or public holidays</span>
-                      </li>
-                    </ul>
+              ))
+            ) : (
+              /* Fallback: Static promo cards when no API promos */
+              <>
+                {/* Offer 1: Stay 3 Nights, Pay for 2 */}
+                <div className="group cursor-pointer">
+                  <div className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gold/20">
+                    <div className="relative overflow-hidden">
+                      <img
+                        src="/images/offer.jpeg"
+                        alt="Stay 3 Nights, Pay for 2"
+                        className="w-full h-80 object-cover group-hover:scale-110 transition-transform duration-700"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 via-transparent to-transparent" />
+                      <div className="absolute top-4 left-4">
+                        <span className="bg-gold text-charcoal px-4 py-2 rounded-full text-sm font-bold animate-bounce">
+                          SAVE 33%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-8">
+                      <h3 className="font-playfair text-2xl font-bold text-charcoal mb-4">
+                        Stay 3 Nights, Pay for 2
+                      </h3>
+                      <p className="text-charcoal/70 mb-6 leading-relaxed">
+                        Ideal for couples or families planning a short vacation. Enjoy an extra night on us!
+                      </p>
+                      <a
+                        href="https://wa.me/919371179888?text=Hello,%20I'm%20interested%20in%20the%20'Stay%203%20Nights,%20Pay%20for%202'%20special%20offer.%20Please%20provide%20more%20details."
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-full"
+                      >
+                        <button
+                          className="w-full bg-gradient-to-r from-gold to-bronze text-charcoal font-semibold py-3 rounded-full hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                        >
+                          Book This Offer
+                        </button>
+                      </a>
+                    </div>
                   </div>
-                  <a 
-                    href="https://wa.me/919371179888?text=Hello,%20I'm%20interested%20in%20the%20'Stay%203%20Nights,%20Pay%20for%202'%20special%20offer.%20Please%20provide%20more%20details."
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full"
-                  >
-                    <button 
-                      className="w-full bg-gradient-to-r from-gold to-bronze text-charcoal font-semibold py-3 rounded-full hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                    >
-                      Book This Offer
-                    </button>
-                  </a>
                 </div>
-              </div>
-            </div>
 
-            {/* Offer 2: Extra 10% off for group bookings */}
-            <div className="group cursor-pointer">
-              <div className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gold/20">
-                <div className="relative overflow-hidden">
-                  <img
-                    src="/images/offer1.jpeg"
-                    alt="Group Booking Discount"
-                    className="w-full h-80 object-cover group-hover:scale-110 transition-transform duration-700"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 via-transparent to-transparent" />
-                  <div className="absolute top-4 left-4">
-                    <span className="bg-gold text-charcoal px-4 py-2 rounded-full text-sm font-bold animate-pulse">
-                      SAVE 10%
-                    </span>
+                {/* Offer 2: Extra 10% off for group bookings */}
+                <div className="group cursor-pointer">
+                  <div className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gold/20">
+                    <div className="relative overflow-hidden">
+                      <img
+                        src="/images/offer1.jpeg"
+                        alt="Group Booking Discount"
+                        className="w-full h-80 object-cover group-hover:scale-110 transition-transform duration-700"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 via-transparent to-transparent" />
+                      <div className="absolute top-4 left-4">
+                        <span className="bg-gold text-charcoal px-4 py-2 rounded-full text-sm font-bold animate-pulse">
+                          SAVE 10%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-8">
+                      <h3 className="font-playfair text-2xl font-bold text-charcoal mb-4">
+                        Extra 10% Off for Group Bookings
+                      </h3>
+                      <p className="text-charcoal/70 mb-6 leading-relaxed">
+                        Ideal for families, friends, or small office teams. Book 6+ guests and enjoy special group rates!
+                      </p>
+                      <a
+                        href="https://wa.me/919371179888?text=Hello,%20I'm%20interested%20in%20the%20'Extra%2010%%20Off%20for%20Group%20Bookings'%20special%20offer.%20Please%20provide%20more%20details."
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-full"
+                      >
+                        <button
+                          className="w-full bg-gradient-to-r from-gold to-bronze text-charcoal font-semibold py-3 rounded-full hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                        >
+                          Book This Offer
+                        </button>
+                      </a>
+                    </div>
                   </div>
                 </div>
-                <div className="p-8">
-                  <h3 className="font-playfair text-2xl font-bold text-charcoal mb-4">
-                    Extra 10% Off for Group Bookings
-                  </h3>
-                  <p className="text-charcoal/70 mb-6 leading-relaxed">
-                    Ideal for families, friends, or small office teams. Book 6+ guests and enjoy special group rates!
-                  </p>
-                  <div className="mb-6 bg-ivory/50 p-4 rounded-xl">
-                    <h4 className="font-semibold text-charcoal mb-2">Terms & Conditions:</h4>
-                    <ul className="space-y-2">
-                      <li className="flex items-start">
-                        <div className="w-2 h-2 bg-gold rounded-full mt-2 mr-2"></div>
-                        <span className="text-charcoal/70">Subject to room availability</span>
-                      </li>
-                      <li className="flex items-start">
-                        <div className="w-2 h-2 bg-gold rounded-full mt-2 mr-2"></div>
-                        <span className="text-charcoal/70">Advance booking required</span>
-                      </li>
-                    </ul>
-                  </div>
-                  <a 
-                    href="https://wa.me/919371179888?text=Hello,%20I'm%20interested%20in%20the%20'Extra%2010%%20Off%20for%20Group%20Bookings'%20special%20offer.%20Please%20provide%20more%20details."
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full"
-                  >
-                    <button 
-                      className="w-full bg-gradient-to-r from-gold to-bronze text-charcoal font-semibold py-3 rounded-full hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                    >
-                      Book This Offer
-                    </button>
-                  </a>
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </div>
       </section>

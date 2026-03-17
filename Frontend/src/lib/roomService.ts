@@ -12,26 +12,38 @@ export interface RoomListResponse {
   data: {
     rooms: Array<{
       roomtypeunkid: string;
+      roomrateunkid?: string;
+      ratetypeunkid?: string;
       Room_Name: string;
       Room_Description: string;
       max_adult_occupancy: number;
       max_child_occupancy: number;
       available_rooms: number;
       avg_price_per_night: number;
+      pricePerNight?: number;
       total_price: number;
       currency_sign: string;
       RoomAmenities: string;
       room_main_image?: string;
+      Roomtype_Short_code?: string;
+      extra_adult_rates_info?: any;
+      extra_child_rates_info?: any;
       // Discount fields
       original_price?: number;
       discount_amount?: number;
       final_price?: number;
       promo_applied?: boolean;
+      // Rack rate fields for EP/CP/MAP pricing
+      rack_rate?: number;
+      rack_rate_adult?: number;
+      rack_rate_child?: number;
     }>;
   };
   meta?: {
     cached?: boolean;
   };
+  message?: string;
+  error?: string;
 }
 
 export interface RoomPricesResponse {
@@ -147,6 +159,22 @@ export const roomService = {
         },
         withCredentials: true,
       });
+
+      console.log('[FRONTEND API DEBUG] Raw response from /api/rooms:', response.data);
+      console.log('[FRONTEND API DEBUG] Rooms data:', response.data?.data?.rooms);
+      
+      // Log price details for each room
+      if (response.data?.data?.rooms) {
+        response.data.data.rooms.forEach((room: any, index: number) => {
+          console.log(`[FRONTEND API DEBUG] Room ${index + 1}:`, {
+            name: room.Room_Name,
+            avg_price_per_night: room.avg_price_per_night,
+            pricePerNight: room.pricePerNight,
+            total_price: room.total_price,
+            final_price: room.final_price
+          });
+        });
+      }
 
       return response.data;
     } catch (error: any) {

@@ -188,4 +188,154 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+
+  /* Promo Cards System - Always Visible */
+  .promo-section {
+    margin: 30px 0;
+    padding: 10px 0;
+    position: relative;
+    z-index: 5;
+  }
+  
+  .promo-title {
+    font-size: 22px;
+    margin-bottom: 10px;
+    color: #2c2c2c;
+  }
+  
+  .promo-container {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    padding: 15px 5px 15px 5px; /* Added padding to prevent hover clipping */
+    min-height: 150px;
+    align-items: stretch;
+    scrollbar-width: none;
+  }
+  
+  .promo-container::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Promo Card Ticket UI */
+  .promo-card {
+    min-width: 260px;
+    height: 110px;
+    border-radius: 12px;
+    cursor: pointer;
+    background: linear-gradient(135deg, #3a3a3a 0%, #222222 100%); /* Grey background */
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+    display: flex;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    color: white;
+    padding: 0 16px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .promo-card.border-2.border-gold {
+    background: linear-gradient(135deg, #c89b6d 0%, #a97f54 100%);
+    border: none;
+    box-shadow: 0 8px 24px rgba(200, 155, 109, 0.3);
+  }
+
+  /* Sweep Animation */
+  .promo-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; right: 0; bottom: 0;
+    width: 50%;
+    background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0) 100%);
+    transform: skewX(-25deg);
+    animation: promoShine 5s infinite;
+    pointer-events: none;
+  }
+
+  @keyframes promoShine {
+    0% { left: -100%; }
+    20% { left: 200%; }
+    100% { left: 200%; }
+  }
+
+  .promo-card:hover {
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+  }
+  
+  .promo-card.border-2.border-gold:hover {
+    box-shadow: 0 12px 30px rgba(200, 155, 109, 0.4);
+  }
+
+  .promo-card-tag {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 2px;
+  }
+
+  .promo-card.border-2.border-gold .promo-card-tag {
+    color: rgba(255,255,255,0.9);
+  }
+
+  .promo-card-value {
+    font-size: 26px;
+    font-weight: 800;
+    font-family: 'Playfair Display', serif;
+    margin: 0;
+    line-height: 1.1;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+  
+  .promo-card-value span {
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .promo-card-label {
+    font-size: 13px;
+    color: rgba(255,255,255,0.8);
+    margin-top: 2px;
+    font-weight: 400;
+    max-width: 90%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .promo-card-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(255,255,255,0.1);
+    padding: 4px 10px;
+    border-radius: 100px;
+    margin-top: 10px;
+    transition: all 0.3s ease;
+  }
+
+  .promo-card.border-2.border-gold .promo-card-badge {
+    background: white;
+    color: #c89b6d;
+  }
+
+  .promo-card-graphic {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 35%;
+    opacity: 0.15;
+    pointer-events: none;
+  }
+  
+  .promo-card.border-2.border-gold .promo-card-graphic {
+    opacity: 0.25;
+  }
 }

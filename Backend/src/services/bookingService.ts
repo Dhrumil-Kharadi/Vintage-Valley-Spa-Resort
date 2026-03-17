@@ -7,6 +7,8 @@ import { promoService } from "./promoService";
 import { sendMailSafe } from "../utils/mailer";
 import { generateBookingInvoicePdfBuffer } from "../utils/invoicePdf";
 import { ezeeLivePriceService } from "./ezeeLivePrice.service";
+import { ezeeService } from "./ezee.service";
+import { ezeeBookingService } from "./ezeeBooking.service";
 
 export const bookingService = {
   // Helper to get active global flat promo
@@ -131,6 +133,7 @@ export const bookingService = {
     additionalInformation?: string | null;
     promoCode?: string | null;
     mealPlanByDate?: Array<{ date: string; plan: "EP" | "CP" | "MAP" }> | null;
+    totalAmount?: number; // Add totalAmount from frontend
   }): Promise<{
     booking: any;
     room: any;
@@ -405,7 +408,20 @@ export const bookingService = {
     const gstAmountNum = round2(discountedBaseAmountNum * 0.05);
     const amountAfterGstNum = round2(discountedBaseAmountNum + gstAmountNum);
     const serviceFeeAmountNum = round2(amountAfterGstNum * 0.02);
-    const amountNum = round2(discountedBaseAmountNum + gstAmountNum + serviceFeeAmountNum);
+    
+    // Use frontend totalAmount if provided, otherwise calculate backend amount
+    let amountNum: number;
+    if (params.totalAmount && Number.isFinite(params.totalAmount) && params.totalAmount > 0) {
+      amountNum = round2(params.totalAmount);
+      console.debug('[DEBUG] Using frontend totalAmount', { 
+        frontendTotal: params.totalAmount, 
+        backendCalculated: round2(discountedBaseAmountNum + gstAmountNum + serviceFeeAmountNum) 
+      });
+    } else {
+      amountNum = round2(discountedBaseAmountNum + gstAmountNum + serviceFeeAmountNum);
+      console.debug('[DEBUG] Using backend calculated amount', { amountNum });
+    }
+    
     console.debug('[DEBUG] tax/fee calc', { originalBaseAmountNum, discountAmountNum, discountedBaseAmountNum, gstAmountNum, amountAfterGstNum, serviceFeeAmountNum, amountNum });
 
     const amountPaise = Math.round(amountNum * 100);
@@ -567,6 +583,140 @@ export const bookingService = {
       paymentDetails = null;
     }
 
+    const fullBookingForPms: any = await (prisma.booking as any).findUnique({
+      where: { id: booking.id },
+      include: {
+        room: { select: { id: true, title: true } },
+        user: { select: { id: true, name: true, email: true, phone: true } },
+      },
+    });
+
+    if (!fullBookingForPms?.room?.title) throw new HttpError(500, "Booking room data missing");
+    if (!fullBookingForPms?.user?.email) throw new HttpError(400, "User email required");
+
+    const splitName = (value: string) => {
+      const cleaned = String(value ?? "").trim().replace(/\s+/g, " ");
+      if (!cleaned) return { first: "Guest", last: "" };
+      const parts = cleaned.split(" ");
+      const first = parts.shift() ?? "Guest";
+      const last = parts.join(" ");
+      return { first, last };
+    };
+
+    const normalizeRoomType = (value: string) => {
+      const raw = String(value ?? "")
+        .trim()
+        .replace(/\s+/g, " ");
+      const lower = raw.toLowerCase();
+      if (lower === "deluxe studio suite") return "Deluxe Studio Suite";
+      if (lower === "deluxe edge view" || lower === "deluxe edge view ") return "Deluxe Edge View";
+      if (lower === "lotus family suite") return "Lotus Family Suite";
+      if (lower === "presidential suite" || lower === "presidentail suite") return "Presidential Suite";
+      return raw;
+    };
+
+    const stripPlanSuffix = (value: string) => {
+      const raw = String(value ?? "").trim();
+      if (!raw) return "";
+      return raw.replace(/\s*[-–—]\s*(EP|CP|MAP|AP)\s*$/i, "").trim();
+    };
+
+    const baseRoomTypeFromEzeeRecord = (r: any) => {
+      const raw = String(r?.Roomtype_Name ?? r?.Roomtype ?? r?.Room_Name ?? "").trim();
+      if (!raw) return "";
+      const baseBeforeDash = raw.split(" - ")[0] ?? raw;
+      return normalizeRoomType(stripPlanSuffix(baseBeforeDash));
+    };
+
+    const bookingRoomType = normalizeRoomType(stripPlanSuffix(String(fullBookingForPms.room.title ?? "").trim()));
+
+    const roomsRequested = Number((booking as any).rooms ?? 1);
+    const adults = Number((booking as any).adults ?? 1);
+    const children = Number((booking as any).children ?? 0);
+
+    const checkInIso = new Date((booking as any).checkIn).toISOString().slice(0, 10);
+    const checkOutIso = new Date((booking as any).checkOut).toISOString().slice(0, 10);
+
+    const rawRooms = await ezeeService.fetchRoomListRaw({
+      checkIn: checkInIso,
+      checkOut: checkOutIso,
+      adults,
+      children,
+      rooms: roomsRequested,
+    });
+
+    const candidates = (rawRooms ?? []).filter((r: any) => baseRoomTypeFromEzeeRecord(r) === bookingRoomType);
+    if (candidates.length === 0) {
+      throw new HttpError(400, "Selected room not available for these dates");
+    }
+
+    const nightPlans = Array.isArray((booking as any).mealPlanByDate) ? (booking as any).mealPlanByDate : [];
+    let chosenPlan: "EP" | "CP" | "MAP" = "CP";
+    if (nightPlans.length > 0) {
+      const p = String(nightPlans[0]?.plan ?? "").toUpperCase();
+      if (p === "EP" || p === "CP" || p === "MAP") chosenPlan = p as any;
+    }
+    if (chosenPlan === "EP") chosenPlan = "CP";
+
+    // Prefer variants with distinct IDs (CP/MAP), but allow EP if that's all available
+    const hasDistinctIds = (r: any) => {
+      const rt = String(r?.roomtypeunkid ?? "");
+      const rr = String(r?.roomrateunkid ?? "");
+      const ra = String(r?.ratetypeunkid ?? "");
+      return !(rt === rr && rr === ra);
+    };
+    const validRooms = candidates.filter(hasDistinctIds);
+    const searchPool = validRooms.length > 0 ? validRooms : candidates;
+
+    if (validRooms.length === 0) {
+      console.warn("⚠️ [BOOKING] All room variants have identical IDs (EP-only availability). Proceeding with EP variant.");
+    }
+
+    const byPlan = (plan: string) => searchPool.find((r: any) => String(r?.Room_Name ?? "").toUpperCase().includes(`- ${plan}`));
+    const preferred = byPlan(chosenPlan) ?? byPlan("CP") ?? byPlan("MAP") ?? searchPool[0];
+
+    console.log("✅ [BOOKING] FINAL ROOM SENT TO EZEE:", {
+      Room_Name: preferred?.Room_Name,
+      Rateplan_Id: preferred?.roomrateunkid,
+      Ratetype_Id: preferred?.ratetypeunkid,
+      Roomtype_Id: preferred?.roomtypeunkid,
+      allIdentical: !hasDistinctIds(preferred),
+      totalCandidates: candidates.length,
+      validCandidates: validRooms.length,
+    });
+
+    const availableRooms = Number(preferred?.min_ava_rooms ?? preferred?.available_rooms ?? 0);
+    if (!Number.isFinite(availableRooms) || availableRooms < roomsRequested) {
+      throw new HttpError(400, "Room not available");
+    }
+
+    const { first, last } = splitName(String(fullBookingForPms.user.name ?? ""));
+
+    const pms = await ezeeBookingService.createAndConfirmBooking({
+      checkIn: checkInIso,
+      checkOut: checkOutIso,
+      adults,
+      children,
+      rooms: roomsRequested,
+      firstName: first,
+      lastName: last,
+      email: String(fullBookingForPms.user.email),
+      phone: fullBookingForPms.user.phone ?? null,
+      specialRequest: String((booking as any).additionalInformation ?? "").trim() || null,
+      additionalInformation: (booking as any).additionalInformation ?? null,
+      bookingPaymentMode: 3,
+      ezeeRoom: {
+        roomtypeunkid: String(preferred?.roomtypeunkid ?? ""),
+        roomrateunkid: String(preferred?.roomrateunkid ?? ""),
+        ratetypeunkid: String(preferred?.ratetypeunkid ?? ""),
+        available_rooms: availableRooms,
+        room_rates_info: preferred?.room_rates_info,
+        avg_price_per_night: Number(preferred?.room_rates_info?.avg_per_night_after_discount ?? preferred?.avg_price_per_night ?? 0),
+        extra_adult_rates_info: preferred?.extra_adult_rates_info,
+        extra_child_rates_info: preferred?.extra_child_rates_info,
+      },
+    });
+
     const updated = await prisma.$transaction(async (tx) => {
       const p = await (tx.payment as any).update({
         where: { id: payment.id },
@@ -584,9 +734,15 @@ export const bookingService = {
         },
       });
 
-      const b = await tx.booking.update({
+      const b = await (tx.booking as any).update({
         where: { id: booking.id },
-        data: { status: "CONFIRMED" },
+        data: {
+          status: "CONFIRMED",
+          ezeeReservationNo: pms.reservationNo,
+          ezeeSubReservationNos: pms.subReservationNos,
+          ezeeInventoryMode: pms.inventoryMode,
+          ezeeConfirmedAt: new Date(),
+        },
       });
 
       return { booking: b, payment: p };

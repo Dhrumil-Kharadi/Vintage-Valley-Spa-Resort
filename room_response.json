@@ -1,0 +1,2614 @@
+﻿[
+    {
+        "Room_Name":  "Deluxe Studio Suite - EP",
+        "Room_Description":  "Deluxe Studio Suite - EP",
+        "Roomtype_Name":  "Deluxe Studio Suite",
+        "Roomtype_Short_code":  "Deluxe Studio Suite",
+        "Room_Max_adult":  "4",
+        "Room_Max_child":  "2",
+        "Package_Description":  "",
+        "Specials_Desc":  "",
+        "specialconditions":  "",
+        "specialhighlightinclusion":  "",
+        "hotelcode":  "46924",
+        "roomtypeunkid":  "4692400000000000001",
+        "ratetypeunkid":  "4692400000000000001",
+        "roomrateunkid":  "4692400000000000001",
+        "base_adult_occupancy":  2,
+        "base_child_occupancy":  0,
+        "max_adult_occupancy":  4,
+        "max_child_occupancy":  2,
+        "max_occupancy":  "",
+        "inclusion":  ".",
+        "available_rooms":  {
+                                "2026-04-20":  "20"
+                            },
+        "min_ava_rooms":  20,
+        "room_rates_info":  {
+                                "before_discount_inclusive_tax_adjustment":  [
+
+                                                                             ],
+                                "exclusive_tax":  {
+                                                      "2026-04-20":  "2500.0000"
+                                                  },
+                                "exclusivetax_baserate":  {
+                                                              "2026-04-20":  "2500.0000"
+                                                          },
+                                "tax":  {
+                                            "2026-04-20":  125
+                                        },
+                                "adjustment":  {
+                                                   "2026-04-20":  0
+                                               },
+                                "inclusive_tax_adjustment":  {
+                                                                 "2026-04-20":  2625
+                                                             },
+                                "rack_rate":  "45000.0000",
+                                "totalprice_room_only":  2500,
+                                "totalprice_inclusive_all":  2625,
+                                "avg_per_night_before_discount":  "",
+                                "avg_per_night_after_discount":  2625,
+                                "avg_per_night_without_tax":  2500,
+                                "day_wise_baserackrate":  [
+                                                              "2500.0000"
+                                                          ],
+                                "day_wise_beforediscount":  [
+                                                                "2500.0000"
+                                                            ]
+                            },
+        "extra_adult_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1500.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  75
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1575
+                                                                    },
+                                       "rack_rate":  "1500.0000"
+                                   },
+        "extra_child_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1200.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  60
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1260
+                                                                    },
+                                       "rack_rate":  "1000.0000"
+                                   },
+        "min_nights":  {
+                           "2026-04-20":  "1"
+                       },
+        "stopsells":  {
+                          "2026-04-20":  "0"
+                      },
+        "close_on_arrival":  {
+                                 "2026-04-20":  "0"
+                             },
+        "close_on_dept":  {
+                              "2026-04-20":  "0"
+                          },
+        "Hotel_amenities":  "[]",
+        "Hotel_amenitiesNew":  [
+
+                               ],
+        "Avg_min_nights":  "1",
+        "max_nights":  {
+                           "2026-04-20":  ""
+                       },
+        "Avg_max_nights":  "",
+        "check_in_time":  "13:00",
+        "check_out_time":  "11:00",
+        "TaxName":  {
+                        "2026-04-20":  {
+                                           "Taxname_0":  "SGST",
+                                           "taxdate_0":  "2025-09-22 12:57:46",
+                                           "exemptafter_0":  "0",
+                                           "postingtype_0":  "SLAB",
+                                           "postingrule_0":  "",
+                                           "amount_0":  "0.0000",
+                                           "slab_0":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_0":  "AFTERDISCOUNT",
+                                           "entrydatetime_0":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_0":  "",
+                                           "applyonrackrate_0":  "0",
+                                           "applytaxdate_0":  "2025-09-22",
+                                           "exchange_rate1_0":  "1.0000",
+                                           "exchange_rate2_0":  "1.0000",
+                                           "Taxname_1":  "CGST",
+                                           "taxdate_1":  "2025-09-22 12:57:46",
+                                           "exemptafter_1":  "0",
+                                           "postingtype_1":  "SLAB",
+                                           "postingrule_1":  "",
+                                           "amount_1":  "0.0000",
+                                           "slab_1":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_1":  "AFTERDISCOUNT",
+                                           "entrydatetime_1":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_1":  "",
+                                           "applyonrackrate_1":  "0",
+                                           "applytaxdate_1":  "2025-09-22",
+                                           "exchange_rate1_1":  "1.0000",
+                                           "exchange_rate2_1":  "1.0000"
+                                       }
+                    },
+        "ShowPriceFormat":  "Average Per Night Rate",
+        "DefaultDisplyCurrencyCode":  "",
+        "deals":  "",
+        "IsPromotion":  false,
+        "Promotion_Code":  null,
+        "Promotion_Description":  null,
+        "Promotion_Name":  null,
+        "Promotion_Id":  null,
+        "Package_Name":  "",
+        "Package_Id":  "",
+        "currency_code":  "INR",
+        "currency_sign":  "Rs",
+        "localfolder":  "vintagevallyresort",
+        "CalDateFormat":  "dd-mm-yy",
+        "ShowTaxInclusiveExclusiveSettings":  "1",
+        "hidefrommetasearch":  "",
+        "prepaid_noncancel_nonrefundable":  "0",
+        "cancellation_deadline":  "",
+        "digits_after_decimal":  "2",
+        "visiblity_nights":  "false",
+        "BookingEngineURL":  "https://live.ipms247.com/booking/book-rooms-vintagevallyresort",
+        "NewRoomAmenities":  [
+
+                             ],
+        "RoomAmenities":  "",
+        "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070609_0115387001719558369_582_IMG_5848_-_Copy.JPG",
+        "RoomImages":  [
+                           {
+                               "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070609_0115387001719558369_582_IMG_5848_-_Copy.JPG",
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070609_0115387001719558369_582_IMG_5848_-_Copy.JPG"
+                           }
+                       ]
+    },
+    {
+        "Room_Name":  "Deluxe Studio Suite - CP",
+        "Room_Description":  "Deluxe Studio Suite - CP",
+        "Roomtype_Name":  "Deluxe Studio Suite",
+        "Roomtype_Short_code":  "Deluxe Studio Suite",
+        "Room_Max_adult":  "4",
+        "Room_Max_child":  "2",
+        "Package_Description":  "",
+        "Specials_Desc":  "",
+        "specialconditions":  "",
+        "specialhighlightinclusion":  "",
+        "hotelcode":  "46924",
+        "roomtypeunkid":  "4692400000000000001",
+        "ratetypeunkid":  "4692400000000000002",
+        "roomrateunkid":  "4692400000000000002",
+        "base_adult_occupancy":  2,
+        "base_child_occupancy":  0,
+        "max_adult_occupancy":  4,
+        "max_child_occupancy":  2,
+        "max_occupancy":  "",
+        "inclusion":  ".",
+        "available_rooms":  {
+                                "2026-04-20":  "20"
+                            },
+        "min_ava_rooms":  20,
+        "room_rates_info":  {
+                                "before_discount_inclusive_tax_adjustment":  [
+
+                                                                             ],
+                                "exclusive_tax":  {
+                                                      "2026-04-20":  "2800.0000"
+                                                  },
+                                "exclusivetax_baserate":  {
+                                                              "2026-04-20":  "2800.0000"
+                                                          },
+                                "tax":  {
+                                            "2026-04-20":  140
+                                        },
+                                "adjustment":  {
+                                                   "2026-04-20":  0
+                                               },
+                                "inclusive_tax_adjustment":  {
+                                                                 "2026-04-20":  2940
+                                                             },
+                                "rack_rate":  "52000.0000",
+                                "totalprice_room_only":  2800,
+                                "totalprice_inclusive_all":  2940,
+                                "avg_per_night_before_discount":  "",
+                                "avg_per_night_after_discount":  2940,
+                                "avg_per_night_without_tax":  2800,
+                                "day_wise_baserackrate":  [
+                                                              "2800.0000"
+                                                          ],
+                                "day_wise_beforediscount":  [
+                                                                "2800.0000"
+                                                            ]
+                            },
+        "extra_adult_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1500.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  75
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1575
+                                                                    },
+                                       "rack_rate":  "1500.0000"
+                                   },
+        "extra_child_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1200.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  60
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1260
+                                                                    },
+                                       "rack_rate":  "1000.0000"
+                                   },
+        "min_nights":  {
+                           "2026-04-20":  "1"
+                       },
+        "stopsells":  {
+                          "2026-04-20":  "0"
+                      },
+        "close_on_arrival":  {
+                                 "2026-04-20":  "0"
+                             },
+        "close_on_dept":  {
+                              "2026-04-20":  "0"
+                          },
+        "Hotel_amenities":  "[]",
+        "Hotel_amenitiesNew":  [
+
+                               ],
+        "Avg_min_nights":  "1",
+        "max_nights":  {
+                           "2026-04-20":  ""
+                       },
+        "Avg_max_nights":  "",
+        "check_in_time":  "13:00",
+        "check_out_time":  "11:00",
+        "TaxName":  {
+                        "2026-04-20":  {
+                                           "Taxname_0":  "SGST",
+                                           "taxdate_0":  "2025-09-22 12:57:46",
+                                           "exemptafter_0":  "0",
+                                           "postingtype_0":  "SLAB",
+                                           "postingrule_0":  "",
+                                           "amount_0":  "0.0000",
+                                           "slab_0":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_0":  "AFTERDISCOUNT",
+                                           "entrydatetime_0":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_0":  "",
+                                           "applyonrackrate_0":  "0",
+                                           "applytaxdate_0":  "2025-09-22",
+                                           "exchange_rate1_0":  "1.0000",
+                                           "exchange_rate2_0":  "1.0000",
+                                           "Taxname_1":  "CGST",
+                                           "taxdate_1":  "2025-09-22 12:57:46",
+                                           "exemptafter_1":  "0",
+                                           "postingtype_1":  "SLAB",
+                                           "postingrule_1":  "",
+                                           "amount_1":  "0.0000",
+                                           "slab_1":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_1":  "AFTERDISCOUNT",
+                                           "entrydatetime_1":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_1":  "",
+                                           "applyonrackrate_1":  "0",
+                                           "applytaxdate_1":  "2025-09-22",
+                                           "exchange_rate1_1":  "1.0000",
+                                           "exchange_rate2_1":  "1.0000"
+                                       }
+                    },
+        "ShowPriceFormat":  "Average Per Night Rate",
+        "DefaultDisplyCurrencyCode":  "",
+        "deals":  "",
+        "IsPromotion":  false,
+        "Promotion_Code":  null,
+        "Promotion_Description":  null,
+        "Promotion_Name":  null,
+        "Promotion_Id":  null,
+        "Package_Name":  "",
+        "Package_Id":  "",
+        "currency_code":  "INR",
+        "currency_sign":  "Rs",
+        "localfolder":  "vintagevallyresort",
+        "CalDateFormat":  "dd-mm-yy",
+        "ShowTaxInclusiveExclusiveSettings":  "1",
+        "hidefrommetasearch":  "",
+        "prepaid_noncancel_nonrefundable":  "0",
+        "cancellation_deadline":  "7",
+        "digits_after_decimal":  "2",
+        "visiblity_nights":  "false",
+        "BookingEngineURL":  "https://live.ipms247.com/booking/book-rooms-vintagevallyresort",
+        "NewRoomAmenities":  [
+
+                             ],
+        "RoomAmenities":  "",
+        "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070609_0115387001719558369_582_IMG_5848_-_Copy.JPG",
+        "RoomImages":  [
+                           {
+                               "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070609_0115387001719558369_582_IMG_5848_-_Copy.JPG",
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070609_0115387001719558369_582_IMG_5848_-_Copy.JPG"
+                           }
+                       ]
+    },
+    {
+        "Room_Name":  "Deluxe Studio Suite - MAP",
+        "Room_Description":  "Deluxe Studio Suite - MAP",
+        "Roomtype_Name":  "Deluxe Studio Suite",
+        "Roomtype_Short_code":  "Deluxe Studio Suite",
+        "Room_Max_adult":  "4",
+        "Room_Max_child":  "2",
+        "Package_Description":  "",
+        "Specials_Desc":  "",
+        "specialconditions":  "",
+        "specialhighlightinclusion":  "",
+        "hotelcode":  "46924",
+        "roomtypeunkid":  "4692400000000000001",
+        "ratetypeunkid":  "4692400000000000003",
+        "roomrateunkid":  "4692400000000000003",
+        "base_adult_occupancy":  2,
+        "base_child_occupancy":  0,
+        "max_adult_occupancy":  4,
+        "max_child_occupancy":  2,
+        "max_occupancy":  "",
+        "inclusion":  ".",
+        "available_rooms":  {
+                                "2026-04-20":  "20"
+                            },
+        "min_ava_rooms":  20,
+        "room_rates_info":  {
+                                "before_discount_inclusive_tax_adjustment":  [
+
+                                                                             ],
+                                "exclusive_tax":  {
+                                                      "2026-04-20":  "3800.0000"
+                                                  },
+                                "exclusivetax_baserate":  {
+                                                              "2026-04-20":  "3800.0000"
+                                                          },
+                                "tax":  {
+                                            "2026-04-20":  190
+                                        },
+                                "adjustment":  {
+                                                   "2026-04-20":  0
+                                               },
+                                "inclusive_tax_adjustment":  {
+                                                                 "2026-04-20":  3990
+                                                             },
+                                "rack_rate":  "67000.0000",
+                                "totalprice_room_only":  3800,
+                                "totalprice_inclusive_all":  3990,
+                                "avg_per_night_before_discount":  "",
+                                "avg_per_night_after_discount":  3990,
+                                "avg_per_night_without_tax":  3800,
+                                "day_wise_baserackrate":  [
+                                                              "3800.0000"
+                                                          ],
+                                "day_wise_beforediscount":  [
+                                                                "3800.0000"
+                                                            ]
+                            },
+        "extra_adult_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1900.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  95
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1995
+                                                                    },
+                                       "rack_rate":  "1500.0000"
+                                   },
+        "extra_child_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1500.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  75
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1575
+                                                                    },
+                                       "rack_rate":  "1000.0000"
+                                   },
+        "min_nights":  {
+                           "2026-04-20":  "1"
+                       },
+        "stopsells":  {
+                          "2026-04-20":  "0"
+                      },
+        "close_on_arrival":  {
+                                 "2026-04-20":  "0"
+                             },
+        "close_on_dept":  {
+                              "2026-04-20":  "0"
+                          },
+        "Hotel_amenities":  "[]",
+        "Hotel_amenitiesNew":  [
+
+                               ],
+        "Avg_min_nights":  "1",
+        "max_nights":  {
+                           "2026-04-20":  ""
+                       },
+        "Avg_max_nights":  "",
+        "check_in_time":  "13:00",
+        "check_out_time":  "11:00",
+        "TaxName":  {
+                        "2026-04-20":  {
+                                           "Taxname_0":  "SGST",
+                                           "taxdate_0":  "2025-09-22 12:57:46",
+                                           "exemptafter_0":  "0",
+                                           "postingtype_0":  "SLAB",
+                                           "postingrule_0":  "",
+                                           "amount_0":  "0.0000",
+                                           "slab_0":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_0":  "AFTERDISCOUNT",
+                                           "entrydatetime_0":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_0":  "",
+                                           "applyonrackrate_0":  "0",
+                                           "applytaxdate_0":  "2025-09-22",
+                                           "exchange_rate1_0":  "1.0000",
+                                           "exchange_rate2_0":  "1.0000",
+                                           "Taxname_1":  "CGST",
+                                           "taxdate_1":  "2025-09-22 12:57:46",
+                                           "exemptafter_1":  "0",
+                                           "postingtype_1":  "SLAB",
+                                           "postingrule_1":  "",
+                                           "amount_1":  "0.0000",
+                                           "slab_1":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_1":  "AFTERDISCOUNT",
+                                           "entrydatetime_1":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_1":  "",
+                                           "applyonrackrate_1":  "0",
+                                           "applytaxdate_1":  "2025-09-22",
+                                           "exchange_rate1_1":  "1.0000",
+                                           "exchange_rate2_1":  "1.0000"
+                                       }
+                    },
+        "ShowPriceFormat":  "Average Per Night Rate",
+        "DefaultDisplyCurrencyCode":  "",
+        "deals":  "",
+        "IsPromotion":  false,
+        "Promotion_Code":  null,
+        "Promotion_Description":  null,
+        "Promotion_Name":  null,
+        "Promotion_Id":  null,
+        "Package_Name":  "",
+        "Package_Id":  "",
+        "currency_code":  "INR",
+        "currency_sign":  "Rs",
+        "localfolder":  "vintagevallyresort",
+        "CalDateFormat":  "dd-mm-yy",
+        "ShowTaxInclusiveExclusiveSettings":  "1",
+        "hidefrommetasearch":  "",
+        "prepaid_noncancel_nonrefundable":  "0",
+        "cancellation_deadline":  "7",
+        "digits_after_decimal":  "2",
+        "visiblity_nights":  "false",
+        "BookingEngineURL":  "https://live.ipms247.com/booking/book-rooms-vintagevallyresort",
+        "NewRoomAmenities":  [
+
+                             ],
+        "RoomAmenities":  "",
+        "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070609_0115387001719558369_582_IMG_5848_-_Copy.JPG",
+        "RoomImages":  [
+                           {
+                               "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070609_0115387001719558369_582_IMG_5848_-_Copy.JPG",
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070609_0115387001719558369_582_IMG_5848_-_Copy.JPG"
+                           }
+                       ]
+    },
+    {
+        "Room_Name":  "Deluxe Studio Suite - AP",
+        "Room_Description":  "Deluxe Studio Suite - AP",
+        "Roomtype_Name":  "Deluxe Studio Suite",
+        "Roomtype_Short_code":  "Deluxe Studio Suite",
+        "Room_Max_adult":  "4",
+        "Room_Max_child":  "2",
+        "Package_Description":  "",
+        "Specials_Desc":  "",
+        "specialconditions":  "",
+        "specialhighlightinclusion":  "",
+        "hotelcode":  "46924",
+        "roomtypeunkid":  "4692400000000000001",
+        "ratetypeunkid":  "4692400000000000004",
+        "roomrateunkid":  "4692400000000000004",
+        "base_adult_occupancy":  2,
+        "base_child_occupancy":  0,
+        "max_adult_occupancy":  4,
+        "max_child_occupancy":  2,
+        "max_occupancy":  "",
+        "inclusion":  ".",
+        "available_rooms":  {
+                                "2026-04-20":  "20"
+                            },
+        "min_ava_rooms":  20,
+        "room_rates_info":  {
+                                "before_discount_inclusive_tax_adjustment":  [
+
+                                                                             ],
+                                "exclusive_tax":  {
+                                                      "2026-04-20":  "4800.0000"
+                                                  },
+                                "exclusivetax_baserate":  {
+                                                              "2026-04-20":  "4800.0000"
+                                                          },
+                                "tax":  {
+                                            "2026-04-20":  240
+                                        },
+                                "adjustment":  {
+                                                   "2026-04-20":  0
+                                               },
+                                "inclusive_tax_adjustment":  {
+                                                                 "2026-04-20":  5040
+                                                             },
+                                "rack_rate":  "81000.0000",
+                                "totalprice_room_only":  4800,
+                                "totalprice_inclusive_all":  5040,
+                                "avg_per_night_before_discount":  "",
+                                "avg_per_night_after_discount":  5040,
+                                "avg_per_night_without_tax":  4800,
+                                "day_wise_baserackrate":  [
+                                                              "4800.0000"
+                                                          ],
+                                "day_wise_beforediscount":  [
+                                                                "4800.0000"
+                                                            ]
+                            },
+        "extra_adult_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "2400.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  120
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  2520
+                                                                    },
+                                       "rack_rate":  "1500.0000"
+                                   },
+        "extra_child_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "2000.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  100
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  2100
+                                                                    },
+                                       "rack_rate":  "1000.0000"
+                                   },
+        "min_nights":  {
+                           "2026-04-20":  "1"
+                       },
+        "stopsells":  {
+                          "2026-04-20":  "0"
+                      },
+        "close_on_arrival":  {
+                                 "2026-04-20":  "0"
+                             },
+        "close_on_dept":  {
+                              "2026-04-20":  "0"
+                          },
+        "Hotel_amenities":  "[]",
+        "Hotel_amenitiesNew":  [
+
+                               ],
+        "Avg_min_nights":  "1",
+        "max_nights":  {
+                           "2026-04-20":  ""
+                       },
+        "Avg_max_nights":  "",
+        "check_in_time":  "13:00",
+        "check_out_time":  "11:00",
+        "TaxName":  {
+                        "2026-04-20":  {
+                                           "Taxname_0":  "SGST",
+                                           "taxdate_0":  "2025-09-22 12:57:46",
+                                           "exemptafter_0":  "0",
+                                           "postingtype_0":  "SLAB",
+                                           "postingrule_0":  "",
+                                           "amount_0":  "0.0000",
+                                           "slab_0":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_0":  "AFTERDISCOUNT",
+                                           "entrydatetime_0":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_0":  "",
+                                           "applyonrackrate_0":  "0",
+                                           "applytaxdate_0":  "2025-09-22",
+                                           "exchange_rate1_0":  "1.0000",
+                                           "exchange_rate2_0":  "1.0000",
+                                           "Taxname_1":  "CGST",
+                                           "taxdate_1":  "2025-09-22 12:57:46",
+                                           "exemptafter_1":  "0",
+                                           "postingtype_1":  "SLAB",
+                                           "postingrule_1":  "",
+                                           "amount_1":  "0.0000",
+                                           "slab_1":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_1":  "AFTERDISCOUNT",
+                                           "entrydatetime_1":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_1":  "",
+                                           "applyonrackrate_1":  "0",
+                                           "applytaxdate_1":  "2025-09-22",
+                                           "exchange_rate1_1":  "1.0000",
+                                           "exchange_rate2_1":  "1.0000"
+                                       }
+                    },
+        "ShowPriceFormat":  "Average Per Night Rate",
+        "DefaultDisplyCurrencyCode":  "",
+        "deals":  "",
+        "IsPromotion":  false,
+        "Promotion_Code":  null,
+        "Promotion_Description":  null,
+        "Promotion_Name":  null,
+        "Promotion_Id":  null,
+        "Package_Name":  "",
+        "Package_Id":  "",
+        "currency_code":  "INR",
+        "currency_sign":  "Rs",
+        "localfolder":  "vintagevallyresort",
+        "CalDateFormat":  "dd-mm-yy",
+        "ShowTaxInclusiveExclusiveSettings":  "1",
+        "hidefrommetasearch":  "",
+        "prepaid_noncancel_nonrefundable":  "0",
+        "cancellation_deadline":  "7",
+        "digits_after_decimal":  "2",
+        "visiblity_nights":  "false",
+        "BookingEngineURL":  "https://live.ipms247.com/booking/book-rooms-vintagevallyresort",
+        "NewRoomAmenities":  [
+
+                             ],
+        "RoomAmenities":  "",
+        "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070609_0115387001719558369_582_IMG_5848_-_Copy.JPG",
+        "RoomImages":  [
+                           {
+                               "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070609_0115387001719558369_582_IMG_5848_-_Copy.JPG",
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070609_0115387001719558369_582_IMG_5848_-_Copy.JPG"
+                           }
+                       ]
+    },
+    {
+        "Room_Name":  "Lotus Family Suite - CP",
+        "Room_Description":  "Lotus Family Suite - CP",
+        "Roomtype_Name":  "Lotus Family Suite",
+        "Roomtype_Short_code":  "Lotus Family Suite",
+        "Room_Max_adult":  "6",
+        "Room_Max_child":  "2",
+        "Package_Description":  "",
+        "Specials_Desc":  "",
+        "specialconditions":  "",
+        "specialhighlightinclusion":  "",
+        "hotelcode":  "46924",
+        "roomtypeunkid":  "4692400000000000002",
+        "ratetypeunkid":  "4692400000000000002",
+        "roomrateunkid":  "4692400000000000005",
+        "base_adult_occupancy":  4,
+        "base_child_occupancy":  0,
+        "max_adult_occupancy":  6,
+        "max_child_occupancy":  2,
+        "max_occupancy":  "",
+        "inclusion":  ".",
+        "available_rooms":  {
+                                "2026-04-20":  14
+                            },
+        "min_ava_rooms":  14,
+        "room_rates_info":  {
+                                "before_discount_inclusive_tax_adjustment":  [
+
+                                                                             ],
+                                "exclusive_tax":  {
+                                                      "2026-04-20":  "5000.0000"
+                                                  },
+                                "exclusivetax_baserate":  {
+                                                              "2026-04-20":  "5000.0000"
+                                                          },
+                                "tax":  {
+                                            "2026-04-20":  250
+                                        },
+                                "adjustment":  {
+                                                   "2026-04-20":  0
+                                               },
+                                "inclusive_tax_adjustment":  {
+                                                                 "2026-04-20":  5250
+                                                             },
+                                "rack_rate":  "99000.0000",
+                                "totalprice_room_only":  5000,
+                                "totalprice_inclusive_all":  5250,
+                                "avg_per_night_before_discount":  "",
+                                "avg_per_night_after_discount":  5250,
+                                "avg_per_night_without_tax":  5000,
+                                "day_wise_baserackrate":  [
+                                                              "5000.0000"
+                                                          ],
+                                "day_wise_beforediscount":  [
+                                                                "5000.0000"
+                                                            ]
+                            },
+        "extra_adult_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1250.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  62.5
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1312.5
+                                                                    },
+                                       "rack_rate":  "1500.0000"
+                                   },
+        "extra_child_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1200.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  60
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1260
+                                                                    },
+                                       "rack_rate":  "1000.0000"
+                                   },
+        "min_nights":  {
+                           "2026-04-20":  "1"
+                       },
+        "stopsells":  {
+                          "2026-04-20":  "0"
+                      },
+        "close_on_arrival":  {
+                                 "2026-04-20":  "0"
+                             },
+        "close_on_dept":  {
+                              "2026-04-20":  "0"
+                          },
+        "Hotel_amenities":  "[]",
+        "Hotel_amenitiesNew":  [
+
+                               ],
+        "Avg_min_nights":  "1",
+        "max_nights":  {
+                           "2026-04-20":  ""
+                       },
+        "Avg_max_nights":  "",
+        "check_in_time":  "13:00",
+        "check_out_time":  "11:00",
+        "TaxName":  {
+                        "2026-04-20":  {
+                                           "Taxname_0":  "SGST",
+                                           "taxdate_0":  "2025-09-22 12:57:46",
+                                           "exemptafter_0":  "0",
+                                           "postingtype_0":  "SLAB",
+                                           "postingrule_0":  "",
+                                           "amount_0":  "0.0000",
+                                           "slab_0":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_0":  "AFTERDISCOUNT",
+                                           "entrydatetime_0":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_0":  "",
+                                           "applyonrackrate_0":  "0",
+                                           "applytaxdate_0":  "2025-09-22",
+                                           "exchange_rate1_0":  "1.0000",
+                                           "exchange_rate2_0":  "1.0000",
+                                           "Taxname_1":  "CGST",
+                                           "taxdate_1":  "2025-09-22 12:57:46",
+                                           "exemptafter_1":  "0",
+                                           "postingtype_1":  "SLAB",
+                                           "postingrule_1":  "",
+                                           "amount_1":  "0.0000",
+                                           "slab_1":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_1":  "AFTERDISCOUNT",
+                                           "entrydatetime_1":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_1":  "",
+                                           "applyonrackrate_1":  "0",
+                                           "applytaxdate_1":  "2025-09-22",
+                                           "exchange_rate1_1":  "1.0000",
+                                           "exchange_rate2_1":  "1.0000"
+                                       }
+                    },
+        "ShowPriceFormat":  "Average Per Night Rate",
+        "DefaultDisplyCurrencyCode":  "",
+        "deals":  "",
+        "IsPromotion":  false,
+        "Promotion_Code":  null,
+        "Promotion_Description":  null,
+        "Promotion_Name":  null,
+        "Promotion_Id":  null,
+        "Package_Name":  "",
+        "Package_Id":  "",
+        "currency_code":  "INR",
+        "currency_sign":  "Rs",
+        "localfolder":  "vintagevallyresort",
+        "CalDateFormat":  "dd-mm-yy",
+        "ShowTaxInclusiveExclusiveSettings":  "1",
+        "hidefrommetasearch":  "",
+        "prepaid_noncancel_nonrefundable":  "0",
+        "cancellation_deadline":  "",
+        "digits_after_decimal":  "2",
+        "visiblity_nights":  "false",
+        "BookingEngineURL":  "https://live.ipms247.com/booking/book-rooms-vintagevallyresort",
+        "NewRoomAmenities":  [
+
+                             ],
+        "RoomAmenities":  "",
+        "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070648_0843757001719558408_876_IMG_5826_-_Copy.JPG",
+        "RoomImages":  [
+                           {
+                               "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070648_0843757001719558408_876_IMG_5826_-_Copy.JPG",
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070648_0843757001719558408_876_IMG_5826_-_Copy.JPG"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070645_0615555001719558405_689_IMG_5848_-_Copy.JPG"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070647_0623210001719558407_121_IMG_5828_-_Copy.JPG"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070646_0498874001719558406_733_IMG_5829_-_Copy.JPG"
+                           }
+                       ]
+    },
+    {
+        "Room_Name":  "Lotus Family Suite - MAP",
+        "Room_Description":  "Lotus Family Suite - MAP",
+        "Roomtype_Name":  "Lotus Family Suite",
+        "Roomtype_Short_code":  "Lotus Family Suite",
+        "Room_Max_adult":  "6",
+        "Room_Max_child":  "2",
+        "Package_Description":  "",
+        "Specials_Desc":  "",
+        "specialconditions":  "",
+        "specialhighlightinclusion":  "",
+        "hotelcode":  "46924",
+        "roomtypeunkid":  "4692400000000000002",
+        "ratetypeunkid":  "4692400000000000003",
+        "roomrateunkid":  "4692400000000000006",
+        "base_adult_occupancy":  4,
+        "base_child_occupancy":  0,
+        "max_adult_occupancy":  6,
+        "max_child_occupancy":  2,
+        "max_occupancy":  "",
+        "inclusion":  ".",
+        "available_rooms":  {
+                                "2026-04-20":  14
+                            },
+        "min_ava_rooms":  14,
+        "room_rates_info":  {
+                                "before_discount_inclusive_tax_adjustment":  [
+
+                                                                             ],
+                                "exclusive_tax":  {
+                                                      "2026-04-20":  "7000.0000"
+                                                  },
+                                "exclusivetax_baserate":  {
+                                                              "2026-04-20":  "7000.0000"
+                                                          },
+                                "tax":  {
+                                            "2026-04-20":  350
+                                        },
+                                "adjustment":  {
+                                                   "2026-04-20":  0
+                                               },
+                                "inclusive_tax_adjustment":  {
+                                                                 "2026-04-20":  7350
+                                                             },
+                                "rack_rate":  "113000.0000",
+                                "totalprice_room_only":  7000,
+                                "totalprice_inclusive_all":  7350,
+                                "avg_per_night_before_discount":  "",
+                                "avg_per_night_after_discount":  7350,
+                                "avg_per_night_without_tax":  7000,
+                                "day_wise_baserackrate":  [
+                                                              "7000.0000"
+                                                          ],
+                                "day_wise_beforediscount":  [
+                                                                "7000.0000"
+                                                            ]
+                            },
+        "extra_adult_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1750.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  87.5
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1837.5
+                                                                    },
+                                       "rack_rate":  "1500.0000"
+                                   },
+        "extra_child_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1500.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  75
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1575
+                                                                    },
+                                       "rack_rate":  "1000.0000"
+                                   },
+        "min_nights":  {
+                           "2026-04-20":  "1"
+                       },
+        "stopsells":  {
+                          "2026-04-20":  "0"
+                      },
+        "close_on_arrival":  {
+                                 "2026-04-20":  "0"
+                             },
+        "close_on_dept":  {
+                              "2026-04-20":  "0"
+                          },
+        "Hotel_amenities":  "[]",
+        "Hotel_amenitiesNew":  [
+
+                               ],
+        "Avg_min_nights":  "1",
+        "max_nights":  {
+                           "2026-04-20":  ""
+                       },
+        "Avg_max_nights":  "",
+        "check_in_time":  "13:00",
+        "check_out_time":  "11:00",
+        "TaxName":  {
+                        "2026-04-20":  {
+                                           "Taxname_0":  "SGST",
+                                           "taxdate_0":  "2025-09-22 12:57:46",
+                                           "exemptafter_0":  "0",
+                                           "postingtype_0":  "SLAB",
+                                           "postingrule_0":  "",
+                                           "amount_0":  "0.0000",
+                                           "slab_0":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_0":  "AFTERDISCOUNT",
+                                           "entrydatetime_0":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_0":  "",
+                                           "applyonrackrate_0":  "0",
+                                           "applytaxdate_0":  "2025-09-22",
+                                           "exchange_rate1_0":  "1.0000",
+                                           "exchange_rate2_0":  "1.0000",
+                                           "Taxname_1":  "CGST",
+                                           "taxdate_1":  "2025-09-22 12:57:46",
+                                           "exemptafter_1":  "0",
+                                           "postingtype_1":  "SLAB",
+                                           "postingrule_1":  "",
+                                           "amount_1":  "0.0000",
+                                           "slab_1":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_1":  "AFTERDISCOUNT",
+                                           "entrydatetime_1":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_1":  "",
+                                           "applyonrackrate_1":  "0",
+                                           "applytaxdate_1":  "2025-09-22",
+                                           "exchange_rate1_1":  "1.0000",
+                                           "exchange_rate2_1":  "1.0000"
+                                       }
+                    },
+        "ShowPriceFormat":  "Average Per Night Rate",
+        "DefaultDisplyCurrencyCode":  "",
+        "deals":  "",
+        "IsPromotion":  false,
+        "Promotion_Code":  null,
+        "Promotion_Description":  null,
+        "Promotion_Name":  null,
+        "Promotion_Id":  null,
+        "Package_Name":  "",
+        "Package_Id":  "",
+        "currency_code":  "INR",
+        "currency_sign":  "Rs",
+        "localfolder":  "vintagevallyresort",
+        "CalDateFormat":  "dd-mm-yy",
+        "ShowTaxInclusiveExclusiveSettings":  "1",
+        "hidefrommetasearch":  "",
+        "prepaid_noncancel_nonrefundable":  "0",
+        "cancellation_deadline":  "",
+        "digits_after_decimal":  "2",
+        "visiblity_nights":  "false",
+        "BookingEngineURL":  "https://live.ipms247.com/booking/book-rooms-vintagevallyresort",
+        "NewRoomAmenities":  [
+
+                             ],
+        "RoomAmenities":  "",
+        "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070648_0843757001719558408_876_IMG_5826_-_Copy.JPG",
+        "RoomImages":  [
+                           {
+                               "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070648_0843757001719558408_876_IMG_5826_-_Copy.JPG",
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070648_0843757001719558408_876_IMG_5826_-_Copy.JPG"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070645_0615555001719558405_689_IMG_5848_-_Copy.JPG"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070647_0623210001719558407_121_IMG_5828_-_Copy.JPG"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070646_0498874001719558406_733_IMG_5829_-_Copy.JPG"
+                           }
+                       ]
+    },
+    {
+        "Room_Name":  "Lotus Family Suite - AP",
+        "Room_Description":  "Lotus Family Suite - AP",
+        "Roomtype_Name":  "Lotus Family Suite",
+        "Roomtype_Short_code":  "Lotus Family Suite",
+        "Room_Max_adult":  "6",
+        "Room_Max_child":  "2",
+        "Package_Description":  "",
+        "Specials_Desc":  "",
+        "specialconditions":  "",
+        "specialhighlightinclusion":  "",
+        "hotelcode":  "46924",
+        "roomtypeunkid":  "4692400000000000002",
+        "ratetypeunkid":  "4692400000000000004",
+        "roomrateunkid":  "4692400000000000007",
+        "base_adult_occupancy":  4,
+        "base_child_occupancy":  0,
+        "max_adult_occupancy":  6,
+        "max_child_occupancy":  2,
+        "max_occupancy":  "",
+        "inclusion":  ".",
+        "available_rooms":  {
+                                "2026-04-20":  14
+                            },
+        "min_ava_rooms":  14,
+        "room_rates_info":  {
+                                "before_discount_inclusive_tax_adjustment":  [
+
+                                                                             ],
+                                "exclusive_tax":  {
+                                                      "2026-04-20":  "9000.0000"
+                                                  },
+                                "exclusivetax_baserate":  {
+                                                              "2026-04-20":  "9000.0000"
+                                                          },
+                                "tax":  {
+                                            "2026-04-20":  1620
+                                        },
+                                "adjustment":  {
+                                                   "2026-04-20":  0
+                                               },
+                                "inclusive_tax_adjustment":  {
+                                                                 "2026-04-20":  10620
+                                                             },
+                                "rack_rate":  "280000.0000",
+                                "totalprice_room_only":  9000,
+                                "totalprice_inclusive_all":  10620,
+                                "avg_per_night_before_discount":  "",
+                                "avg_per_night_after_discount":  10620,
+                                "avg_per_night_without_tax":  9000,
+                                "day_wise_baserackrate":  [
+                                                              "9000.0000"
+                                                          ],
+                                "day_wise_beforediscount":  [
+                                                                "9000.0000"
+                                                            ]
+                            },
+        "extra_adult_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "2250.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  112.5
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  2362.5
+                                                                    },
+                                       "rack_rate":  "1500.0000"
+                                   },
+        "extra_child_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1500.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  75
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1575
+                                                                    },
+                                       "rack_rate":  "1000.0000"
+                                   },
+        "min_nights":  {
+                           "2026-04-20":  "1"
+                       },
+        "stopsells":  {
+                          "2026-04-20":  "0"
+                      },
+        "close_on_arrival":  {
+                                 "2026-04-20":  "0"
+                             },
+        "close_on_dept":  {
+                              "2026-04-20":  "0"
+                          },
+        "Hotel_amenities":  "[]",
+        "Hotel_amenitiesNew":  [
+
+                               ],
+        "Avg_min_nights":  "1",
+        "max_nights":  {
+                           "2026-04-20":  ""
+                       },
+        "Avg_max_nights":  "",
+        "check_in_time":  "13:00",
+        "check_out_time":  "11:00",
+        "TaxName":  {
+                        "2026-04-20":  {
+                                           "Taxname_0":  "SGST",
+                                           "taxdate_0":  "2025-09-22 12:57:46",
+                                           "exemptafter_0":  "0",
+                                           "postingtype_0":  "SLAB",
+                                           "postingrule_0":  "",
+                                           "amount_0":  "0.0000",
+                                           "slab_0":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_0":  "AFTERDISCOUNT",
+                                           "entrydatetime_0":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_0":  "",
+                                           "applyonrackrate_0":  "0",
+                                           "applytaxdate_0":  "2025-09-22",
+                                           "exchange_rate1_0":  "1.0000",
+                                           "exchange_rate2_0":  "1.0000",
+                                           "Taxname_1":  "CGST",
+                                           "taxdate_1":  "2025-09-22 12:57:46",
+                                           "exemptafter_1":  "0",
+                                           "postingtype_1":  "SLAB",
+                                           "postingrule_1":  "",
+                                           "amount_1":  "0.0000",
+                                           "slab_1":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_1":  "AFTERDISCOUNT",
+                                           "entrydatetime_1":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_1":  "",
+                                           "applyonrackrate_1":  "0",
+                                           "applytaxdate_1":  "2025-09-22",
+                                           "exchange_rate1_1":  "1.0000",
+                                           "exchange_rate2_1":  "1.0000"
+                                       }
+                    },
+        "ShowPriceFormat":  "Average Per Night Rate",
+        "DefaultDisplyCurrencyCode":  "",
+        "deals":  "",
+        "IsPromotion":  false,
+        "Promotion_Code":  null,
+        "Promotion_Description":  null,
+        "Promotion_Name":  null,
+        "Promotion_Id":  null,
+        "Package_Name":  "",
+        "Package_Id":  "",
+        "currency_code":  "INR",
+        "currency_sign":  "Rs",
+        "localfolder":  "vintagevallyresort",
+        "CalDateFormat":  "dd-mm-yy",
+        "ShowTaxInclusiveExclusiveSettings":  "1",
+        "hidefrommetasearch":  "",
+        "prepaid_noncancel_nonrefundable":  "0",
+        "cancellation_deadline":  "",
+        "digits_after_decimal":  "2",
+        "visiblity_nights":  "false",
+        "BookingEngineURL":  "https://live.ipms247.com/booking/book-rooms-vintagevallyresort",
+        "NewRoomAmenities":  [
+
+                             ],
+        "RoomAmenities":  "",
+        "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070648_0843757001719558408_876_IMG_5826_-_Copy.JPG",
+        "RoomImages":  [
+                           {
+                               "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070648_0843757001719558408_876_IMG_5826_-_Copy.JPG",
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070648_0843757001719558408_876_IMG_5826_-_Copy.JPG"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070645_0615555001719558405_689_IMG_5848_-_Copy.JPG"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070647_0623210001719558407_121_IMG_5828_-_Copy.JPG"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070646_0498874001719558406_733_IMG_5829_-_Copy.JPG"
+                           }
+                       ]
+    },
+    {
+        "Room_Name":  "Presidentail Suite - CP",
+        "Room_Description":  "Presidentail Suite - CP",
+        "Roomtype_Name":  "Presidentail Suite",
+        "Roomtype_Short_code":  "Presidentail Suite",
+        "Room_Max_adult":  "6",
+        "Room_Max_child":  "2",
+        "Package_Description":  "",
+        "Specials_Desc":  "",
+        "specialconditions":  "",
+        "specialhighlightinclusion":  "",
+        "hotelcode":  "46924",
+        "roomtypeunkid":  "4692400000000000003",
+        "ratetypeunkid":  "4692400000000000002",
+        "roomrateunkid":  "4692400000000000008",
+        "base_adult_occupancy":  4,
+        "base_child_occupancy":  0,
+        "max_adult_occupancy":  6,
+        "max_child_occupancy":  2,
+        "max_occupancy":  "",
+        "inclusion":  ".",
+        "available_rooms":  {
+                                "2026-04-20":  "5"
+                            },
+        "min_ava_rooms":  5,
+        "room_rates_info":  {
+                                "before_discount_inclusive_tax_adjustment":  [
+
+                                                                             ],
+                                "exclusive_tax":  {
+                                                      "2026-04-20":  "6000.0000"
+                                                  },
+                                "exclusivetax_baserate":  {
+                                                              "2026-04-20":  "6000.0000"
+                                                          },
+                                "tax":  {
+                                            "2026-04-20":  300
+                                        },
+                                "adjustment":  {
+                                                   "2026-04-20":  0
+                                               },
+                                "inclusive_tax_adjustment":  {
+                                                                 "2026-04-20":  6300
+                                                             },
+                                "rack_rate":  "250000.0000",
+                                "totalprice_room_only":  6000,
+                                "totalprice_inclusive_all":  6300,
+                                "avg_per_night_before_discount":  "",
+                                "avg_per_night_after_discount":  6300,
+                                "avg_per_night_without_tax":  6000,
+                                "day_wise_baserackrate":  [
+                                                              "6000.0000"
+                                                          ],
+                                "day_wise_beforediscount":  [
+                                                                "6000.0000"
+                                                            ]
+                            },
+        "extra_adult_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1500.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  75
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1575
+                                                                    },
+                                       "rack_rate":  "1500.0000"
+                                   },
+        "extra_child_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1200.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  60
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1260
+                                                                    },
+                                       "rack_rate":  "1000.0000"
+                                   },
+        "min_nights":  {
+                           "2026-04-20":  "1"
+                       },
+        "stopsells":  {
+                          "2026-04-20":  "0"
+                      },
+        "close_on_arrival":  {
+                                 "2026-04-20":  "0"
+                             },
+        "close_on_dept":  {
+                              "2026-04-20":  "0"
+                          },
+        "Hotel_amenities":  "[]",
+        "Hotel_amenitiesNew":  [
+
+                               ],
+        "Avg_min_nights":  "1",
+        "max_nights":  {
+                           "2026-04-20":  ""
+                       },
+        "Avg_max_nights":  "",
+        "check_in_time":  "13:00",
+        "check_out_time":  "11:00",
+        "TaxName":  {
+                        "2026-04-20":  {
+                                           "Taxname_0":  "SGST",
+                                           "taxdate_0":  "2025-09-22 12:57:46",
+                                           "exemptafter_0":  "0",
+                                           "postingtype_0":  "SLAB",
+                                           "postingrule_0":  "",
+                                           "amount_0":  "0.0000",
+                                           "slab_0":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_0":  "AFTERDISCOUNT",
+                                           "entrydatetime_0":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_0":  "",
+                                           "applyonrackrate_0":  "0",
+                                           "applytaxdate_0":  "2025-09-22",
+                                           "exchange_rate1_0":  "1.0000",
+                                           "exchange_rate2_0":  "1.0000",
+                                           "Taxname_1":  "CGST",
+                                           "taxdate_1":  "2025-09-22 12:57:46",
+                                           "exemptafter_1":  "0",
+                                           "postingtype_1":  "SLAB",
+                                           "postingrule_1":  "",
+                                           "amount_1":  "0.0000",
+                                           "slab_1":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_1":  "AFTERDISCOUNT",
+                                           "entrydatetime_1":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_1":  "",
+                                           "applyonrackrate_1":  "0",
+                                           "applytaxdate_1":  "2025-09-22",
+                                           "exchange_rate1_1":  "1.0000",
+                                           "exchange_rate2_1":  "1.0000"
+                                       }
+                    },
+        "ShowPriceFormat":  "Average Per Night Rate",
+        "DefaultDisplyCurrencyCode":  "",
+        "deals":  "",
+        "IsPromotion":  false,
+        "Promotion_Code":  null,
+        "Promotion_Description":  null,
+        "Promotion_Name":  null,
+        "Promotion_Id":  null,
+        "Package_Name":  "",
+        "Package_Id":  "",
+        "currency_code":  "INR",
+        "currency_sign":  "Rs",
+        "localfolder":  "vintagevallyresort",
+        "CalDateFormat":  "dd-mm-yy",
+        "ShowTaxInclusiveExclusiveSettings":  "1",
+        "hidefrommetasearch":  "",
+        "prepaid_noncancel_nonrefundable":  "0",
+        "cancellation_deadline":  "",
+        "digits_after_decimal":  "2",
+        "visiblity_nights":  "false",
+        "BookingEngineURL":  "https://live.ipms247.com/booking/book-rooms-vintagevallyresort",
+        "NewRoomAmenities":  [
+
+                             ],
+        "RoomAmenities":  "",
+        "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070714_0174346001719558434_643_IMG_5848_-_Copy.JPG",
+        "RoomImages":  [
+                           {
+                               "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070714_0174346001719558434_643_IMG_5848_-_Copy.JPG",
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070714_0174346001719558434_643_IMG_5848_-_Copy.JPG"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070715_0843261001719558435_847_IMG_5826_-_Copy.JPG"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070715_0001857001719558435_41_IMG_5832_-_Copy.JPG"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070717_0796646001719558437_672_IMG_5829_-_Copy.JPG"
+                           }
+                       ]
+    },
+    {
+        "Room_Name":  "Presidentail Suite - MAP",
+        "Room_Description":  "Presidentail Suite - MAP",
+        "Roomtype_Name":  "Presidentail Suite",
+        "Roomtype_Short_code":  "Presidentail Suite",
+        "Room_Max_adult":  "6",
+        "Room_Max_child":  "2",
+        "Package_Description":  "",
+        "Specials_Desc":  "",
+        "specialconditions":  "",
+        "specialhighlightinclusion":  "",
+        "hotelcode":  "46924",
+        "roomtypeunkid":  "4692400000000000003",
+        "ratetypeunkid":  "4692400000000000003",
+        "roomrateunkid":  "4692400000000000009",
+        "base_adult_occupancy":  4,
+        "base_child_occupancy":  0,
+        "max_adult_occupancy":  6,
+        "max_child_occupancy":  2,
+        "max_occupancy":  "",
+        "inclusion":  ".",
+        "available_rooms":  {
+                                "2026-04-20":  "5"
+                            },
+        "min_ava_rooms":  5,
+        "room_rates_info":  {
+                                "before_discount_inclusive_tax_adjustment":  [
+
+                                                                             ],
+                                "exclusive_tax":  {
+                                                      "2026-04-20":  "8000.0000"
+                                                  },
+                                "exclusivetax_baserate":  {
+                                                              "2026-04-20":  "8000.0000"
+                                                          },
+                                "tax":  {
+                                            "2026-04-20":  1440
+                                        },
+                                "adjustment":  {
+                                                   "2026-04-20":  0
+                                               },
+                                "inclusive_tax_adjustment":  {
+                                                                 "2026-04-20":  9440
+                                                             },
+                                "rack_rate":  "2500000.0000",
+                                "totalprice_room_only":  8000,
+                                "totalprice_inclusive_all":  9440,
+                                "avg_per_night_before_discount":  "",
+                                "avg_per_night_after_discount":  9440,
+                                "avg_per_night_without_tax":  8000,
+                                "day_wise_baserackrate":  [
+                                                              "8000.0000"
+                                                          ],
+                                "day_wise_beforediscount":  [
+                                                                "8000.0000"
+                                                            ]
+                            },
+        "extra_adult_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "2000.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  100
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  2100
+                                                                    },
+                                       "rack_rate":  "1500.0000"
+                                   },
+        "extra_child_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1500.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  75
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1575
+                                                                    },
+                                       "rack_rate":  "1000.0000"
+                                   },
+        "min_nights":  {
+                           "2026-04-20":  "1"
+                       },
+        "stopsells":  {
+                          "2026-04-20":  "0"
+                      },
+        "close_on_arrival":  {
+                                 "2026-04-20":  "0"
+                             },
+        "close_on_dept":  {
+                              "2026-04-20":  "0"
+                          },
+        "Hotel_amenities":  "[]",
+        "Hotel_amenitiesNew":  [
+
+                               ],
+        "Avg_min_nights":  "1",
+        "max_nights":  {
+                           "2026-04-20":  ""
+                       },
+        "Avg_max_nights":  "",
+        "check_in_time":  "13:00",
+        "check_out_time":  "11:00",
+        "TaxName":  {
+                        "2026-04-20":  {
+                                           "Taxname_0":  "SGST",
+                                           "taxdate_0":  "2025-09-22 12:57:46",
+                                           "exemptafter_0":  "0",
+                                           "postingtype_0":  "SLAB",
+                                           "postingrule_0":  "",
+                                           "amount_0":  "0.0000",
+                                           "slab_0":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_0":  "AFTERDISCOUNT",
+                                           "entrydatetime_0":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_0":  "",
+                                           "applyonrackrate_0":  "0",
+                                           "applytaxdate_0":  "2025-09-22",
+                                           "exchange_rate1_0":  "1.0000",
+                                           "exchange_rate2_0":  "1.0000",
+                                           "Taxname_1":  "CGST",
+                                           "taxdate_1":  "2025-09-22 12:57:46",
+                                           "exemptafter_1":  "0",
+                                           "postingtype_1":  "SLAB",
+                                           "postingrule_1":  "",
+                                           "amount_1":  "0.0000",
+                                           "slab_1":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_1":  "AFTERDISCOUNT",
+                                           "entrydatetime_1":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_1":  "",
+                                           "applyonrackrate_1":  "0",
+                                           "applytaxdate_1":  "2025-09-22",
+                                           "exchange_rate1_1":  "1.0000",
+                                           "exchange_rate2_1":  "1.0000"
+                                       }
+                    },
+        "ShowPriceFormat":  "Average Per Night Rate",
+        "DefaultDisplyCurrencyCode":  "",
+        "deals":  "",
+        "IsPromotion":  false,
+        "Promotion_Code":  null,
+        "Promotion_Description":  null,
+        "Promotion_Name":  null,
+        "Promotion_Id":  null,
+        "Package_Name":  "",
+        "Package_Id":  "",
+        "currency_code":  "INR",
+        "currency_sign":  "Rs",
+        "localfolder":  "vintagevallyresort",
+        "CalDateFormat":  "dd-mm-yy",
+        "ShowTaxInclusiveExclusiveSettings":  "1",
+        "hidefrommetasearch":  "",
+        "prepaid_noncancel_nonrefundable":  "0",
+        "cancellation_deadline":  "",
+        "digits_after_decimal":  "2",
+        "visiblity_nights":  "false",
+        "BookingEngineURL":  "https://live.ipms247.com/booking/book-rooms-vintagevallyresort",
+        "NewRoomAmenities":  [
+
+                             ],
+        "RoomAmenities":  "",
+        "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070714_0174346001719558434_643_IMG_5848_-_Copy.JPG",
+        "RoomImages":  [
+                           {
+                               "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070714_0174346001719558434_643_IMG_5848_-_Copy.JPG",
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070714_0174346001719558434_643_IMG_5848_-_Copy.JPG"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070715_0843261001719558435_847_IMG_5826_-_Copy.JPG"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070715_0001857001719558435_41_IMG_5832_-_Copy.JPG"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070717_0796646001719558437_672_IMG_5829_-_Copy.JPG"
+                           }
+                       ]
+    },
+    {
+        "Room_Name":  "Presidentail Suite - AP",
+        "Room_Description":  "Presidentail Suite - AP",
+        "Roomtype_Name":  "Presidentail Suite",
+        "Roomtype_Short_code":  "Presidentail Suite",
+        "Room_Max_adult":  "6",
+        "Room_Max_child":  "2",
+        "Package_Description":  "",
+        "Specials_Desc":  "",
+        "specialconditions":  "",
+        "specialhighlightinclusion":  "",
+        "hotelcode":  "46924",
+        "roomtypeunkid":  "4692400000000000003",
+        "ratetypeunkid":  "4692400000000000004",
+        "roomrateunkid":  "4692400000000000010",
+        "base_adult_occupancy":  4,
+        "base_child_occupancy":  0,
+        "max_adult_occupancy":  6,
+        "max_child_occupancy":  2,
+        "max_occupancy":  "",
+        "inclusion":  ".",
+        "available_rooms":  {
+                                "2026-04-20":  "5"
+                            },
+        "min_ava_rooms":  5,
+        "room_rates_info":  {
+                                "before_discount_inclusive_tax_adjustment":  [
+
+                                                                             ],
+                                "exclusive_tax":  {
+                                                      "2026-04-20":  "10000.0000"
+                                                  },
+                                "exclusivetax_baserate":  {
+                                                              "2026-04-20":  "10000.0000"
+                                                          },
+                                "tax":  {
+                                            "2026-04-20":  1800
+                                        },
+                                "adjustment":  {
+                                                   "2026-04-20":  0
+                                               },
+                                "inclusive_tax_adjustment":  {
+                                                                 "2026-04-20":  11800
+                                                             },
+                                "rack_rate":  "250000.0000",
+                                "totalprice_room_only":  10000,
+                                "totalprice_inclusive_all":  11800,
+                                "avg_per_night_before_discount":  "",
+                                "avg_per_night_after_discount":  11800,
+                                "avg_per_night_without_tax":  10000,
+                                "day_wise_baserackrate":  [
+                                                              "10000.0000"
+                                                          ],
+                                "day_wise_beforediscount":  [
+                                                                "10000.0000"
+                                                            ]
+                            },
+        "extra_adult_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "2500.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  125
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  2625
+                                                                    },
+                                       "rack_rate":  "1500.0000"
+                                   },
+        "extra_child_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "2000.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  100
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  2100
+                                                                    },
+                                       "rack_rate":  "1000.0000"
+                                   },
+        "min_nights":  {
+                           "2026-04-20":  "1"
+                       },
+        "stopsells":  {
+                          "2026-04-20":  "0"
+                      },
+        "close_on_arrival":  {
+                                 "2026-04-20":  "0"
+                             },
+        "close_on_dept":  {
+                              "2026-04-20":  "0"
+                          },
+        "Hotel_amenities":  "[]",
+        "Hotel_amenitiesNew":  [
+
+                               ],
+        "Avg_min_nights":  "1",
+        "max_nights":  {
+                           "2026-04-20":  ""
+                       },
+        "Avg_max_nights":  "",
+        "check_in_time":  "13:00",
+        "check_out_time":  "11:00",
+        "TaxName":  {
+                        "2026-04-20":  {
+                                           "Taxname_0":  "SGST",
+                                           "taxdate_0":  "2025-09-22 12:57:46",
+                                           "exemptafter_0":  "0",
+                                           "postingtype_0":  "SLAB",
+                                           "postingrule_0":  "",
+                                           "amount_0":  "0.0000",
+                                           "slab_0":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_0":  "AFTERDISCOUNT",
+                                           "entrydatetime_0":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_0":  "",
+                                           "applyonrackrate_0":  "0",
+                                           "applytaxdate_0":  "2025-09-22",
+                                           "exchange_rate1_0":  "1.0000",
+                                           "exchange_rate2_0":  "1.0000",
+                                           "Taxname_1":  "CGST",
+                                           "taxdate_1":  "2025-09-22 12:57:46",
+                                           "exemptafter_1":  "0",
+                                           "postingtype_1":  "SLAB",
+                                           "postingrule_1":  "",
+                                           "amount_1":  "0.0000",
+                                           "slab_1":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_1":  "AFTERDISCOUNT",
+                                           "entrydatetime_1":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_1":  "",
+                                           "applyonrackrate_1":  "0",
+                                           "applytaxdate_1":  "2025-09-22",
+                                           "exchange_rate1_1":  "1.0000",
+                                           "exchange_rate2_1":  "1.0000"
+                                       }
+                    },
+        "ShowPriceFormat":  "Average Per Night Rate",
+        "DefaultDisplyCurrencyCode":  "",
+        "deals":  "",
+        "IsPromotion":  false,
+        "Promotion_Code":  null,
+        "Promotion_Description":  null,
+        "Promotion_Name":  null,
+        "Promotion_Id":  null,
+        "Package_Name":  "",
+        "Package_Id":  "",
+        "currency_code":  "INR",
+        "currency_sign":  "Rs",
+        "localfolder":  "vintagevallyresort",
+        "CalDateFormat":  "dd-mm-yy",
+        "ShowTaxInclusiveExclusiveSettings":  "1",
+        "hidefrommetasearch":  "",
+        "prepaid_noncancel_nonrefundable":  "0",
+        "cancellation_deadline":  "",
+        "digits_after_decimal":  "2",
+        "visiblity_nights":  "false",
+        "BookingEngineURL":  "https://live.ipms247.com/booking/book-rooms-vintagevallyresort",
+        "NewRoomAmenities":  [
+
+                             ],
+        "RoomAmenities":  "",
+        "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070714_0174346001719558434_643_IMG_5848_-_Copy.JPG",
+        "RoomImages":  [
+                           {
+                               "room_main_image":  "https://static.ipms247.com/uploads/46924_20240628070714_0174346001719558434_643_IMG_5848_-_Copy.JPG",
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070714_0174346001719558434_643_IMG_5848_-_Copy.JPG"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070715_0843261001719558435_847_IMG_5826_-_Copy.JPG"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070715_0001857001719558435_41_IMG_5832_-_Copy.JPG"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20240628070717_0796646001719558437_672_IMG_5829_-_Copy.JPG"
+                           }
+                       ]
+    },
+    {
+        "Room_Name":  "DELUXE EDGE VIEW AP",
+        "Room_Description":  "DELUXE EDGE VIEW AP",
+        "Roomtype_Name":  "DELUXE EDGE VIEW",
+        "Roomtype_Short_code":  "DELUXE EDGE VIEW",
+        "Room_Max_adult":  "3",
+        "Room_Max_child":  "2",
+        "Package_Description":  "",
+        "Specials_Desc":  "",
+        "specialconditions":  "",
+        "specialhighlightinclusion":  "",
+        "hotelcode":  "46924",
+        "roomtypeunkid":  "4692400000000000005",
+        "ratetypeunkid":  "4692400000000000004",
+        "roomrateunkid":  "4692400000000000012",
+        "base_adult_occupancy":  2,
+        "base_child_occupancy":  0,
+        "max_adult_occupancy":  3,
+        "max_child_occupancy":  2,
+        "max_occupancy":  "",
+        "inclusion":  "-",
+        "available_rooms":  {
+                                "2026-04-20":  8
+                            },
+        "min_ava_rooms":  8,
+        "room_rates_info":  {
+                                "before_discount_inclusive_tax_adjustment":  [
+
+                                                                             ],
+                                "exclusive_tax":  {
+                                                      "2026-04-20":  "5500.0000"
+                                                  },
+                                "exclusivetax_baserate":  {
+                                                              "2026-04-20":  "5500.0000"
+                                                          },
+                                "tax":  {
+                                            "2026-04-20":  275
+                                        },
+                                "adjustment":  {
+                                                   "2026-04-20":  0
+                                               },
+                                "inclusive_tax_adjustment":  {
+                                                                 "2026-04-20":  5775
+                                                             },
+                                "rack_rate":  "7500.0000",
+                                "totalprice_room_only":  5500,
+                                "totalprice_inclusive_all":  5775,
+                                "avg_per_night_before_discount":  "",
+                                "avg_per_night_after_discount":  5775,
+                                "avg_per_night_without_tax":  5500,
+                                "day_wise_baserackrate":  [
+                                                              "5500.0000"
+                                                          ],
+                                "day_wise_beforediscount":  [
+                                                                "5500.0000"
+                                                            ]
+                            },
+        "extra_adult_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "2500.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  125
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  2625
+                                                                    },
+                                       "rack_rate":  "1500.0000"
+                                   },
+        "extra_child_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "2200.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  110
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  2310
+                                                                    },
+                                       "rack_rate":  "1200.0000"
+                                   },
+        "min_nights":  {
+                           "2026-04-20":  "1"
+                       },
+        "stopsells":  {
+                          "2026-04-20":  "0"
+                      },
+        "close_on_arrival":  {
+                                 "2026-04-20":  "0"
+                             },
+        "close_on_dept":  {
+                              "2026-04-20":  "0"
+                          },
+        "Hotel_amenities":  "[]",
+        "Hotel_amenitiesNew":  [
+
+                               ],
+        "Avg_min_nights":  "1",
+        "max_nights":  {
+                           "2026-04-20":  ""
+                       },
+        "Avg_max_nights":  "",
+        "check_in_time":  "13:00",
+        "check_out_time":  "11:00",
+        "TaxName":  {
+                        "2026-04-20":  {
+                                           "Taxname_0":  "SGST",
+                                           "taxdate_0":  "2025-09-22 12:57:46",
+                                           "exemptafter_0":  "0",
+                                           "postingtype_0":  "SLAB",
+                                           "postingrule_0":  "",
+                                           "amount_0":  "0.0000",
+                                           "slab_0":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_0":  "AFTERDISCOUNT",
+                                           "entrydatetime_0":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_0":  "",
+                                           "applyonrackrate_0":  "0",
+                                           "applytaxdate_0":  "2025-09-22",
+                                           "exchange_rate1_0":  "1.0000",
+                                           "exchange_rate2_0":  "1.0000",
+                                           "Taxname_1":  "CGST",
+                                           "taxdate_1":  "2025-09-22 12:57:46",
+                                           "exemptafter_1":  "0",
+                                           "postingtype_1":  "SLAB",
+                                           "postingrule_1":  "",
+                                           "amount_1":  "0.0000",
+                                           "slab_1":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_1":  "AFTERDISCOUNT",
+                                           "entrydatetime_1":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_1":  "",
+                                           "applyonrackrate_1":  "0",
+                                           "applytaxdate_1":  "2025-09-22",
+                                           "exchange_rate1_1":  "1.0000",
+                                           "exchange_rate2_1":  "1.0000"
+                                       }
+                    },
+        "ShowPriceFormat":  "Average Per Night Rate",
+        "DefaultDisplyCurrencyCode":  "",
+        "deals":  "",
+        "IsPromotion":  false,
+        "Promotion_Code":  null,
+        "Promotion_Description":  null,
+        "Promotion_Name":  null,
+        "Promotion_Id":  null,
+        "Package_Name":  "",
+        "Package_Id":  "",
+        "currency_code":  "INR",
+        "currency_sign":  "Rs",
+        "localfolder":  "vintagevallyresort",
+        "CalDateFormat":  "dd-mm-yy",
+        "ShowTaxInclusiveExclusiveSettings":  "1",
+        "hidefrommetasearch":  "",
+        "prepaid_noncancel_nonrefundable":  "0",
+        "cancellation_deadline":  "",
+        "digits_after_decimal":  "2",
+        "visiblity_nights":  "false",
+        "BookingEngineURL":  "https://live.ipms247.com/booking/book-rooms-vintagevallyresort",
+        "NewRoomAmenities":  [
+
+                             ],
+        "RoomAmenities":  "",
+        "room_main_image":  "https://static.ipms247.com/uploads/46924_20251010071529_0664397001760080529_835_9a1aa1da-8145-44ba-ac25-087a08ea7611.jpg",
+        "RoomImages":  [
+                           {
+                               "room_main_image":  "https://static.ipms247.com/uploads/46924_20251010071529_0664397001760080529_835_9a1aa1da-8145-44ba-ac25-087a08ea7611.jpg",
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071529_0664397001760080529_835_9a1aa1da-8145-44ba-ac25-087a08ea7611.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071530_0119259001760080530_658_15e8e552-2e22-4d04-80cd-6d7599726b93.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071530_0608072001760080530_355_53f44c48-6ad7-4e60-b4e6-2bee6b093363.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071531_0076624001760080531_987_dec87cbc-0eca-4438-9286-40fab58898dd.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071531_0529536001760080531_838_4d64db7b-29cd-49d1-8c06-0591298e3af0.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071532_0188317001760080532_315_687d7dfc-6c27-481d-af0a-a98d1894efa5.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071532_0570970001760080532_62_cca4fad1-fca8-4b1e-a121-7fc99bc7716f.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071532_0991149001760080532_453_4cae38cb-4af1-457e-b786-b69ee7e5ff94.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071533_0547336001760080533_57_1e33f105-3358-4229-a4fa-a242869a164a.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071533_0993121001760080533_470_e1f39a42-9305-4d68-a74e-46b02ca6e76f.jpeg"
+                           }
+                       ]
+    },
+    {
+        "Room_Name":  "DELUXE EDGE VIEW CP",
+        "Room_Description":  "DELUXE EDGE VIEW CP",
+        "Roomtype_Name":  "DELUXE EDGE VIEW",
+        "Roomtype_Short_code":  "DELUXE EDGE VIEW",
+        "Room_Max_adult":  "3",
+        "Room_Max_child":  "2",
+        "Package_Description":  "",
+        "Specials_Desc":  "",
+        "specialconditions":  "",
+        "specialhighlightinclusion":  "",
+        "hotelcode":  "46924",
+        "roomtypeunkid":  "4692400000000000005",
+        "ratetypeunkid":  "4692400000000000002",
+        "roomrateunkid":  "4692400000000000013",
+        "base_adult_occupancy":  2,
+        "base_child_occupancy":  0,
+        "max_adult_occupancy":  3,
+        "max_child_occupancy":  2,
+        "max_occupancy":  "",
+        "inclusion":  "-",
+        "available_rooms":  {
+                                "2026-04-20":  8
+                            },
+        "min_ava_rooms":  8,
+        "room_rates_info":  {
+                                "before_discount_inclusive_tax_adjustment":  [
+
+                                                                             ],
+                                "exclusive_tax":  {
+                                                      "2026-04-20":  "3500.0000"
+                                                  },
+                                "exclusivetax_baserate":  {
+                                                              "2026-04-20":  "3500.0000"
+                                                          },
+                                "tax":  {
+                                            "2026-04-20":  175
+                                        },
+                                "adjustment":  {
+                                                   "2026-04-20":  0
+                                               },
+                                "inclusive_tax_adjustment":  {
+                                                                 "2026-04-20":  3675
+                                                             },
+                                "rack_rate":  "4500.0000",
+                                "totalprice_room_only":  3500,
+                                "totalprice_inclusive_all":  3675,
+                                "avg_per_night_before_discount":  "",
+                                "avg_per_night_after_discount":  3675,
+                                "avg_per_night_without_tax":  3500,
+                                "day_wise_baserackrate":  [
+                                                              "3500.0000"
+                                                          ],
+                                "day_wise_beforediscount":  [
+                                                                "3500.0000"
+                                                            ]
+                            },
+        "extra_adult_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1500.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  75
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1575
+                                                                    },
+                                       "rack_rate":  "1500.0000"
+                                   },
+        "extra_child_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1200.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  60
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1260
+                                                                    },
+                                       "rack_rate":  "1000.0000"
+                                   },
+        "min_nights":  {
+                           "2026-04-20":  "1"
+                       },
+        "stopsells":  {
+                          "2026-04-20":  "0"
+                      },
+        "close_on_arrival":  {
+                                 "2026-04-20":  "0"
+                             },
+        "close_on_dept":  {
+                              "2026-04-20":  "0"
+                          },
+        "Hotel_amenities":  "[]",
+        "Hotel_amenitiesNew":  [
+
+                               ],
+        "Avg_min_nights":  "1",
+        "max_nights":  {
+                           "2026-04-20":  ""
+                       },
+        "Avg_max_nights":  "",
+        "check_in_time":  "13:00",
+        "check_out_time":  "11:00",
+        "TaxName":  {
+                        "2026-04-20":  {
+                                           "Taxname_0":  "SGST",
+                                           "taxdate_0":  "2025-09-22 12:57:46",
+                                           "exemptafter_0":  "0",
+                                           "postingtype_0":  "SLAB",
+                                           "postingrule_0":  "",
+                                           "amount_0":  "0.0000",
+                                           "slab_0":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_0":  "AFTERDISCOUNT",
+                                           "entrydatetime_0":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_0":  "",
+                                           "applyonrackrate_0":  "0",
+                                           "applytaxdate_0":  "2025-09-22",
+                                           "exchange_rate1_0":  "1.0000",
+                                           "exchange_rate2_0":  "1.0000",
+                                           "Taxname_1":  "CGST",
+                                           "taxdate_1":  "2025-09-22 12:57:46",
+                                           "exemptafter_1":  "0",
+                                           "postingtype_1":  "SLAB",
+                                           "postingrule_1":  "",
+                                           "amount_1":  "0.0000",
+                                           "slab_1":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_1":  "AFTERDISCOUNT",
+                                           "entrydatetime_1":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_1":  "",
+                                           "applyonrackrate_1":  "0",
+                                           "applytaxdate_1":  "2025-09-22",
+                                           "exchange_rate1_1":  "1.0000",
+                                           "exchange_rate2_1":  "1.0000"
+                                       }
+                    },
+        "ShowPriceFormat":  "Average Per Night Rate",
+        "DefaultDisplyCurrencyCode":  "",
+        "deals":  "",
+        "IsPromotion":  false,
+        "Promotion_Code":  null,
+        "Promotion_Description":  null,
+        "Promotion_Name":  null,
+        "Promotion_Id":  null,
+        "Package_Name":  "",
+        "Package_Id":  "",
+        "currency_code":  "INR",
+        "currency_sign":  "Rs",
+        "localfolder":  "vintagevallyresort",
+        "CalDateFormat":  "dd-mm-yy",
+        "ShowTaxInclusiveExclusiveSettings":  "1",
+        "hidefrommetasearch":  "",
+        "prepaid_noncancel_nonrefundable":  "0",
+        "cancellation_deadline":  "",
+        "digits_after_decimal":  "2",
+        "visiblity_nights":  "false",
+        "BookingEngineURL":  "https://live.ipms247.com/booking/book-rooms-vintagevallyresort",
+        "NewRoomAmenities":  [
+
+                             ],
+        "RoomAmenities":  "",
+        "room_main_image":  "https://static.ipms247.com/uploads/46924_20251010071529_0664397001760080529_835_9a1aa1da-8145-44ba-ac25-087a08ea7611.jpg",
+        "RoomImages":  [
+                           {
+                               "room_main_image":  "https://static.ipms247.com/uploads/46924_20251010071529_0664397001760080529_835_9a1aa1da-8145-44ba-ac25-087a08ea7611.jpg",
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071529_0664397001760080529_835_9a1aa1da-8145-44ba-ac25-087a08ea7611.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071530_0119259001760080530_658_15e8e552-2e22-4d04-80cd-6d7599726b93.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071530_0608072001760080530_355_53f44c48-6ad7-4e60-b4e6-2bee6b093363.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071531_0076624001760080531_987_dec87cbc-0eca-4438-9286-40fab58898dd.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071531_0529536001760080531_838_4d64db7b-29cd-49d1-8c06-0591298e3af0.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071532_0188317001760080532_315_687d7dfc-6c27-481d-af0a-a98d1894efa5.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071532_0570970001760080532_62_cca4fad1-fca8-4b1e-a121-7fc99bc7716f.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071532_0991149001760080532_453_4cae38cb-4af1-457e-b786-b69ee7e5ff94.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071533_0547336001760080533_57_1e33f105-3358-4229-a4fa-a242869a164a.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071533_0993121001760080533_470_e1f39a42-9305-4d68-a74e-46b02ca6e76f.jpeg"
+                           }
+                       ]
+    },
+    {
+        "Room_Name":  "DELUXE EDGE VIEW EP",
+        "Room_Description":  "DELUXE EDGE VIEW EP",
+        "Roomtype_Name":  "DELUXE EDGE VIEW",
+        "Roomtype_Short_code":  "DELUXE EDGE VIEW",
+        "Room_Max_adult":  "3",
+        "Room_Max_child":  "2",
+        "Package_Description":  "",
+        "Specials_Desc":  "",
+        "specialconditions":  "",
+        "specialhighlightinclusion":  "",
+        "hotelcode":  "46924",
+        "roomtypeunkid":  "4692400000000000005",
+        "ratetypeunkid":  "4692400000000000001",
+        "roomrateunkid":  "4692400000000000014",
+        "base_adult_occupancy":  2,
+        "base_child_occupancy":  0,
+        "max_adult_occupancy":  3,
+        "max_child_occupancy":  2,
+        "max_occupancy":  "",
+        "inclusion":  "-",
+        "available_rooms":  {
+                                "2026-04-20":  8
+                            },
+        "min_ava_rooms":  8,
+        "room_rates_info":  {
+                                "before_discount_inclusive_tax_adjustment":  [
+
+                                                                             ],
+                                "exclusive_tax":  {
+                                                      "2026-04-20":  "3000.0000"
+                                                  },
+                                "exclusivetax_baserate":  {
+                                                              "2026-04-20":  "3000.0000"
+                                                          },
+                                "tax":  {
+                                            "2026-04-20":  150
+                                        },
+                                "adjustment":  {
+                                                   "2026-04-20":  0
+                                               },
+                                "inclusive_tax_adjustment":  {
+                                                                 "2026-04-20":  3150
+                                                             },
+                                "rack_rate":  "4000.0000",
+                                "totalprice_room_only":  3000,
+                                "totalprice_inclusive_all":  3150,
+                                "avg_per_night_before_discount":  "",
+                                "avg_per_night_after_discount":  3150,
+                                "avg_per_night_without_tax":  3000,
+                                "day_wise_baserackrate":  [
+                                                              "3000.0000"
+                                                          ],
+                                "day_wise_beforediscount":  [
+                                                                "3000.0000"
+                                                            ]
+                            },
+        "extra_adult_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1500.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  75
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1575
+                                                                    },
+                                       "rack_rate":  "1500.0000"
+                                   },
+        "extra_child_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1200.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  60
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1260
+                                                                    },
+                                       "rack_rate":  "1000.0000"
+                                   },
+        "min_nights":  {
+                           "2026-04-20":  "1"
+                       },
+        "stopsells":  {
+                          "2026-04-20":  "0"
+                      },
+        "close_on_arrival":  {
+                                 "2026-04-20":  "0"
+                             },
+        "close_on_dept":  {
+                              "2026-04-20":  "0"
+                          },
+        "Hotel_amenities":  "[]",
+        "Hotel_amenitiesNew":  [
+
+                               ],
+        "Avg_min_nights":  "1",
+        "max_nights":  {
+                           "2026-04-20":  ""
+                       },
+        "Avg_max_nights":  "",
+        "check_in_time":  "13:00",
+        "check_out_time":  "11:00",
+        "TaxName":  {
+                        "2026-04-20":  {
+                                           "Taxname_0":  "SGST",
+                                           "taxdate_0":  "2025-09-22 12:57:46",
+                                           "exemptafter_0":  "0",
+                                           "postingtype_0":  "SLAB",
+                                           "postingrule_0":  "",
+                                           "amount_0":  "0.0000",
+                                           "slab_0":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_0":  "AFTERDISCOUNT",
+                                           "entrydatetime_0":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_0":  "",
+                                           "applyonrackrate_0":  "0",
+                                           "applytaxdate_0":  "2025-09-22",
+                                           "exchange_rate1_0":  "1.0000",
+                                           "exchange_rate2_0":  "1.0000",
+                                           "Taxname_1":  "CGST",
+                                           "taxdate_1":  "2025-09-22 12:57:46",
+                                           "exemptafter_1":  "0",
+                                           "postingtype_1":  "SLAB",
+                                           "postingrule_1":  "",
+                                           "amount_1":  "0.0000",
+                                           "slab_1":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_1":  "AFTERDISCOUNT",
+                                           "entrydatetime_1":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_1":  "",
+                                           "applyonrackrate_1":  "0",
+                                           "applytaxdate_1":  "2025-09-22",
+                                           "exchange_rate1_1":  "1.0000",
+                                           "exchange_rate2_1":  "1.0000"
+                                       }
+                    },
+        "ShowPriceFormat":  "Average Per Night Rate",
+        "DefaultDisplyCurrencyCode":  "",
+        "deals":  "",
+        "IsPromotion":  false,
+        "Promotion_Code":  null,
+        "Promotion_Description":  null,
+        "Promotion_Name":  null,
+        "Promotion_Id":  null,
+        "Package_Name":  "",
+        "Package_Id":  "",
+        "currency_code":  "INR",
+        "currency_sign":  "Rs",
+        "localfolder":  "vintagevallyresort",
+        "CalDateFormat":  "dd-mm-yy",
+        "ShowTaxInclusiveExclusiveSettings":  "1",
+        "hidefrommetasearch":  "",
+        "prepaid_noncancel_nonrefundable":  "0",
+        "cancellation_deadline":  "",
+        "digits_after_decimal":  "2",
+        "visiblity_nights":  "false",
+        "BookingEngineURL":  "https://live.ipms247.com/booking/book-rooms-vintagevallyresort",
+        "NewRoomAmenities":  [
+
+                             ],
+        "RoomAmenities":  "",
+        "room_main_image":  "https://static.ipms247.com/uploads/46924_20251010071529_0664397001760080529_835_9a1aa1da-8145-44ba-ac25-087a08ea7611.jpg",
+        "RoomImages":  [
+                           {
+                               "room_main_image":  "https://static.ipms247.com/uploads/46924_20251010071529_0664397001760080529_835_9a1aa1da-8145-44ba-ac25-087a08ea7611.jpg",
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071529_0664397001760080529_835_9a1aa1da-8145-44ba-ac25-087a08ea7611.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071530_0119259001760080530_658_15e8e552-2e22-4d04-80cd-6d7599726b93.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071530_0608072001760080530_355_53f44c48-6ad7-4e60-b4e6-2bee6b093363.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071531_0076624001760080531_987_dec87cbc-0eca-4438-9286-40fab58898dd.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071531_0529536001760080531_838_4d64db7b-29cd-49d1-8c06-0591298e3af0.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071532_0188317001760080532_315_687d7dfc-6c27-481d-af0a-a98d1894efa5.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071532_0570970001760080532_62_cca4fad1-fca8-4b1e-a121-7fc99bc7716f.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071532_0991149001760080532_453_4cae38cb-4af1-457e-b786-b69ee7e5ff94.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071533_0547336001760080533_57_1e33f105-3358-4229-a4fa-a242869a164a.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071533_0993121001760080533_470_e1f39a42-9305-4d68-a74e-46b02ca6e76f.jpeg"
+                           }
+                       ]
+    },
+    {
+        "Room_Name":  "DELUXE EDGE VIEW MAP",
+        "Room_Description":  "DELUXE EDGE VIEW MAP",
+        "Roomtype_Name":  "DELUXE EDGE VIEW",
+        "Roomtype_Short_code":  "DELUXE EDGE VIEW",
+        "Room_Max_adult":  "3",
+        "Room_Max_child":  "2",
+        "Package_Description":  "",
+        "Specials_Desc":  "",
+        "specialconditions":  "",
+        "specialhighlightinclusion":  "",
+        "hotelcode":  "46924",
+        "roomtypeunkid":  "4692400000000000005",
+        "ratetypeunkid":  "4692400000000000003",
+        "roomrateunkid":  "4692400000000000015",
+        "base_adult_occupancy":  2,
+        "base_child_occupancy":  0,
+        "max_adult_occupancy":  3,
+        "max_child_occupancy":  2,
+        "max_occupancy":  "",
+        "inclusion":  "-",
+        "available_rooms":  {
+                                "2026-04-20":  8
+                            },
+        "min_ava_rooms":  8,
+        "room_rates_info":  {
+                                "before_discount_inclusive_tax_adjustment":  [
+
+                                                                             ],
+                                "exclusive_tax":  {
+                                                      "2026-04-20":  "4500.0000"
+                                                  },
+                                "exclusivetax_baserate":  {
+                                                              "2026-04-20":  "4500.0000"
+                                                          },
+                                "tax":  {
+                                            "2026-04-20":  225
+                                        },
+                                "adjustment":  {
+                                                   "2026-04-20":  0
+                                               },
+                                "inclusive_tax_adjustment":  {
+                                                                 "2026-04-20":  4725
+                                                             },
+                                "rack_rate":  "6500.0000",
+                                "totalprice_room_only":  4500,
+                                "totalprice_inclusive_all":  4725,
+                                "avg_per_night_before_discount":  "",
+                                "avg_per_night_after_discount":  4725,
+                                "avg_per_night_without_tax":  4500,
+                                "day_wise_baserackrate":  [
+                                                              "4500.0000"
+                                                          ],
+                                "day_wise_beforediscount":  [
+                                                                "4500.0000"
+                                                            ]
+                            },
+        "extra_adult_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "2000.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  100
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  2100
+                                                                    },
+                                       "rack_rate":  "1500.0000"
+                                   },
+        "extra_child_rates_info":  {
+                                       "exclusive_tax":  {
+                                                             "2026-04-20":  "1850.0000"
+                                                         },
+                                       "tax":  {
+                                                   "2026-04-20":  92.5
+                                               },
+                                       "adjustment":  {
+                                                          "2026-04-20":  0
+                                                      },
+                                       "inclusive_tax_adjustment":  {
+                                                                        "2026-04-20":  1942.5
+                                                                    },
+                                       "rack_rate":  "1000.0000"
+                                   },
+        "min_nights":  {
+                           "2026-04-20":  "1"
+                       },
+        "stopsells":  {
+                          "2026-04-20":  "0"
+                      },
+        "close_on_arrival":  {
+                                 "2026-04-20":  "0"
+                             },
+        "close_on_dept":  {
+                              "2026-04-20":  "0"
+                          },
+        "Hotel_amenities":  "[]",
+        "Hotel_amenitiesNew":  [
+
+                               ],
+        "Avg_min_nights":  "1",
+        "max_nights":  {
+                           "2026-04-20":  ""
+                       },
+        "Avg_max_nights":  "",
+        "check_in_time":  "13:00",
+        "check_out_time":  "11:00",
+        "TaxName":  {
+                        "2026-04-20":  {
+                                           "Taxname_0":  "SGST",
+                                           "taxdate_0":  "2025-09-22 12:57:46",
+                                           "exemptafter_0":  "0",
+                                           "postingtype_0":  "SLAB",
+                                           "postingrule_0":  "",
+                                           "amount_0":  "0.0000",
+                                           "slab_0":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_0":  "AFTERDISCOUNT",
+                                           "entrydatetime_0":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_0":  "",
+                                           "applyonrackrate_0":  "0",
+                                           "applytaxdate_0":  "2025-09-22",
+                                           "exchange_rate1_0":  "1.0000",
+                                           "exchange_rate2_0":  "1.0000",
+                                           "Taxname_1":  "CGST",
+                                           "taxdate_1":  "2025-09-22 12:57:46",
+                                           "exemptafter_1":  "0",
+                                           "postingtype_1":  "SLAB",
+                                           "postingrule_1":  "",
+                                           "amount_1":  "0.0000",
+                                           "slab_1":  "0-7500.00-2.5,7500.01-100000000000000.00-9",
+                                           "discounttype_1":  "AFTERDISCOUNT",
+                                           "entrydatetime_1":  "2025-09-17 07:27:46",
+                                           "taxapplyafter_1":  "",
+                                           "applyonrackrate_1":  "0",
+                                           "applytaxdate_1":  "2025-09-22",
+                                           "exchange_rate1_1":  "1.0000",
+                                           "exchange_rate2_1":  "1.0000"
+                                       }
+                    },
+        "ShowPriceFormat":  "Average Per Night Rate",
+        "DefaultDisplyCurrencyCode":  "",
+        "deals":  "",
+        "IsPromotion":  false,
+        "Promotion_Code":  null,
+        "Promotion_Description":  null,
+        "Promotion_Name":  null,
+        "Promotion_Id":  null,
+        "Package_Name":  "",
+        "Package_Id":  "",
+        "currency_code":  "INR",
+        "currency_sign":  "Rs",
+        "localfolder":  "vintagevallyresort",
+        "CalDateFormat":  "dd-mm-yy",
+        "ShowTaxInclusiveExclusiveSettings":  "1",
+        "hidefrommetasearch":  "",
+        "prepaid_noncancel_nonrefundable":  "0",
+        "cancellation_deadline":  "",
+        "digits_after_decimal":  "2",
+        "visiblity_nights":  "false",
+        "BookingEngineURL":  "https://live.ipms247.com/booking/book-rooms-vintagevallyresort",
+        "NewRoomAmenities":  [
+
+                             ],
+        "RoomAmenities":  "",
+        "room_main_image":  "https://static.ipms247.com/uploads/46924_20251010071529_0664397001760080529_835_9a1aa1da-8145-44ba-ac25-087a08ea7611.jpg",
+        "RoomImages":  [
+                           {
+                               "room_main_image":  "https://static.ipms247.com/uploads/46924_20251010071529_0664397001760080529_835_9a1aa1da-8145-44ba-ac25-087a08ea7611.jpg",
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071529_0664397001760080529_835_9a1aa1da-8145-44ba-ac25-087a08ea7611.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071530_0119259001760080530_658_15e8e552-2e22-4d04-80cd-6d7599726b93.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071530_0608072001760080530_355_53f44c48-6ad7-4e60-b4e6-2bee6b093363.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071531_0076624001760080531_987_dec87cbc-0eca-4438-9286-40fab58898dd.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071531_0529536001760080531_838_4d64db7b-29cd-49d1-8c06-0591298e3af0.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071532_0188317001760080532_315_687d7dfc-6c27-481d-af0a-a98d1894efa5.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071532_0570970001760080532_62_cca4fad1-fca8-4b1e-a121-7fc99bc7716f.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071532_0991149001760080532_453_4cae38cb-4af1-457e-b786-b69ee7e5ff94.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071533_0547336001760080533_57_1e33f105-3358-4229-a4fa-a242869a164a.jpg"
+                           },
+                           {
+                               "image":  "https://static.ipms247.com/uploads/46924_20251010071533_0993121001760080533_470_e1f39a42-9305-4d68-a74e-46b02ca6e76f.jpeg"
+                           }
+                       ]
+    }
+]

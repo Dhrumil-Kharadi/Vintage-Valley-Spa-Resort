@@ -24,6 +24,7 @@ export const adminPromoService = {
       code: p.code,
       type: p.type,
       value: String(p.value),
+      applicableLabel: String(p.applicableLabel ?? ''),
       isActive: p.isActive,
       startsAt: p.startsAt,
       expiresAt: p.expiresAt,
@@ -49,6 +50,7 @@ export const adminPromoService = {
     code: string;
     type: "PERCENT" | "FLAT";
     value: number;
+    applicableLabel?: string;
     startsAt?: string | null;
     expiresAt?: string | null;
     maxUses?: number | null;
@@ -74,12 +76,15 @@ export const adminPromoService = {
       throw new HttpError(400, "Invalid maxUses");
     }
 
+    const applicableLabel = String(params.applicableLabel ?? '').trim().slice(0, 100);
+
     try {
       const promo: any = await (prisma as any).promoCode.create({
         data: {
           code,
           type: params.type,
           value: valueNum.toFixed(2),
+          applicableLabel: applicableLabel || null,
           isActive: params.isActive ?? true,
           startsAt,
           expiresAt,
@@ -92,6 +97,7 @@ export const adminPromoService = {
         code: promo.code,
         type: promo.type,
         value: String(promo.value),
+        applicableLabel: String(promo.applicableLabel ?? ''),
         isActive: promo.isActive,
         startsAt: promo.startsAt,
         expiresAt: promo.expiresAt,
@@ -120,6 +126,7 @@ export const adminPromoService = {
       code: promo.code,
       type: promo.type,
       value: String(promo.value),
+      applicableLabel: String(promo.applicableLabel ?? ''),
       isActive: promo.isActive,
       startsAt: promo.startsAt,
       expiresAt: promo.expiresAt,

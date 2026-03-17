@@ -1,8 +1,8 @@
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { downloadBookingInvoicePdf } from "@/lib/invoicePdf";
 import { toast } from "react-toastify";
-import { Check, Pencil, Trash2, X } from "lucide-react";
+import { Check, Pencil, Trash2, X, Tag, CheckCircle } from "lucide-react";
 import { roomService } from "../lib/roomService";
 
 const AdminBookings = () => {
@@ -55,6 +55,20 @@ const AdminBookings = () => {
   const checkOutPickerRef = useRef<HTMLInputElement | null>(null);
   const lastDateRangeKeyRef = useRef<string>("");
 
+  const [activePromos, setActivePromos] = useState<any[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/promos', { credentials: 'include' });
+        const data = await res.json().catch(() => null);
+        if (data?.ok && Array.isArray(data?.data?.promos)) {
+          setActivePromos(data.data.promos.filter((p: any) => p.isActive && p.promoScope !== 'GLOBAL_FLAT'));
+        }
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
   type MealPlan = "EP" | "CP" | "MAP";
 
   const normalizeRoomType = (value: string) => {
@@ -65,7 +79,7 @@ const AdminBookings = () => {
 
     if (lower === "deluxe studio suite") return "Deluxe Studio Suite";
     if (lower === "deluxe edge view" || lower === "deluxe edge view ") return "Deluxe Edge View";
-    if (lower === "lotus family suite") return "Lotus Family Suite";
+    if (lower === "lotus family suite" || lower === "lotus family suit") return "Lotus Family Suite";
     if (lower === "presidential suite" || lower === "presidentail suite") return "Presidential Suite";
 
     return raw;
@@ -101,6 +115,12 @@ const AdminBookings = () => {
   };
 
   const extractPricePerNightFromRaw = (r: any): number => {
+    const directRackRate = Number(r?.rack_rate ?? 0);
+    if (Number.isFinite(directRackRate) && directRackRate > 0) return directRackRate;
+
+    const rackRate = Number(r?.room_rates_info?.rack_rate ?? 0);
+    if (Number.isFinite(rackRate) && rackRate > 0) return rackRate;
+
     const name = String(r?.Room_Name ?? "");
     const isCp = name.toUpperCase().includes("CP");
     if (isCp && r?.room_rates_info?.exclusive_tax && typeof r.room_rates_info.exclusive_tax === "object") {
@@ -137,6 +157,22 @@ const AdminBookings = () => {
     CP?: { pricePerNight: number; availability: number };
     MAP?: { pricePerNight: number; availability: number };
   }>({});
+
+  const availablePlanOptions = useMemo(() => {
+    const candidates: MealPlan[] = ["EP", "CP", "MAP"];
+    const present = candidates.filter((p) => {
+      const price = Number((livePlans as any)?.[p]?.pricePerNight ?? 0);
+      return Number.isFinite(price) && price > 0;
+    });
+    return present.length > 0 ? present : candidates;
+  }, [livePlans]);
+
+  const defaultPlanForSelection = useMemo<MealPlan>(() => {
+    if (availablePlanOptions.includes("CP")) return "CP";
+    if (availablePlanOptions.includes("MAP")) return "MAP";
+    if (availablePlanOptions.includes("EP")) return "EP";
+    return "CP";
+  }, [availablePlanOptions]);
 
   const [livePlansLoading, setLivePlansLoading] = useState(false);
   const [livePlansError, setLivePlansError] = useState<string | null>(null);
@@ -193,6 +229,17 @@ const AdminBookings = () => {
     return Math.ceil(ms / (1000 * 60 * 60 * 24));
   }, [checkIn, checkOut]);
 
+  const visiblePromos = useMemo(() => {
+    return activePromos.filter((p: any) => {
+      // Hide GLOBAL_FLAT from selectable cards
+      if (p.promoScope === 'GLOBAL_FLAT') return false;
+      if (nights === 0) return true;
+      const min = p.minNights ?? -1;
+      const max = p.maxNights ?? 999999;
+      return (min === -1 || nights >= min) && (max === 999999 || nights <= max);
+    });
+  }, [activePromos, nights]);
+
   const nightDates = useMemo(() => {
     if (!checkIn || nights <= 0) return [] as string[];
     const start = new Date(checkIn);
@@ -223,11 +270,12 @@ const AdminBookings = () => {
       const next: Record<string, MealPlan> = {};
       for (const d of nightDates) {
         const plan = prev[d];
-        next[d] = plan === "EP" || plan === "CP" || plan === "MAP" ? plan : "CP";
+        const normalized = plan === "EP" || plan === "CP" || plan === "MAP" ? plan : defaultPlanForSelection;
+        next[d] = (availablePlanOptions as any).includes(normalized) ? normalized : defaultPlanForSelection;
       }
       return next;
     });
-  }, [nightDates]);
+  }, [nightDates, availablePlanOptions, defaultPlanForSelection]);
 
   const todayIso = useMemo(() => {
     const now = new Date();
@@ -289,37 +337,7 @@ const AdminBookings = () => {
       setLivePlansLoading(true);
       setLivePlansError(null);
       try {
-        const rawResp = await roomService.getRawRoomList({
-          checkIn,
-          checkOut,
-          adults: 1,
-          children: 0,
-          rooms: 1,
-        });
-
-        if (!rawResp.success) {
-          throw new Error(rawResp.message || rawResp.error || "Failed to fetch live rooms");
-        }
-
         const titleNorm = normalizeRoomType(title);
-        const list = (rawResp.rooms ?? []) as any[];
-        const roomTypeMatches = list.filter((r) => {
-          const rt = normalizeRoomType(String(r?.Roomtype_Name ?? "").trim());
-          return rt.toLowerCase() === titleNorm.toLowerCase();
-        });
-
-        const plans: any = {};
-        for (const r of roomTypeMatches) {
-          const plan = getPlanFromRoomName(String(r?.Room_Name ?? ""));
-          if (!plan) continue;
-          const pricePerNight = extractPricePerNightFromRaw(r);
-          const availability = extractAvailabilityFromRaw(r);
-          plans[plan] = {
-            pricePerNight: Number.isFinite(pricePerNight) ? pricePerNight : 0,
-            availability: Number.isFinite(availability) ? availability : 0,
-          };
-        }
-
         const listResp = await roomService.getRoomList({
           checkIn,
           checkOut,
@@ -327,6 +345,60 @@ const AdminBookings = () => {
           children: 0,
           rooms: 1,
         });
+
+        const plans: any = {};
+
+        // Primary source: /api/rooms includes CP/MAP variants (generated by backend)
+        if (listResp.ok) {
+          const roomsFromList = (listResp.data?.rooms ?? []) as any[];
+          const roomTypeMatches = roomsFromList.filter((r) => {
+            const base = baseRoomTypeFromApiName(String(r?.Room_Name ?? ""));
+            return base.toLowerCase() === titleNorm.toLowerCase();
+          });
+
+          for (const r of roomTypeMatches) {
+            const plan = getPlanFromRoomName(String(r?.Room_Name ?? ""));
+            if (!plan) continue;
+            const pricePerNight = extractPricePerNightFromRaw(r);
+            const availability = extractAvailabilityFromRaw(r);
+            plans[plan] = {
+              pricePerNight: Number.isFinite(pricePerNight) ? pricePerNight : 0,
+              availability: Number.isFinite(availability) ? availability : 0,
+            };
+          }
+        }
+
+        // Fallback source: /api/rooms/raw (if /api/rooms did not provide any plan variants)
+        if (!plans.EP && !plans.CP && !plans.MAP) {
+          const rawResp = await roomService.getRawRoomList({
+            checkIn,
+            checkOut,
+            adults: 1,
+            children: 0,
+            rooms: 1,
+          });
+
+          if (!rawResp.success) {
+            throw new Error(rawResp.message || rawResp.error || "Failed to fetch live rooms");
+          }
+
+          const list = (rawResp.rooms ?? []) as any[];
+          const roomTypeMatches = list.filter((r) => {
+            const rt = normalizeRoomType(String(r?.Roomtype_Name ?? "").trim());
+            return rt.toLowerCase() === titleNorm.toLowerCase();
+          });
+
+          for (const r of roomTypeMatches) {
+            const plan = getPlanFromRoomName(String(r?.Room_Name ?? ""));
+            if (!plan) continue;
+            const pricePerNight = extractPricePerNightFromRaw(r);
+            const availability = extractAvailabilityFromRaw(r);
+            plans[plan] = {
+              pricePerNight: Number.isFinite(pricePerNight) ? pricePerNight : 0,
+              availability: Number.isFinite(availability) ? availability : 0,
+            };
+          }
+        }
 
         let promo: { promoApplied: boolean; discountPerNight: number } | null = null;
         if (listResp.ok) {
@@ -740,6 +812,77 @@ const AdminBookings = () => {
 
   return (
     <AdminLayout title="Bookings" description="View and manage bookings.">
+
+      {/* Promo Cards Strip */}
+      <div className="promo-section mb-8 relative">
+        <div className="flex items-center gap-3 mb-4">
+          <Tag className="h-5 w-5 text-gold" />
+          <h3 className="promo-title">
+            Special Offers
+          </h3>
+        </div>
+        <div className="promo-container">
+          {visiblePromos && visiblePromos.length > 0 ? (
+            visiblePromos.map((promo: any) => {
+              const isActive = appliedPromo?.code === promo.code;
+              return (
+                <div 
+                  key={promo.id || promo.code} 
+                  onClick={() => {
+                    if (isActive) {
+                      setAppliedPromo(null);
+                      setPromoInput('');
+                      toast.info('Promo removed');
+                    } else {
+                      setAppliedPromo({
+                        code: promo.code,
+                        discountAmount: 0
+                      });
+                      setPromoInput(promo.code);
+                      toast.success(`Promo ${promo.code} selected`);
+                    }
+                  }}
+                  className={`promo-card group ${isActive ? 'border-2 border-gold bg-[#fff8f2] shadow-gold/20' : ''}`}
+                >
+                  <div className="relative z-10 w-3/4">
+                    <h3 className="promo-card-value">
+                      {promo.type === 'PERCENT' ? `${promo.value}%` : `₹${promo.value}`} <span>OFF</span>
+                    </h3>
+                    <p className="promo-card-label">
+                      on {promo.applicableLabel || 'your stay'}
+                    </p>
+                  </div>
+
+                  <div className="promo-card-graphic">
+                    <svg viewBox="0 0 100 70" preserveAspectRatio="none" className="w-full h-full drop-shadow-lg">
+                      <path 
+                        d="M 10 0 H 90 A 10 10 0 0 1 100 10 V 20 A 15 15 0 0 0 100 50 V 60 A 10 10 0 0 1 90 70 H 10 A 10 10 0 0 1 0 60 V 10 A 10 10 0 0 1 10 0 Z" 
+                        fill="currentColor" 
+                      />
+                      <line x1="75" y1="5" x2="75" y2="65" stroke="rgba(0,0,0,0.3)" strokeWidth="2" strokeDasharray="4 4" />
+                      <text x="37.5" y="48" fontSize="32" fill="rgba(0,0,0,0.3)" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        {promo.type === 'PERCENT' ? '%' : '₹'}
+                      </text>
+                    </svg>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="promo-card pointer-events-none opacity-80">
+              <div className="flex items-start justify-between mb-3">
+                <h3 className="text-gray-500">
+                  No Offers Available
+                </h3>
+              </div>
+              <p>
+                Check back later
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="bg-white rounded-3xl p-4 sm:p-8 luxury-shadow">
         <div className="mb-8">
           <div className="text-gray-900 font-semibold mb-3">Cash/UPI/Card Payment</div>
@@ -1114,9 +1257,11 @@ const AdminBookings = () => {
                       onChange={(e) => setMealPlanByDate((prev) => ({ ...prev, [d]: e.target.value as MealPlan }))}
                       className="px-3 py-2 rounded-xl border border-gold/20 bg-white focus:outline-none focus:ring-2 focus:ring-gold/30 text-sm"
                     >
-                      <option value="EP">EP</option>
-                      <option value="CP">CP</option>
-                      <option value="MAP">MAP</option>
+                      {availablePlanOptions.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 ))}

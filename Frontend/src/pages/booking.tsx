@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { usePolicyModals } from '@/components/PolicyModals';
-import { Star } from 'lucide-react';
+import { Star, Tag, CheckCircle } from 'lucide-react';
 import { roomDatabaseService, DatabaseRoom } from '../lib/roomDatabase.service';
 import { roomService } from '../lib/roomService';
 
@@ -21,6 +21,7 @@ type RoomDetails = {
   amenities: string[];
   images: string[];
   availableRooms: number;
+  rack_rate?: number; // base rack rate for EP/CP/MAP pricing
 };
 
 type MealPlan = 'EP' | 'CP' | 'MAP';
@@ -118,8 +119,37 @@ const Booking = () => {
   const [formError, setFormError] = useState<string | null>(null);
 
   const [promoInput, setPromoInput] = useState('');
-  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountAmount: number } | null>(null);
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; type?: string; value?: number; discountAmount?: number } | null>(null);
   const [promoLoading, setPromoLoading] = useState(false);
+  const [activePromos, setActivePromos] = useState<any[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/promos');
+        const data = await res.json().catch(() => null);
+        if (data?.ok && Array.isArray(data?.data?.promos)) {
+          setActivePromos(data.data.promos.filter((p: any) => p.isActive && p.promoScope !== 'GLOBAL_FLAT'));
+        }
+      } catch { /* ignore */ }
+    })();
+
+    try {
+      const sp = sessionStorage.getItem('selectedPromo');
+      if (sp) {
+        const promo = JSON.parse(sp);
+        setAppliedPromo({
+          code: promo.code,
+          type: promo.type,
+          value: Number(promo.value)
+        });
+        sessionStorage.removeItem('selectedPromo');
+        setTimeout(() => {
+          document.getElementById('promo-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 500);
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   const [globalPromo, setGlobalPromo] = useState<{
     promoApplied: boolean;
@@ -232,11 +262,7 @@ const Booking = () => {
       if (typeof parsed?.additionalInformation === 'string') setAdditionalInformation(parsed.additionalInformation);
       if (typeof parsed?.promoInput === 'string') setPromoInput(parsed.promoInput);
       if (parsed?.appliedPromo && typeof parsed?.appliedPromo?.code === 'string') {
-        const d = Number(parsed?.appliedPromo?.discountAmount ?? 0);
-        setAppliedPromo({
-          code: parsed.appliedPromo.code,
-          discountAmount: Number.isFinite(d) ? d : 0,
-        });
+        setAppliedPromo(parsed.appliedPromo);
       }
       if (typeof parsed?.termsAccepted === 'boolean') setTermsAccepted(parsed.termsAccepted);
       if (parsed?.mealPlanByDate && typeof parsed.mealPlanByDate === 'object') {
@@ -365,17 +391,52 @@ const Booking = () => {
     return null;
   };
 
-  const extractPricePerNight = (r: EzeeRawRoom): number => {
-    const avg = Number(r?.room_rates_info?.avg_per_night_after_discount ?? 0);
-    if (Number.isFinite(avg) && avg > 0) return avg;
-    const inc = r?.room_rates_info?.inclusive_tax_adjustment;
-    if (inc && typeof inc === 'object') {
-      const values = Object.values(inc)
+const extractPricePerNight = (r: EzeeRawRoom): number => {
+    const rateInfo = r?.room_rates_info || {};
+    
+    console.log(`[FRONTEND DEBUG] extractPricePerNight for room: ${r.Room_Name}`, {
+      rack_rate: rateInfo.rack_rate,
+      avg_price_per_night: r.avg_price_per_night,
+      avg_per_night_after_discount: rateInfo.avg_per_night_after_discount,
+      totalprice_inclusive_all: rateInfo.totalprice_inclusive_all,
+      exclusive_tax: rateInfo.exclusive_tax
+    });
+    
+    // PRIORITIZE rack_rate as primary price source
+    let price = 0;
+    if (rateInfo.rack_rate) {
+      price = Number(rateInfo.rack_rate);
+      console.log(`[FRONTEND DEBUG] Using rack_rate: ${price}`);
+    } else if (rateInfo.avg_per_night_after_discount) {
+      price = Number(rateInfo.avg_per_night_after_discount);
+      console.log(`[FRONTEND DEBUG] Using avg_per_night_after_discount: ${price}`);
+    } else if (rateInfo.avg_per_night_before_discount) {
+      price = Number(rateInfo.avg_per_night_before_discount);
+      console.log(`[FRONTEND DEBUG] Using avg_per_night_before_discount: ${price}`);
+    } else if (rateInfo.totalprice_inclusive_all && nights > 0) {
+      price = Number(rateInfo.totalprice_inclusive_all) / nights;
+      console.log(`[FRONTEND DEBUG] Using totalprice_inclusive_all / nights: ${rateInfo.totalprice_inclusive_all} / ${nights} = ${price}`);
+    } else if (rateInfo.totalprice_room_only && nights > 0) {
+      price = Number(rateInfo.totalprice_room_only) / nights;
+      console.log(`[FRONTEND DEBUG] Using totalprice_room_only / nights: ${rateInfo.totalprice_room_only} / ${nights} = ${price}`);
+    } else if (rateInfo.exclusive_tax && typeof rateInfo.exclusive_tax === 'object') {
+      const taxValues = Object.values(rateInfo.exclusive_tax)
         .map((v: any) => Number(v))
         .filter((v) => Number.isFinite(v) && v > 0);
-      if (values.length > 0) return values[0];
+      if (taxValues.length > 0) {
+        price = taxValues[0];
+        console.log(`[FRONTEND DEBUG] Using exclusive_tax value: ${price}`);
+      }
     }
-    return 0;
+    
+    // Final fallback to original avg_price_per_night
+    if (price === 0) {
+      price = Number(r.avg_price_per_night ?? 0);
+      console.log(`[FRONTEND DEBUG] Using fallback avg_price_per_night: ${price}`);
+    }
+    
+    console.log(`[FRONTEND DEBUG] Final extracted price: ${price}`);
+    return price;
   };
 
   const extractAvailability = (r: EzeeRawRoom): number => {
@@ -394,23 +455,35 @@ const Booking = () => {
 
   const extractExtraPerNight = (extra: any): number => {
     if (!extra || typeof extra !== 'object') return 0;
+    // Use rack_rate as primary base if available
+    const rack = Number(extra?.rack_rate ?? 0);
+    if (Number.isFinite(rack) && rack > 0) {
+      console.log(`[FRONTEND DEBUG] Using extra rack_rate: ${rack}`);
+      return rack;
+    }
     // Prefer inclusive_tax_adjustment (first night), fallback to exclusive_tax
     const inc = extra?.inclusive_tax_adjustment;
     if (inc && typeof inc === 'object') {
       const values = Object.values(inc)
         .map((v: any) => Number(v))
         .filter((v) => Number.isFinite(v) && v > 0);
-      if (values.length > 0) return values[0];
+      if (values.length > 0) {
+        console.log(`[FRONTEND DEBUG] Using extra inclusive_tax_adjustment: ${values[0]}`);
+        return values[0];
+      }
     }
     const excl = extra?.exclusive_tax;
     if (excl && typeof excl === 'object') {
       const values = Object.values(excl)
         .map((v: any) => Number(v))
         .filter((v) => Number.isFinite(v) && v > 0);
-      if (values.length > 0) return values[0];
+      if (values.length > 0) {
+        console.log(`[FRONTEND DEBUG] Using extra exclusive_tax: ${values[0]}`);
+        return values[0];
+      }
     }
-    const rack = Number(extra?.rack_rate ?? 0);
-    return Number.isFinite(rack) && rack > 0 ? rack : 0;
+    console.log(`[FRONTEND DEBUG] No extra rate found, returning 0`);
+    return 0;
   };
 
   useEffect(() => {
@@ -430,7 +503,7 @@ const Booking = () => {
           return Number.isFinite(computed) && computed > 0 ? computed : baseAdults;
         })();
 
-        const resp = await roomService.getRawRoomList({
+        const resp = await roomService.getRoomList({
           checkIn,
           checkOut,
           adults: Number.isFinite(adultsCount) ? adultsCount : 1,
@@ -438,48 +511,99 @@ const Booking = () => {
           rooms: Number.isFinite(rooms) ? rooms : 1,
         });
 
-        if (!resp.success) {
+        if (resp.ok && resp.data.rooms.length > 0) {
+          console.log('[FRONTEND DEBUG] getRoomList response:', resp.data.rooms);
+          
+          const plans: {
+            EP?: { pricePerNight: number; availability: number; extraAdultPerNight: number; extraChildPerNight: number };
+            CP?: { pricePerNight: number; availability: number; extraAdultPerNight: number; extraChildPerNight: number };
+            MAP?: { pricePerNight: number; availability: number; extraAdultPerNight: number; extraChildPerNight: number };
+          } = {};
+
+          for (const r of resp.data.rooms) {
+            const planHint = String(r?.Room_Name ?? '');
+            const plan = getPlanFromRoomName(planHint);
+            if (!plan) continue;
+            
+            const extracted = extractPricePerNight(r);
+            const price = Number.isFinite(extracted) && extracted > 0 ? extracted : Number(r.avg_price_per_night || r.pricePerNight || 0);
+            const availability = extractAvailability(r);
+            // Use rack_rate_adult and rack_rate_child if available, otherwise fall back to extraction
+            const extraAdultPerNight = r.rack_rate_adult && Number.isFinite(Number(r.rack_rate_adult)) && Number(r.rack_rate_adult) > 0 
+              ? Number(r.rack_rate_adult) 
+              : extractExtraPerNight(r?.extra_adult_rates_info);
+            const extraChildPerNight = r.rack_rate_child && Number.isFinite(Number(r.rack_rate_child)) && Number(r.rack_rate_child) > 0
+              ? Number(r.rack_rate_child)
+              : extractExtraPerNight(r?.extra_child_rates_info);
+            
+            console.log(`[FRONTEND DEBUG] Processed plan ${plan}:`, {
+              price,
+              availability,
+              roomName: r.Room_Name,
+              avg_price_per_night: r.avg_price_per_night,
+              pricePerNight: r.pricePerNight
+            });
+            
+            plans[plan] = { pricePerNight: price, availability, extraAdultPerNight, extraChildPerNight };
+          }
+
+          if (!cancelled) {
+            setEzeePlans(plans);
+            
+            // Find the specific room that matches the selected room type to get its rack_rate
+            const titleNorm = normalizeRoomType(String(room?.title ?? roomNameFromQuery ?? ''));
+            const getAnyRoomTypeName = (r: any) => {
+              return String(r?.Roomtype_Name ?? r?.Roomtype ?? r?.Room_Name ?? '').trim();
+            };
+            const match = (r: any) => {
+              const raw = getAnyRoomTypeName(r);
+              if (!raw) return false;
+              const base = raw.split(' - ')[0] ?? raw;
+              return normalizeRoomType(base) === titleNorm;
+            };
+            
+            const matchingRoom = resp.data.rooms.find(match);
+            const baseRackRate = matchingRoom?.rack_rate ? Number(matchingRoom.rack_rate) : null;
+            
+            console.log('[FRONTEND DEBUG] Found matching room for rack_rate:', {
+              roomTitle: room?.title,
+              roomNameFromQuery,
+              titleNorm,
+              matchingRoom: matchingRoom?.Room_Name,
+              rack_rate: matchingRoom?.rack_rate,
+              baseRackRate
+            });
+            
+            const bestPlanPerNight =
+              Number(plans?.CP?.pricePerNight ?? 0) ||
+              Number(plans?.MAP?.pricePerNight ?? 0) ||
+              Number(plans?.EP?.pricePerNight ?? 0) ||
+              0;
+            const anyAvail = Math.max(
+              Number(plans?.EP?.availability ?? 0),
+              Number(plans?.CP?.availability ?? 0),
+              Number(plans?.MAP?.availability ?? 0)
+            );
+            setRoom((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    availableRooms: Number.isFinite(anyAvail) ? anyAvail : prev.availableRooms,
+                    pricePerNight:
+                      Number(prev?.pricePerNight ?? 0) > 0
+                        ? prev.pricePerNight
+                        : baseRackRate && Number.isFinite(baseRackRate) && baseRackRate > 0
+                          ? baseRackRate
+                          : Number.isFinite(bestPlanPerNight) && bestPlanPerNight > 0
+                            ? bestPlanPerNight
+                            : prev.pricePerNight,
+                    rack_rate: baseRackRate ?? prev.rack_rate,
+                  }
+                : prev
+            );
+          }
+        } else {
           throw new Error(resp.message || resp.error || 'Failed to fetch live rooms');
-        }
-
-        const list = (resp.rooms ?? []) as EzeeRawRoom[];
-        const titleNorm = normalizeRoomType(title);
-        const getAnyRoomTypeName = (r: any) => {
-          return String(r?.Roomtype_Name ?? r?.Roomtype ?? r?.Room_Name ?? '').trim();
-        };
-        const roomTypeMatches = list.filter((r) => {
-          const recordName = getAnyRoomTypeName(r);
-          if (!recordName) return false;
-          return baseRoomTypeFromApiName(recordName) === titleNorm;
-        });
-
-        const plans: any = {};
-        for (const r of roomTypeMatches) {
-          const planHint = String(r?.Room_Name ?? r?.Roomtype_Name ?? r?.Roomtype ?? '');
-          const plan = getPlanFromRoomName(planHint);
-          if (!plan) continue;
-          const price = extractPricePerNight(r);
-          const availability = extractAvailability(r);
-          const extraAdultPerNight = extractExtraPerNight(r?.extra_adult_rates_info);
-          const extraChildPerNight = extractExtraPerNight(r?.extra_child_rates_info);
-          plans[plan] = { pricePerNight: price, availability, extraAdultPerNight, extraChildPerNight };
-        }
-
-        if (!cancelled) {
-          setEzeePlans(plans);
-          const anyAvail = Math.max(
-            Number(plans?.EP?.availability ?? 0),
-            Number(plans?.CP?.availability ?? 0),
-            Number(plans?.MAP?.availability ?? 0)
-          );
-          setRoom((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  availableRooms: Number.isFinite(anyAvail) ? anyAvail : prev.availableRooms,
-                }
-              : prev
-          );
         }
       } catch (e: any) {
         if (!cancelled) {
@@ -585,6 +709,19 @@ const Booking = () => {
     return out;
   }, [checkIn, nights]);
 
+  const visiblePromos = useMemo(() => {
+    // Before dates are selected, show all promos
+    if (nights === 0) return activePromos;
+    // After dates are selected, only show promos matching the selected duration
+    return activePromos.filter((p: any) => {
+      // If promo has no night constraints, always show
+      if (p.minNights == null && p.maxNights == null) return true;
+      const min = p.minNights != null ? Number(p.minNights) : 0;
+      const max = p.maxNights != null ? Number(p.maxNights) : Infinity;
+      return nights >= min && nights <= max;
+    });
+  }, [activePromos, nights]);
+
   useEffect(() => {
     const key = `${checkIn || ''}|${checkOut || ''}`;
     if (key !== lastDateRangeKeyRef.current) {
@@ -650,17 +787,33 @@ const Booking = () => {
   }, [room?.person, children5To10, extraAdultsAbove10]);
 
   const effectivePlanPrice = useMemo(() => {
-    const fallback = Number(room?.pricePerNight ?? 0);
-    const ep = Number(ezeePlans?.EP?.pricePerNight ?? 0);
-    const cp = Number(ezeePlans?.CP?.pricePerNight ?? 0);
-    const map = Number(ezeePlans?.MAP?.pricePerNight ?? 0);
+    // Use the same pricing logic as the room page
+    const rackRate = Number(room?.rack_rate ?? 0);
+    const basePrice = rackRate > 0 ? rackRate : Number(room?.pricePerNight ?? 0);
+    
+    // Calculate EP/CP/MAP prices based on rack_rate (same as room page)
+    // EP = rack_rate, CP = rack_rate + 500 (breakfast), MAP = rack_rate + 1000 (breakfast + dinner)
+    const epPrice = basePrice;
+    const cpPrice = basePrice + 500;
+    const mapPrice = basePrice + 1000;
 
+    console.log('[FRONTEND DEBUG] effectivePlanPrice calculated:', {
+      rack_rate: room?.rack_rate,
+      pricePerNight: room?.pricePerNight,
+      basePrice,
+      epPrice,
+      cpPrice,
+      mapPrice,
+      ezeePlans: ezeePlans // For comparison
+    });
+
+    // Always use our calculated prices to ensure consistency with room page
     return {
-      EP: Number.isFinite(ep) && ep > 0 ? ep : fallback,
-      CP: Number.isFinite(cp) && cp > 0 ? cp : fallback,
-      MAP: Number.isFinite(map) && map > 0 ? map : fallback,
+      EP: epPrice,
+      CP: cpPrice,
+      MAP: mapPrice,
     } as Record<MealPlan, number>;
-  }, [ezeePlans?.CP?.pricePerNight, ezeePlans?.EP?.pricePerNight, ezeePlans?.MAP?.pricePerNight, room?.pricePerNight]);
+  }, [ezeePlans?.EP?.pricePerNight, ezeePlans?.CP?.pricePerNight, ezeePlans?.MAP?.pricePerNight, room?.pricePerNight, room?.rack_rate, room?.title, roomNameFromQuery]);
 
   const effectiveExtraAdultPerNight = useMemo(() => {
     const ep = Number(ezeePlans?.EP?.extraAdultPerNight ?? 0);
@@ -724,6 +877,7 @@ const Booking = () => {
   };
 
   const priceBreakdown = useMemo(() => {
+    console.log('[FRONTEND DEBUG] priceBreakdown recalculated with mealPlanByDate:', mealPlanByDate);
     const round2 = (n: number) => Math.round(n * 100) / 100;
     const safeRooms = Number.isFinite(rooms) && rooms > 0 ? rooms : 1;
 
@@ -732,6 +886,7 @@ const Booking = () => {
       nightDates.reduce((sum, d) => {
         const plan = mealPlanByDate[d] ?? 'CP';
         const pn = effectivePlanPrice[plan] ?? basePerNight;
+        console.log(`[FRONTEND DEBUG] Date ${d}, plan ${plan}, price ${pn}`);
         return sum + pn;
       }, 0) * safeRooms
     );
@@ -785,7 +940,19 @@ const Booking = () => {
   const discounted = useMemo(() => {
     const round2 = (n: number) => Math.round(n * 100) / 100;
     const base = Number(priceBreakdown.baseAmount ?? 0);
-    const discount = round2(Math.max(0, Math.min(base, Number(appliedPromo?.discountAmount ?? 0))));
+    
+    let calcDiscount = 0;
+    if (appliedPromo) {
+      if (appliedPromo.type === 'PERCENT' && Number.isFinite(appliedPromo.value)) {
+        calcDiscount = (base * (appliedPromo.value as number)) / 100;
+      } else if (appliedPromo.type === 'FLAT' && Number.isFinite(appliedPromo.value)) {
+        calcDiscount = appliedPromo.value as number;
+      } else {
+        calcDiscount = appliedPromo.discountAmount ?? 0;
+      }
+    }
+    
+    const discount = round2(Math.max(0, Math.min(base, calcDiscount)));
     const baseAfterDiscount = round2(Math.max(0, base - discount));
     const gstAmount = round2(baseAfterDiscount * 0.05);
     const amountAfterGst = round2(baseAfterDiscount + gstAmount);
@@ -793,7 +960,7 @@ const Booking = () => {
     const taxAndServiceFees = round2(gstAmount + serviceFeeAmount);
     const total = round2(baseAfterDiscount + taxAndServiceFees);
     return { discount, baseAfterDiscount, taxAndServiceFees, total };
-  }, [priceBreakdown.baseAmount, appliedPromo?.discountAmount]);
+  }, [priceBreakdown.baseAmount, appliedPromo]);
 
   const formattedTotal = useMemo(() => {
     return formatInr(appliedPromo ? discounted.total : priceBreakdown.totalAmount);
@@ -892,6 +1059,18 @@ const Booking = () => {
     }
 
     try {
+      const finalTotal = appliedPromo ? discounted.total : priceBreakdown.totalAmount;
+      
+      console.log('[FRONTEND DEBUG] Sending booking with total amount:', {
+        roomTitle: room?.title,
+        rack_rate: room?.rack_rate,
+        nights,
+        rooms,
+        mealPlanByDate,
+        finalTotal,
+        priceBreakdown
+      });
+
       const res = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -910,6 +1089,7 @@ const Booking = () => {
           additionalInformation: additionalInformation.trim() ? additionalInformation.trim() : null,
           promoCode: appliedPromo?.code ?? null,
           mealPlanByDate: nightDates.map((d) => ({ date: d, plan: mealPlanByDate[d] ?? 'CP' })),
+          totalAmount: finalTotal,
         }),
       });
 
@@ -929,6 +1109,13 @@ const Booking = () => {
 
       const bookingId = data?.data?.booking?.id;
       const razorpay = data?.data?.razorpay;
+      
+      console.log('[FRONTEND DEBUG] Received Razorpay data:', {
+        bookingId,
+        razorpay,
+        sentTotalAmount: finalTotal
+      });
+      
       if (!bookingId || !razorpay?.orderId || !razorpay?.keyId) {
         setFormError('Payment initialization failed');
         toast.error('Payment initialization failed');
@@ -1107,6 +1294,107 @@ const Booking = () => {
                   )}
                 </>
               )}
+            </div>
+
+            {/* Promo Cards Strip */}
+            <div id="promo-section" className="promo-section mb-8 p-6 sm:p-8 bg-white rounded-3xl luxury-shadow border border-gold/10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <Tag className="h-5 w-5 text-gold" />
+                  <h3 className="promo-title">
+                    Special Offers
+                  </h3>
+                </div>
+                {appliedPromo && (
+                  <button 
+                    type="button"
+                    onClick={() => { setAppliedPromo(null); toast.info('Promo removed'); }}
+                    className="text-sm text-red-600 hover:text-red-700 font-medium"
+                  >
+                    Clear Promo
+                  </button>
+                )}
+              </div>
+              <div 
+                className="promo-container"
+              >
+                {visiblePromos && visiblePromos.length > 0 ? (
+                  visiblePromos.map((promo: any) => {
+                    const isActive = appliedPromo?.code === promo.code;
+                    return (
+                      <div
+                        key={promo.id || promo.code}
+                        onClick={() => {
+                          if (isActive) {
+                            setAppliedPromo(null);
+                            toast.info('Promo removed');
+                          } else {
+                            if (nights === 0) {
+                                toast.info('Please select dates first', { autoClose: 2500 });
+                                return;
+                            }
+                            setAppliedPromo({
+                              code: promo.code,
+                              type: promo.type,
+                              value: Number(promo.value)
+                            });
+                            toast.success(`Promo ${promo.code} applied`);
+                          }
+                        }}
+                        className={`promo-card group ${
+                          isActive 
+                            ? 'border-2 border-gold bg-[#fff8f2] shadow-gold/20' 
+                            : ''
+                        }`}
+                      >
+                        <div className="relative z-10 w-3/4">
+                          <h3 className="promo-card-value">
+                            {promo.type === 'PERCENT' ? `${promo.value}%` : `₹${promo.value}`} <span>OFF</span>
+                          </h3>
+                          <p className="promo-card-label">
+                            on {promo.applicableLabel || 'your stay'}
+                          </p>
+                          {(promo.minNights != null || promo.maxNights != null) && (
+                            <p className="text-xs mt-1 opacity-70 font-medium">
+                              {promo.minNights != null && promo.maxNights != null
+                                ? promo.minNights === promo.maxNights
+                                  ? `For ${promo.minNights} night${promo.minNights === 1 ? '' : 's'} only`
+                                  : `For ${promo.minNights}–${promo.maxNights} nights`
+                                : promo.minNights != null
+                                  ? `Min ${promo.minNights} night${promo.minNights === 1 ? '' : 's'}`
+                                  : `Up to ${promo.maxNights} night${promo.maxNights === 1 ? '' : 's'}`}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="promo-card-graphic">
+                          <svg viewBox="0 0 100 70" preserveAspectRatio="none" className="w-full h-full drop-shadow-lg">
+                            <path 
+                              d="M 10 0 H 90 A 10 10 0 0 1 100 10 V 20 A 15 15 0 0 0 100 50 V 60 A 10 10 0 0 1 90 70 H 10 A 10 10 0 0 1 0 60 V 10 A 10 10 0 0 1 10 0 Z" 
+                              fill="currentColor" 
+                            />
+                            <line x1="75" y1="5" x2="75" y2="65" stroke="rgba(0,0,0,0.3)" strokeWidth="2" strokeDasharray="4 4" />
+                            <text x="37.5" y="48" fontSize="32" fill="rgba(0,0,0,0.3)" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                              {promo.type === 'PERCENT' ? '%' : '₹'}
+                            </text>
+                          </svg>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="promo-card pointer-events-none opacity-80">
+                    <div className="flex items-start justify-between mb-3">
+                      <h3 className="text-gray-500">
+                        No Offers Available
+                      </h3>
+                    </div>
+                    <p>
+                      Check back later
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="bg-white rounded-3xl p-6 sm:p-8 luxury-shadow">
@@ -1476,13 +1764,18 @@ const Booking = () => {
                               toast.error('Invalid Promocode');
                               return;
                             }
-                            const discountAmount = Number(data?.data?.discountAmount ?? 0);
-                            const promoCode = String(data?.data?.promo?.code ?? code).trim();
+                            const promoObj = data?.data?.promo;
+                            const promoCode = String(promoObj?.code ?? code).trim();
                             if (!promoCode) {
                               toast.error('Invalid promo code');
                               return;
                             }
-                            setAppliedPromo({ code: promoCode, discountAmount: Number.isFinite(discountAmount) ? discountAmount : 0 });
+                            setAppliedPromo({ 
+                              code: promoCode, 
+                              type: promoObj?.type,
+                              value: promoObj?.value ? Number(promoObj.value) : undefined,
+                              discountAmount: Number(data?.data?.discountAmount ?? 0) 
+                            });
                             toast.success('Promo applied');
                           } catch {
                             toast.error('Failed to apply promo code');
@@ -1498,8 +1791,14 @@ const Booking = () => {
                   ) : (
                     <div className="flex items-center justify-between bg-gold/10 border border-gold/20 rounded-2xl px-4 py-3">
                       <div className="text-gray-800/80">
-                        <div className="font-semibold text-gray-800">{appliedPromo.code}</div>
-                        <div className="text-sm text-gray-800/70">Discount: {formatInr(discounted.discount)}</div>
+                        <div className="font-semibold text-gray-800 flex items-center gap-2">
+                          {appliedPromo.code}
+                          <span className="text-[10px] bg-gold text-white px-2 py-0.5 rounded-full font-bold uppercase">Applied</span>
+                        </div>
+                        <div className="text-sm text-gray-800/70">
+                          {appliedPromo.type === 'PERCENT' ? `(${appliedPromo.value}% OFF) ` : ''}
+                          Discount: {formatInr(discounted.discount)}
+                        </div>
                       </div>
                       <button
                         type="button"

@@ -37,6 +37,7 @@ const createSchema = z.object({
     )
     .optional()
     .nullable(),
+  totalAmount: z.number().min(0).optional(),
 });
 
 const verifySchema = z.object({
@@ -57,23 +58,25 @@ export const bookingController: Record<"me" | "totalCount" | "create" | "verify"
   }),
 
   create: asyncHandler(async (req: AuthedRequest, res) => {
+    const userId = req.user!.userId;
     const body = createSchema.parse(req.body);
 
     const result = await bookingService.createBooking({
-      userId: req.user!.userId,
+      userId,
       roomId: body.roomId,
       checkIn: body.checkIn,
       checkOut: body.checkOut,
       checkInTime: body.checkInTime ?? null,
       checkOutTime: body.checkOutTime ?? null,
-      rooms: body.rooms,
+      rooms: body.rooms ?? 1,
       guests: body.guests,
       adults: body.adults,
       children: body.children,
       extraAdults: body.extraAdults,
       additionalInformation: body.additionalInformation ?? null,
-      promoCode: body.promoCode ? String(body.promoCode) : null,
+      promoCode: body.promoCode ?? null,
       mealPlanByDate: body.mealPlanByDate ?? null,
+      totalAmount: body.totalAmount ?? undefined,
     });
 
     res.json({

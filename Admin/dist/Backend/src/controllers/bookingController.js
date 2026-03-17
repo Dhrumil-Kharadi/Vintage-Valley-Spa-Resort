@@ -110,4 +110,21 @@ exports.bookingController = {
         const invoice = await bookingService_1.bookingService.getUserInvoiceData({ userId: req.user.userId, bookingId });
         res.json({ ok: true, data: { booking: invoice } });
     }),
+    retryPayment: (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+        const bookingId = req.params.id;
+        if (!bookingId)
+            throw new errorHandler_1.HttpError(400, "Booking ID is required");
+        const result = await bookingService_1.bookingService.retryPaymentForPendingBooking({ userId: req.user.userId, bookingId });
+        res.json({
+            ok: true,
+            data: {
+                razorpay: {
+                    keyId: env_1.env.RAZORPAY_KEY_ID,
+                    orderId: result.razorpayOrder.id,
+                    amount: result.razorpayOrder.amount,
+                    currency: result.razorpayOrder.currency,
+                },
+            },
+        });
+    }),
 };

@@ -7,6 +7,8 @@ import crypto from "crypto";
 import { env } from "../config/env";
 import { sendMailSafe } from "../utils/mailer";
 import { generateBookingInvoicePdfBuffer } from "../utils/invoicePdf";
+import { ezeeService } from "./ezee.service";
+import { ezeeBookingService } from "./ezeeBooking.service";
 
 export const adminService = {
   async allocateNextBookingNo(tx: any): Promise<number> {
@@ -202,6 +204,12 @@ export const adminService = {
       }
     }
 
+    const resolvedUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, phone: true },
+    });
+    if (!resolvedUser) throw new HttpError(404, "User not found");
+
     const room = await prisma.room.findUnique({ where: { id: params.roomId } });
     if (!room) throw new HttpError(404, "Room not found");
 
@@ -318,6 +326,164 @@ export const adminService = {
     const gstAmount = new Prisma.Decimal((hasOverride ? Number(overrideGst ?? 0) : gstAmountNum).toFixed(2));
     const amount = new Prisma.Decimal((hasOverride ? override : amountNum).toFixed(2));
 
+    const splitName = (value: string) => {
+      const cleaned = String(value ?? "").trim().replace(/\s+/g, " ");
+      if (!cleaned) return { first: "Guest", last: "" };
+      const parts = cleaned.split(" ");
+      const first = parts.shift() ?? "Guest";
+      const last = parts.join(" ");
+      return { first, last };
+    };
+
+    const normalizeRoomType = (value: string) => {
+      const raw = String(value ?? "")
+        .trim()
+        .replace(/\s+/g, " ");
+      const lower = raw.toLowerCase();
+      if (lower === "deluxe studio suite") return "Deluxe Studio Suite";
+      if (lower === "deluxe edge view" || lower === "deluxe edge view ") return "Deluxe Edge View";
+      if (lower === "lotus family suite") return "Lotus Family Suite";
+      if (lower === "presidential suite" || lower === "presidentail suite") return "Presidential Suite";
+      return raw;
+    };
+
+    const stripPlanSuffix = (value: string) => {
+      const raw = String(value ?? "").trim();
+      if (!raw) return "";
+      return raw.replace(/\s*[-–—]\s*(EP|CP|MAP|AP)\s*$/i, "").trim();
+    };
+
+    const baseRoomTypeFromEzeeRecord = (r: any) => {
+      const raw = String(r?.Roomtype_Name ?? r?.Roomtype ?? r?.Room_Name ?? "").trim();
+      if (!raw) return "";
+      const baseBeforeDash = raw.split(" - ")[0] ?? raw;
+      return normalizeRoomType(stripPlanSuffix(baseBeforeDash));
+    };
+
+    const bookingRoomType = normalizeRoomType(stripPlanSuffix(String(room?.title ?? "").trim()));
+
+    const checkInIso = new Date(checkInDate).toISOString().slice(0, 10);
+    const checkOutIso = new Date(checkOutDate).toISOString().slice(0, 10);
+
+    // IMPORTANT: Use fetchRoomListRaw (not cleaned fetchRoomList) to get ALL
+    // variants (EP/CP/MAP/AP) from eZee.  The cleaned version may only return
+    // EP variants which have identical IDs that eZee rejects.
+    const rawRooms = await ezeeService.fetchRoomListRaw({
+      checkIn: checkInIso,
+      checkOut: checkOutIso,
+      adults: params.adults,
+      children: params.children,
+      rooms,
+    });
+
+    const candidates = (rawRooms ?? []).filter((r: any) => baseRoomTypeFromEzeeRecord(r) === bookingRoomType);
+    if (candidates.length === 0) {
+      throw new HttpError(400, "Selected room not available for these dates");
+    }
+
+    const nightPlans = Array.isArray(mealPlanByDate) ? mealPlanByDate : [];
+    let chosenPlan: "EP" | "CP" | "MAP" = "CP";
+    if (nightPlans.length > 0) {
+      const p = String(nightPlans[0]?.plan ?? "").toUpperCase();
+      if (p === "EP" || p === "CP" || p === "MAP") chosenPlan = p as any;
+    }
+    if (chosenPlan === "EP") chosenPlan = "CP";
+
+    // Prefer variants with distinct IDs (CP/MAP), but allow EP if that's all that's available
+    const hasDistinctIds = (r: any) => {
+      const rt = String(r?.roomtypeunkid ?? "");
+      const rr = String(r?.roomrateunkid ?? "");
+      const ra = String(r?.ratetypeunkid ?? "");
+      return !(rt === rr && rr === ra);
+    };
+    const validRooms = candidates.filter(hasDistinctIds);
+    const searchPool = validRooms.length > 0 ? validRooms : candidates;
+
+    if (validRooms.length === 0) {
+      console.warn("⚠️ [ADMIN] All room variants have identical IDs (EP-only availability). Proceeding with EP variant.");
+    }
+
+    const byPlan = (plan: string) => searchPool.find((r: any) => String(r?.Room_Name ?? "").toUpperCase().includes(`- ${plan}`));
+    const preferred = byPlan(chosenPlan) ?? byPlan("CP") ?? byPlan("MAP") ?? searchPool[0];
+
+    console.log("✅ [ADMIN] FINAL ROOM SENT TO EZEE:", {
+      Room_Name: preferred?.Room_Name,
+      Rateplan_Id: preferred?.roomrateunkid,
+      Ratetype_Id: preferred?.ratetypeunkid,
+      Roomtype_Id: preferred?.roomtypeunkid,
+      allIdentical: !hasDistinctIds(preferred),
+      totalCandidates: candidates.length,
+      validCandidates: validRooms.length,
+    });
+
+    const availableRooms = Number((preferred as any)?.min_ava_rooms ?? (preferred as any)?.available_rooms ?? 0);
+    if (!Number.isFinite(availableRooms) || availableRooms < rooms) {
+      throw new HttpError(400, "Room not available");
+    }
+
+    const guestName = String(params.userName ?? resolvedUser?.name ?? "").trim();
+    const guestEmail = String(params.userEmail ?? resolvedUser?.email ?? "").trim();
+    if (!guestEmail) throw new HttpError(400, "User email required");
+    const { first, last } = splitName(guestName);
+
+    let pms;
+    try {
+      console.log('[ADMIN EZEE DEBUG] Calling ezeeBookingService.createAndConfirmBooking for Admin manual booking', {
+        checkIn: checkInIso,
+        checkOut: checkOutIso,
+        adults: params.adults,
+        children: params.children,
+        rooms,
+        firstName: first,
+        lastName: last,
+        email: guestEmail,
+        phone: String(resolvedUser?.phone ?? "").trim() || null,
+        bookingPaymentMode: 0,
+        ezeeRoom: {
+          roomtypeunkid: String(preferred?.roomtypeunkid ?? ""),
+          roomrateunkid: String((preferred as any)?.roomrateunkid ?? ""),
+          ratetypeunkid: String((preferred as any)?.ratetypeunkid ?? ""),
+          available_rooms: availableRooms,
+        },
+      });
+      pms = await ezeeBookingService.createAndConfirmBooking({
+        checkIn: checkInIso,
+        checkOut: checkOutIso,
+        adults: params.adults,
+        children: params.children,
+        rooms,
+        firstName: first,
+        lastName: last,
+        email: guestEmail,
+        phone: String(resolvedUser?.phone ?? "").trim() || null,
+        specialRequest: String(params.additionalInformation ?? "").trim() || null,
+        additionalInformation: params.additionalInformation ?? null,
+        bookingPaymentMode: 0,
+        ezeeRoom: {
+          roomtypeunkid: String(preferred?.roomtypeunkid ?? ""),
+          roomrateunkid: String((preferred as any)?.roomrateunkid ?? ""),
+          ratetypeunkid: String((preferred as any)?.ratetypeunkid ?? ""),
+          available_rooms: availableRooms,
+          room_rates_info: preferred?.room_rates_info,
+          avg_price_per_night: Number(preferred?.room_rates_info?.avg_per_night_after_discount ?? preferred?.avg_price_per_night ?? 0),
+          extra_adult_rates_info: preferred?.extra_adult_rates_info,
+          extra_child_rates_info: preferred?.extra_child_rates_info,
+        },
+      });
+      console.log('[ADMIN EZEE DEBUG] eZee booking succeeded', {
+        reservationNo: pms.reservationNo,
+        subReservationNos: pms.subReservationNos,
+        inventoryMode: pms.inventoryMode,
+      });
+    } catch (ezeeError: any) {
+      console.error('[ADMIN EZEE ERROR] eZee createAndConfirmBooking failed for Admin manual booking', {
+        error: ezeeError?.message ?? ezeeError,
+        stack: ezeeError?.stack,
+        details: ezeeError,
+      });
+      throw new HttpError(500, `Failed to create booking in eZee: ${ezeeError?.message ?? String(ezeeError)}`);
+    }
+
     try {
       const method = (params.paymentMethod ?? "CASH") as "CASH" | "UPI" | "CARD";
       const bookingData: any = {
@@ -341,6 +507,10 @@ export const adminService = {
         gstAmount,
         amount,
         status: "CONFIRMED",
+        ezeeReservationNo: pms.reservationNo,
+        ezeeSubReservationNos: pms.subReservationNos,
+        ezeeInventoryMode: pms.inventoryMode,
+        ezeeConfirmedAt: new Date(),
       };
 
       // Only include mealPlanByDate if it has values

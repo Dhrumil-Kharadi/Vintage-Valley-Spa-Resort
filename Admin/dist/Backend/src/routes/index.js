@@ -1,4 +1,7 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.apiRouter = void 0;
 const express_1 = require("express");
@@ -8,10 +11,14 @@ const bookingRoutes_1 = require("./bookingRoutes");
 const inquiryRoutes_1 = require("./inquiryRoutes");
 const roomRoutes_1 = require("./roomRoutes");
 const promoRoutes_1 = require("./promoRoutes");
+const promoAdminRoutes_1 = __importDefault(require("./promoAdminRoutes"));
+const roomLivePrice_routes_1 = require("./roomLivePrice.routes");
 exports.apiRouter = (0, express_1.Router)();
 exports.apiRouter.use("/auth", authRoutes_1.authRouter);
 exports.apiRouter.use("/admin", adminRoutes_1.adminRouter);
+exports.apiRouter.use("/admin/promos", promoAdminRoutes_1.default);
 exports.apiRouter.use("/bookings", bookingRoutes_1.bookingRouter);
 exports.apiRouter.use("/inquiries", inquiryRoutes_1.inquiryRouter);
 exports.apiRouter.use("/promos", promoRoutes_1.promoRouter);
 exports.apiRouter.use("/rooms", roomRoutes_1.roomRouter);
+exports.apiRouter.use("/rooms-live", roomLivePrice_routes_1.roomLivePriceRouter);

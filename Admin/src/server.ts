@@ -28,8 +28,8 @@ export const createServer = () => {
 
   app.use(notFoundHandler);
 
-  app.use((err: unknown, _req: express.Request, _res: express.Response, next: express.NextFunction) => {
-    console.error("Admin backend error:", err);
+  app.use((err: any, _req: express.Request, _res: express.Response, next: express.NextFunction) => {
+    console.error("Admin backend error:", err instanceof Error ? err.stack || err.message : String(err));
     next(err);
   });
   app.use(errorHandler);

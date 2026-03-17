@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ezeeService = void 0;
+exports.ezeeLivePriceService = void 0;
 const axios_1 = __importDefault(require("axios"));
 const env_1 = require("../config/env");
 const errorHandler_1 = require("../middlewares/errorHandler");
@@ -32,10 +32,6 @@ const toInt = (value, fallback) => {
         return fallback;
     return Math.trunc(n);
 };
-const toNumber = (value, fallback) => {
-    const n = Number(value);
-    return Number.isFinite(n) ? n : fallback;
-};
 const mapEzeeErrorToHttpError = (payload) => {
     const raw = String(payload?.Error ?? payload?.error ?? payload?.message ?? "");
     const code = String(payload?.ErrorCode ?? payload?.errorcode ?? "");
@@ -52,10 +48,82 @@ const mapEzeeErrorToHttpError = (payload) => {
     if (combined.toLowerCase().includes("datenotvalid") || combined.toLowerCase().includes("date not valid")) {
         return new errorHandler_1.HttpError(400, "DateNotvalid");
     }
+    if (combined.toLowerCase().includes("noresacc")) {
+        return new errorHandler_1.HttpError(502, "eZee reservation account not configured or invalid credentials");
+    }
+    // Handle Error Details structure
+    const errorDetails = payload?.["Error Details"];
+    if (errorDetails) {
+        const errorCode = String(errorDetails?.Error_Code ?? "");
+        const errorMessage = String(errorDetails?.Error_Message ?? "");
+        const combinedDetails = `${errorCode} ${errorMessage}`.trim();
+        if (combinedDetails.toLowerCase().includes("noresacc")) {
+            return new errorHandler_1.HttpError(502, "NORESACC");
+        }
+        if (errorMessage) {
+            return new errorHandler_1.HttpError(502, errorMessage || "Failed to fetch room availability");
+        }
+    }
     return new errorHandler_1.HttpError(502, raw || "Failed to fetch room availability");
 };
-exports.ezeeService = {
-    async fetchRoomListRaw(params) {
+function getMockRoomData() {
+    return [
+        {
+            roomtypeunkid: "1",
+            Room_Name: "Deluxe Studio Suite",
+            Room_Description: "Our Deluxe Studio Suite offers the perfect blend of modern luxury and natural serenity. Featuring contemporary amenities, panoramic views, and thoughtful design elements that create an atmosphere of sophisticated relaxation.",
+            max_adult_occupancy: 2,
+            max_child_occupancy: 1,
+            available_rooms: 5,
+            avg_price_per_night: 4200,
+            total_price: 4200,
+            currency_sign: "INR",
+            RoomAmenities: "WiFi, AC, TV, Mini Bar, Private Balcony",
+            room_main_image: undefined,
+        },
+        {
+            roomtypeunkid: "2",
+            Room_Name: "Deluxe Edge View",
+            Room_Description: "Rooms with stunning front-facing views, offering elevated comfort and a refined aesthetic. Positioned at the corner edge of each floor for enhanced privacy and scenic visibility.",
+            max_adult_occupancy: 2,
+            max_child_occupancy: 1,
+            available_rooms: 3,
+            avg_price_per_night: 4600,
+            total_price: 4600,
+            currency_sign: "INR",
+            RoomAmenities: "WiFi, AC, TV, Mini Bar, Edge Views, Private Balcony",
+            room_main_image: undefined,
+        },
+        {
+            roomtypeunkid: "3",
+            Room_Name: "Lotus Family Suite",
+            Room_Description: "The Lotus Family Suite provides generous space and premium comfort for larger groups. With separate living areas, premium furnishings, and spectacular views, it offers the perfect setting for memorable family gatherings.",
+            max_adult_occupancy: 4,
+            max_child_occupancy: 2,
+            available_rooms: 2,
+            avg_price_per_night: 8200,
+            total_price: 8200,
+            currency_sign: "INR",
+            RoomAmenities: "WiFi, AC, TV, Mini Bar, Master Room with Bath Tub, Panoramic Views, Private Balcony",
+            room_main_image: undefined,
+        },
+        {
+            roomtypeunkid: "4",
+            Room_Name: "Presidential Suite",
+            Room_Description: "The Presidential Suite represents the pinnacle of luxury accommodation. Featuring exclusive amenities, private spaces, and unparalleled views, this suite offers an extraordinary retreat for discerning guests.",
+            max_adult_occupancy: 4,
+            max_child_occupancy: 2,
+            available_rooms: 1,
+            avg_price_per_night: 9500,
+            total_price: 9500,
+            currency_sign: "INR",
+            RoomAmenities: "WiFi, AC, TV, Mini Bar, Both Bathrooms Attached, Master Bath with Bathtub, Private Balcony, Tea/Coffee Maker",
+            room_main_image: undefined,
+        },
+    ];
+}
+exports.ezeeLivePriceService = {
+    async fetchLivePrices(params) {
         if (!env_1.env.EZEE_BASE_URL || !env_1.env.EZEE_HOTEL_CODE || !env_1.env.EZEE_API_KEY) {
             throw new errorHandler_1.HttpError(500, "eZee configuration missing");
         }
@@ -91,8 +159,6 @@ exports.ezeeService = {
         url.searchParams.set("showtax", "0");
         url.searchParams.set("show_only_available_rooms", "1");
         url.searchParams.set("language", "en");
-        url.searchParams.set("packagefor", "DESKTOP");
-        url.searchParams.set("promotionfor", "DESKTOP");
         try {
             const res = await axios_1.default.get(url.toString(), {
                 timeout: 15000,
@@ -102,72 +168,26 @@ exports.ezeeService = {
             if (res.status >= 400) {
                 throw new errorHandler_1.HttpError(502, "Failed to fetch room availability");
             }
-            if (payload?.Success === false || payload?.Error || payload?.ErrorCode) {
+            // Check for Error Details structure first
+            if (Array.isArray(payload) && payload.length > 0 && payload[0]?.["Error Details"]) {
+                const errorDetails = payload[0]["Error Details"];
+                const errorCode = String(errorDetails?.Error_Code ?? "");
+                const errorMessage = String(errorDetails?.Error_Message ?? "");
+                const combinedDetails = `${errorCode} ${errorMessage}`.trim();
+                if (combinedDetails.toLowerCase().includes("noresacc")) {
+                    throw new errorHandler_1.HttpError(502, "NORESACC");
+                }
+                throw mapEzeeErrorToHttpError(payload[0]);
+            }
+            if (payload?.["Error Details"]) {
+                const errorDetails = payload["Error Details"];
+                const errorCode = String(errorDetails?.Error_Code ?? "");
+                const errorMessage = String(errorDetails?.Error_Message ?? "");
+                const combinedDetails = `${errorCode} ${errorMessage}`.trim();
+                if (combinedDetails.toLowerCase().includes("noresacc")) {
+                    throw new errorHandler_1.HttpError(502, "NORESACC");
+                }
                 throw mapEzeeErrorToHttpError(payload);
-            }
-            const rawRooms = payload?.RoomList ??
-                payload?.Room_List ??
-                payload?.rooms ??
-                payload?.data ??
-                payload;
-            const list = Array.isArray(rawRooms) ? rawRooms : Array.isArray(rawRooms?.Room) ? rawRooms.Room : [];
-            return list;
-        }
-        catch (e) {
-            if (e instanceof errorHandler_1.HttpError)
-                throw e;
-            const ax = e;
-            const maybePayload = ax?.response?.data;
-            if (maybePayload && (maybePayload?.Error || maybePayload?.ErrorCode)) {
-                throw mapEzeeErrorToHttpError(maybePayload);
-            }
-            throw new errorHandler_1.HttpError(502, "Failed to fetch room availability");
-        }
-    },
-    async fetchRoomList(params) {
-        if (!env_1.env.EZEE_BASE_URL || !env_1.env.EZEE_HOTEL_CODE || !env_1.env.EZEE_API_KEY) {
-            throw new errorHandler_1.HttpError(500, "eZee configuration missing");
-        }
-        const checkIn = toIsoDateOnly(params.checkIn);
-        const checkOut = toIsoDateOnly(params.checkOut);
-        if (!checkIn || !checkOut)
-            throw new errorHandler_1.HttpError(400, "DateNotvalid");
-        const nights = dateDiffNights(checkIn, checkOut);
-        if (nights <= 0)
-            throw new errorHandler_1.HttpError(400, "DateNotvalid");
-        if (nights > 30)
-            throw new errorHandler_1.HttpError(400, "NightsLimitExceeded");
-        const adults = toInt(params.adults, 1);
-        const children = toInt(params.children, 0);
-        const numRooms = toInt(params.rooms, 1);
-        if (adults < 1)
-            throw new errorHandler_1.HttpError(400, "adults must be >= 1");
-        if (children < 0)
-            throw new errorHandler_1.HttpError(400, "children must be >= 0");
-        if (numRooms < 1)
-            throw new errorHandler_1.HttpError(400, "rooms must be >= 1");
-        const url = new URL("booking/reservation_api/listing.php", env_1.env.EZEE_BASE_URL);
-        url.searchParams.set("request_type", "RoomList");
-        url.searchParams.set("HotelCode", env_1.env.EZEE_HOTEL_CODE);
-        url.searchParams.set("APIKey", env_1.env.EZEE_API_KEY);
-        url.searchParams.set("check_in_date", checkIn);
-        url.searchParams.set("check_out_date", checkOut);
-        url.searchParams.set("number_adults", String(adults));
-        url.searchParams.set("number_children", String(children));
-        url.searchParams.set("num_rooms", String(numRooms));
-        url.searchParams.set("promotion_code", "");
-        url.searchParams.set("property_configuration_info", "0");
-        url.searchParams.set("showtax", "0");
-        url.searchParams.set("show_only_available_rooms", "1");
-        url.searchParams.set("language", "en");
-        try {
-            const res = await axios_1.default.get(url.toString(), {
-                timeout: 15000,
-                validateStatus: () => true,
-            });
-            const payload = res.data;
-            if (res.status >= 400) {
-                throw new errorHandler_1.HttpError(502, "Failed to fetch room availability");
             }
             if (payload?.Success === false || payload?.Error || payload?.ErrorCode) {
                 throw mapEzeeErrorToHttpError(payload);
@@ -199,6 +219,8 @@ exports.ezeeService = {
                     RoomAmenities: String(r?.RoomAmenities ?? r?.room_amenities ?? ""),
                     room_main_image: r?.room_main_image ? String(r.room_main_image) : undefined,
                     room_rates_info: r?.room_rates_info,
+                    extra_child_rates_info: r?.extra_child_rates_info,
+                    extra_adult_rates_info: r?.extra_adult_rates_info,
                 };
             });
             return cleaned.filter((r) => {
@@ -213,10 +235,14 @@ exports.ezeeService = {
                 throw e;
             const ax = e;
             const maybePayload = ax?.response?.data;
-            if (maybePayload && (maybePayload?.Error || maybePayload?.ErrorCode)) {
+            if (maybePayload && (maybePayload?.Error || maybePayload?.ErrorCode || maybePayload?.["Error Details"])) {
                 throw mapEzeeErrorToHttpError(maybePayload);
             }
             throw new errorHandler_1.HttpError(502, "Failed to fetch room availability");
         }
     },
 };
+function toNumber(value, fallback) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+}

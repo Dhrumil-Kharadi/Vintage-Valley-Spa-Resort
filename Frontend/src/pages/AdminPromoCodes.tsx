@@ -9,9 +9,12 @@ type Promo = {
   code: string;
   type: "PERCENT" | "FLAT";
   value: string;
+  applicableLabel?: string;
   isActive: boolean;
   startsAt?: string | null;
   expiresAt?: string | null;
+  minNights?: number | null;
+  maxNights?: number | null;
   maxUses?: number | null;
   usedCount?: number;
   createdAt?: string;
@@ -26,9 +29,12 @@ const AdminPromoCodes = () => {
   const [code, setCode] = useState("");
   const [type, setType] = useState<"PERCENT" | "FLAT">("PERCENT");
   const [value, setValue] = useState<string>("");
+  const [applicableLabel, setApplicableLabel] = useState<string>("");
   const [maxUses, setMaxUses] = useState<string>("");
   const [startsAt, setStartsAt] = useState<string>("");
   const [expiresAt, setExpiresAt] = useState<string>("");
+  const [minNights, setMinNights] = useState<string>("");
+  const [maxNights, setMaxNights] = useState<string>("");
   const [isActive, setIsActive] = useState(true);
 
   const load = async () => {
@@ -104,12 +110,15 @@ const AdminPromoCodes = () => {
       code: code.trim(),
       type,
       value: Number(value),
+      applicableLabel: applicableLabel.trim(),
       isActive,
     };
 
     if (maxUses.trim()) payload.maxUses = Number(maxUses);
     if (startsAt.trim()) payload.startsAt = startsAt;
     if (expiresAt.trim()) payload.expiresAt = expiresAt;
+    if (minNights.trim()) payload.minNights = Number(minNights);
+    if (maxNights.trim()) payload.maxNights = Number(maxNights);
 
     try {
       const res = await fetch("/api/promos", {
@@ -130,9 +139,12 @@ const AdminPromoCodes = () => {
       toast.success("Promo code created");
       setCode("");
       setValue("");
+      setApplicableLabel("");
       setMaxUses("");
       setStartsAt("");
       setExpiresAt("");
+      setMinNights("");
+      setMaxNights("");
       setIsActive(true);
       await load();
     } catch {
@@ -245,6 +257,19 @@ const AdminPromoCodes = () => {
 
               <div>
                 <label className="block text-gray-800 font-medium mb-2">
+                  Offer Applies To
+                </label>
+                <input
+                  value={applicableLabel}
+                  onChange={(e) => setApplicableLabel(e.target.value)}
+                  maxLength={100}
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                  placeholder="e.g. 1 night / 2 nights / weekend stay"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-800 font-medium mb-2">
                   Max uses (optional)
                 </label>
                 <input
@@ -255,6 +280,36 @@ const AdminPromoCodes = () => {
                   step={1}
                   className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
                   placeholder="100"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-gray-800 font-medium mb-2">
+                  Min Nights (optional)
+                </label>
+                <input
+                  value={minNights}
+                  onChange={(e) => setMinNights(e.target.value)}
+                  type="number"
+                  min={0}
+                  step={1}
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                  placeholder="1"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-800 font-medium mb-2">
+                  Max Nights (optional)
+                </label>
+                <input
+                  value={maxNights}
+                  onChange={(e) => setMaxNights(e.target.value)}
+                  type="number"
+                  min={0}
+                  step={1}
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                  placeholder="2"
                 />
               </div>
 
@@ -292,6 +347,8 @@ const AdminPromoCodes = () => {
                       <th className="py-3 pr-4">Code</th>
                       <th className="py-3 pr-4">Type</th>
                       <th className="py-3 pr-4">Value</th>
+                      <th className="py-3 pr-4">Applies To</th>
+                      <th className="py-3 pr-4">Nights (Min-Max)</th>
                       <th className="py-3 pr-4">Uses</th>
                       <th className="py-3 pr-4">Active</th>
                       <th className="py-3">Action</th>
@@ -314,6 +371,60 @@ const AdminPromoCodes = () => {
                           {p.type === "PERCENT"
                             ? `${p.value}%`
                             : `₹${p.value}`}
+                        </td>
+                        <td className="py-3 pr-4 text-gray-800/80">
+                          {p.applicableLabel || '—'}
+                        </td>
+                        <td className="py-3 pr-4 text-gray-800/80 text-sm">
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min={0}
+                              step={1}
+                              placeholder="Any"
+                              defaultValue={p.minNights ?? ''}
+                              className="w-14 px-1 py-1 rounded border border-gold/20 text-xs text-center bg-ivory/50 focus:border-gold focus:outline-none"
+                              onBlur={async (e) => {
+                                const val = e.target.value.trim();
+                                const newMin = val === '' ? null : Number(val);
+                                if (newMin === (p.minNights ?? null)) return;
+                                try {
+                                  const res = await fetch(`/api/promos/${encodeURIComponent(p.id)}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    credentials: 'include',
+                                    body: JSON.stringify({ minNights: newMin }),
+                                  });
+                                  if (res.ok) { toast.success('Min nights updated'); await load(); }
+                                  else toast.error('Failed to update');
+                                } catch { toast.error('Failed to update'); }
+                              }}
+                            />
+                            <span className="text-gray-400">–</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step={1}
+                              placeholder="Any"
+                              defaultValue={p.maxNights ?? ''}
+                              className="w-14 px-1 py-1 rounded border border-gold/20 text-xs text-center bg-ivory/50 focus:border-gold focus:outline-none"
+                              onBlur={async (e) => {
+                                const val = e.target.value.trim();
+                                const newMax = val === '' ? null : Number(val);
+                                if (newMax === (p.maxNights ?? null)) return;
+                                try {
+                                  const res = await fetch(`/api/promos/${encodeURIComponent(p.id)}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    credentials: 'include',
+                                    body: JSON.stringify({ maxNights: newMax }),
+                                  });
+                                  if (res.ok) { toast.success('Max nights updated'); await load(); }
+                                  else toast.error('Failed to update');
+                                } catch { toast.error('Failed to update'); }
+                              }}
+                            />
+                          </div>
                         </td>
                         <td className="py-3 pr-4 text-gray-800/80">
                           {String(p.usedCount ?? 0)}

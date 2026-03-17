@@ -7,6 +7,7 @@ import { AuthedRequest } from "../middlewares/auth";
 import { env } from "../config/env";
 import crypto from "crypto";
 import fetch from "node-fetch";
+import { sendMailSafe } from "../utils/mailer";
 
 const signupSchema = z.object({
   name: z.string().min(1),
@@ -159,7 +160,33 @@ export const authController = {
     const body = forgotSchema.parse(req.body);
     const token = await authService.createResetToken(body.email);
 
-    res.json({ ok: true, data: { resetToken: token ?? null } });
+    if (token) {
+      const resetUrl = `${env.CLIENT_URL}/admin/reset-password?token=${encodeURIComponent(token)}`;
+      const subject = "Admin Password Reset";
+      const html = `
+        <div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;padding:20px;line-height:1.5;color:#111827;">
+          <h2 style="margin:0 0 12px 0;">Reset your admin password</h2>
+          <p style="margin:0 0 12px 0;">Open this link to set a new password:</p>
+          <p style="margin:0 0 18px 0;"><a href="${resetUrl}">${resetUrl}</a></p>
+          <p style="margin:0;color:#6b7280;font-size:12px;">If you didn't request this, you can ignore this email.</p>
+        </div>
+      `;
+
+      await sendMailSafe({
+        to: "dhumil05@gmail.com",
+        subject,
+        html,
+        from: env.EMAIL_FROM,
+        replyTo: env.EMAIL_REPLY_TO,
+        smtpHost: env.SMTP_HOST,
+        smtpPort: env.SMTP_PORT,
+        smtpSecure: env.SMTP_SECURE,
+        smtpUser: env.SMTP_USER,
+        smtpPass: env.SMTP_PASS,
+      });
+    }
+
+    res.json({ ok: true, data: { resetToken: null } });
   }),
 
   resetPassword: asyncHandler(async (req, res) => {

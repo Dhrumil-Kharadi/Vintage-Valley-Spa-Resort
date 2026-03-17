@@ -13,6 +13,8 @@ const crypto_1 = __importDefault(require("crypto"));
 const env_1 = require("../config/env");
 const mailer_1 = require("../utils/mailer");
 const invoicePdf_1 = require("../utils/invoicePdf");
+const ezee_service_1 = require("./ezee.service");
+const ezeeBooking_service_1 = require("./ezeeBooking.service");
 exports.adminService = {
     async allocateNextBookingNo(tx) {
         const existing = await tx.bookingCounter.findUnique({ where: { id: 1 } });
@@ -187,6 +189,12 @@ exports.adminService = {
                 // best-effort
             }
         }
+        const resolvedUser = await client_1.prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true, name: true, email: true, phone: true },
+        });
+        if (!resolvedUser)
+            throw new errorHandler_1.HttpError(404, "User not found");
         const room = await client_1.prisma.room.findUnique({ where: { id: params.roomId } });
         if (!room)
             throw new errorHandler_1.HttpError(404, "Room not found");
@@ -277,18 +285,119 @@ exports.adminService = {
         const mapAmountNum = Number.isFinite(mapAddonRaw) ? 0 : round2(mapRatePerGuestPerNight * Number(params.guests) * mapNights);
         const baseAmountNum = round2(roomTotal + childCharge + extraAdultCharge + cpAmountNum + mapAmountNum);
         const convenienceFeeAmountNum = 0;
+        // Apply the same tax+fee calculation as frontend/invoice: 5% GST on base, then 2% service on (base+GST)
         const gstAmountNum = round2(baseAmountNum * 0.05);
-        const amountNum = round2(baseAmountNum + gstAmountNum);
+        const amountAfterGstNum = round2(baseAmountNum + gstAmountNum);
+        const serviceFeeAmountNum = round2(amountAfterGstNum * 0.02);
+        const amountNum = round2(baseAmountNum + gstAmountNum + serviceFeeAmountNum);
         if (!Number.isFinite(amountNum) || amountNum < 1)
             throw new errorHandler_1.HttpError(400, "Invalid amount");
         const override = Number(params.amountOverride ?? NaN);
         const hasOverride = Number.isFinite(override) && override > 0;
-        const overrideBase = hasOverride ? round2(override / 1.05) : null;
-        const overrideGst = hasOverride ? round2(override - Number(overrideBase ?? 0)) : null;
+        // If overriding total, split it into base + GST + service fee using the same 1.07 factor
+        const overrideBase = hasOverride ? round2(override / 1.07) : null;
+        const overrideGst = hasOverride ? round2(Number(overrideBase ?? 0) * 0.05) : null;
+        const overrideAfterGst = hasOverride ? round2(Number(overrideBase ?? 0) + Number(overrideGst ?? 0)) : null;
+        const overrideServiceFee = hasOverride ? round2(Number(overrideAfterGst ?? 0) * 0.02) : null;
         const baseAmount = new client_2.Prisma.Decimal((hasOverride ? Number(overrideBase ?? 0) : baseAmountNum).toFixed(2));
-        const convenienceFeeAmount = new client_2.Prisma.Decimal("0.00");
+        const convenienceFeeAmount = new client_2.Prisma.Decimal((hasOverride ? Number(overrideServiceFee ?? 0) : serviceFeeAmountNum).toFixed(2));
         const gstAmount = new client_2.Prisma.Decimal((hasOverride ? Number(overrideGst ?? 0) : gstAmountNum).toFixed(2));
         const amount = new client_2.Prisma.Decimal((hasOverride ? override : amountNum).toFixed(2));
+        const splitName = (value) => {
+            const cleaned = String(value ?? "").trim().replace(/\s+/g, " ");
+            if (!cleaned)
+                return { first: "Guest", last: "" };
+            const parts = cleaned.split(" ");
+            const first = parts.shift() ?? "Guest";
+            const last = parts.join(" ");
+            return { first, last };
+        };
+        const normalizeRoomType = (value) => {
+            const raw = String(value ?? "")
+                .trim()
+                .replace(/\s+/g, " ");
+            const lower = raw.toLowerCase();
+            if (lower === "deluxe studio suite")
+                return "Deluxe Studio Suite";
+            if (lower === "deluxe edge view" || lower === "deluxe edge view ")
+                return "Deluxe Edge View";
+            if (lower === "lotus family suite")
+                return "Lotus Family Suite";
+            if (lower === "presidential suite" || lower === "presidentail suite")
+                return "Presidential Suite";
+            return raw;
+        };
+        const stripPlanSuffix = (value) => {
+            const raw = String(value ?? "").trim();
+            if (!raw)
+                return "";
+            return raw.replace(/\s*[-–—]\s*(EP|CP|MAP|AP)\s*$/i, "").trim();
+        };
+        const baseRoomTypeFromEzeeRecord = (r) => {
+            const raw = String(r?.Roomtype_Name ?? r?.Roomtype ?? r?.Room_Name ?? "").trim();
+            if (!raw)
+                return "";
+            const baseBeforeDash = raw.split(" - ")[0] ?? raw;
+            return normalizeRoomType(stripPlanSuffix(baseBeforeDash));
+        };
+        const bookingRoomType = normalizeRoomType(stripPlanSuffix(String(room?.title ?? "").trim()));
+        const checkInIso = new Date(checkInDate).toISOString().slice(0, 10);
+        const checkOutIso = new Date(checkOutDate).toISOString().slice(0, 10);
+        const rawRooms = await ezee_service_1.ezeeService.fetchRoomListRaw({
+            checkIn: checkInIso,
+            checkOut: checkOutIso,
+            adults: params.adults,
+            children: params.children,
+            rooms,
+        });
+        const candidates = (rawRooms ?? []).filter((r) => baseRoomTypeFromEzeeRecord(r) === bookingRoomType);
+        if (candidates.length === 0) {
+            throw new errorHandler_1.HttpError(400, "Selected room not available for these dates");
+        }
+        const nightPlans = Array.isArray(mealPlanByDate) ? mealPlanByDate : [];
+        let chosenPlan = "CP";
+        if (nightPlans.length > 0) {
+            const p = String(nightPlans[0]?.plan ?? "").toUpperCase();
+            if (p === "EP" || p === "CP" || p === "MAP")
+                chosenPlan = p;
+        }
+        if (chosenPlan === "EP")
+            chosenPlan = "CP";
+        const byPlan = (plan) => candidates.find((r) => String(r?.Room_Name ?? "").toUpperCase().includes(`- ${plan}`));
+        const preferred = byPlan(chosenPlan) ?? byPlan("CP") ?? candidates[0];
+        const availableRooms = Number(preferred?.min_ava_rooms ?? preferred?.available_rooms ?? 0);
+        if (!Number.isFinite(availableRooms) || availableRooms < rooms) {
+            throw new errorHandler_1.HttpError(400, "Room not available");
+        }
+        const guestName = String(params.userName ?? resolvedUser?.name ?? "").trim();
+        const guestEmail = String(params.userEmail ?? resolvedUser?.email ?? "").trim();
+        if (!guestEmail)
+            throw new errorHandler_1.HttpError(400, "User email required");
+        const { first, last } = splitName(guestName);
+        const pms = await ezeeBooking_service_1.ezeeBookingService.createAndConfirmBooking({
+            checkIn: checkInIso,
+            checkOut: checkOutIso,
+            adults: params.adults,
+            children: params.children,
+            rooms,
+            firstName: first,
+            lastName: last,
+            email: guestEmail,
+            phone: String(resolvedUser?.phone ?? "").trim() || null,
+            specialRequest: String(params.additionalInformation ?? "").trim() || null,
+            additionalInformation: params.additionalInformation ?? null,
+            bookingPaymentMode: 0,
+            ezeeRoom: {
+                roomtypeunkid: String(preferred?.roomtypeunkid ?? ""),
+                roomrateunkid: String(preferred?.roomrateunkid ?? ""),
+                ratetypeunkid: String(preferred?.ratetypeunkid ?? ""),
+                available_rooms: availableRooms,
+                room_rates_info: preferred?.room_rates_info,
+                avg_price_per_night: Number(preferred?.room_rates_info?.avg_per_night_after_discount ?? preferred?.avg_price_per_night ?? 0),
+                extra_adult_rates_info: preferred?.extra_adult_rates_info,
+                extra_child_rates_info: preferred?.extra_child_rates_info,
+            },
+        });
         try {
             const method = (params.paymentMethod ?? "CASH");
             const bookingData = {
@@ -312,6 +421,10 @@ exports.adminService = {
                 gstAmount,
                 amount,
                 status: "CONFIRMED",
+                ezeeReservationNo: pms.reservationNo,
+                ezeeSubReservationNos: pms.subReservationNos,
+                ezeeInventoryMode: pms.inventoryMode,
+                ezeeConfirmedAt: new Date(),
             };
             // Only include mealPlanByDate if it has values
             if (mealPlanByDate && mealPlanByDate.length > 0) {

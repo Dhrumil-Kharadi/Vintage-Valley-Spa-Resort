@@ -39,25 +39,55 @@ const toInt = (value: unknown, fallback: number) => {
   return Math.trunc(n);
 };
 
-// Helper to extract price per night, preferring exclusive_tax for CP
-const extractPricePerNight = (r: any): number => {
-  // If this is a CP room, try to use exclusive_tax
-  if (r.Room_Name && r.Room_Name.toUpperCase().includes('CP') && r.room_rates_info?.exclusive_tax) {
-    const exclusiveTaxObj = r.room_rates_info.exclusive_tax;
-    if (typeof exclusiveTaxObj === "object") {
-      const values = Object.values(exclusiveTaxObj)
-        .map((v: any) => Number(v))
-        .filter((v) => Number.isFinite(v) && v > 0);
-      if (values.length > 0) {
-        // Average the exclusive_tax values for all nights
-        const avgPrice = values.reduce((a, b) => a + b, 0) / values.length;
-        console.debug('[DEBUG] extractPricePerNight using exclusive_tax average for CP', { room: r.Room_Name, values, avgPrice });
-        return avgPrice;
-      }
+// Helper to extract price per night with enhanced logic matching ezee.service.ts
+const extractPricePerNight = (r: any, checkIn?: string, checkOut?: string, nights?: number): number => {
+  // Enhanced price extraction logic matching ezee.service.ts
+  const rateInfo = r?.room_rates_info || {};
+  
+  console.log(`[DEBUG] extractPricePerNight for room: ${r.Room_Name}`, {
+    rack_rate: rateInfo.rack_rate,
+    avg_price_per_night: r.avg_price_per_night,
+    avg_per_night_after_discount: rateInfo.avg_per_night_after_discount,
+    totalprice_inclusive_all: rateInfo.totalprice_inclusive_all,
+    exclusive_tax: rateInfo.exclusive_tax
+  });
+  
+  // PRIORITIZE rack_rate as primary price source
+  let price = 0;
+  if (rateInfo.rack_rate) {
+    price = Number(rateInfo.rack_rate);
+    console.log(`[DEBUG] Using rack_rate: ${price}`);
+  } else if (rateInfo.avg_per_night_after_discount) {
+    price = Number(rateInfo.avg_per_night_after_discount);
+    console.log(`[DEBUG] Using avg_per_night_after_discount: ${price}`);
+  } else if (rateInfo.avg_per_night_before_discount) {
+    price = Number(rateInfo.avg_per_night_before_discount);
+    console.log(`[DEBUG] Using avg_per_night_before_discount: ${price}`);
+  } else if (rateInfo.totalprice_inclusive_all && nights && nights > 0) {
+    price = Number(rateInfo.totalprice_inclusive_all) / nights;
+    console.log(`[DEBUG] Using totalprice_inclusive_all / nights: ${rateInfo.totalprice_inclusive_all} / ${nights} = ${price}`);
+  } else if (rateInfo.totalprice_room_only && nights && nights > 0) {
+    price = Number(rateInfo.totalprice_room_only) / nights;
+    console.log(`[DEBUG] Using totalprice_room_only / nights: ${rateInfo.totalprice_room_only} / ${nights} = ${price}`);
+  } else if (rateInfo.exclusive_tax && typeof rateInfo.exclusive_tax === 'object') {
+    // Handle case where exclusive_tax is an object with date keys
+    const taxValues = Object.values(rateInfo.exclusive_tax)
+      .map((v: any) => Number(v))
+      .filter((v) => Number.isFinite(v) && v > 0);
+    if (taxValues.length > 0) {
+      price = taxValues[0]; // Use first night's price
+      console.log(`[DEBUG] Using exclusive_tax value: ${price}`);
     }
   }
-  // Fallback to avg_price_per_night
-  return Number(r.avg_price_per_night ?? 0);
+  
+  // Final fallback to original avg_price_per_night
+  if (price === 0) {
+    price = Number(r.avg_price_per_night ?? 0);
+    console.log(`[DEBUG] Using fallback avg_price_per_night: ${price}`);
+  }
+  
+  console.log(`[DEBUG] Final extracted price: ${price}`);
+  return price;
 };
 
 // Helper to get active global flat promo
@@ -119,6 +149,8 @@ export const roomController = {
       // Fetch active global flat promo once
       const globalFlatPromo = await getActiveGlobalFlatPromo();
 
+      const nights = Math.max(1, Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)));
+
       await Promise.all(
         list.map(async (r) => {
           let roomtypeunkid: bigint;
@@ -128,8 +160,7 @@ export const roomController = {
             return;
           }
 
-          const pricePerNight = extractPricePerNight(r);
-              const nights = toInt(req.query.nights, 1);
+          const pricePerNight = extractPricePerNight(r, checkIn, checkOut, nights);
               await roomCache.upsert({
                 where: { roomtypeunkid },
                 create: {
@@ -163,37 +194,71 @@ export const roomController = {
 
       // Apply global flat discount to each room if active
       const roomsWithDiscount = list.map((room) => {
-        const pricePerNight = extractPricePerNight(room);
-        const nights = toInt(req.query.nights, 1);
+        const pricePerNight = extractPricePerNight(room, checkIn, checkOut, nights);
         const totalOriginalPrice = pricePerNight * nights;
         const { originalPrice: orig, discountAmount, finalPrice, promoApplied } = applyGlobalFlatDiscount(pricePerNight, globalFlatPromo);
         return {
           ...room,
           pricePerNight,
+          avg_price_per_night: pricePerNight, // Add this field for frontend compatibility
           totalPrice: totalOriginalPrice,
           original_price: orig,
           discount_amount: discountAmount,
           final_price: finalPrice,
           promo_applied: promoApplied,
+          // Include rack_rate fields for frontend EP/CP/MAP pricing
+          rack_rate: room.rack_rate,
+          rack_rate_adult: room.rack_rate_adult,
+          rack_rate_child: room.rack_rate_child,
         };
       });
 
-      res.json({ ok: true, data: { rooms: roomsWithDiscount } });
+      // Create CP and MAP variants for frontend dropdown pricing
+      const roomsWithVariants: any[] = [];
+      roomsWithDiscount.forEach((room) => {
+        // Add original room (usually EP)
+        roomsWithVariants.push(room);
+        
+        // Create CP variant (add 500 to base price)
+        const cpRoom = {
+          ...room,
+          Room_Name: room.Room_Name.replace(/- EP$/i, '- CP').replace(/- CP$/i, '- CP').replace(/- MAP$/i, '- CP'),
+          roomtypeunkid: String(BigInt(room.roomtypeunkid) + 1000000n), // Unique ID
+          pricePerNight: room.pricePerNight + 500,
+          avg_price_per_night: room.avg_price_per_night + 500,
+          rack_rate: room.rack_rate ? Number(room.rack_rate) + 500 : null,
+        };
+        roomsWithVariants.push(cpRoom);
+        
+        // Create MAP variant (add 1000 to base price)
+        const mapRoom = {
+          ...room,
+          Room_Name: room.Room_Name.replace(/- EP$/i, '- MAP').replace(/- CP$/i, '- MAP').replace(/- MAP$/i, '- MAP'),
+          roomtypeunkid: String(BigInt(room.roomtypeunkid) + 2000000n), // Unique ID
+          pricePerNight: room.pricePerNight + 1000,
+          avg_price_per_night: room.avg_price_per_night + 1000,
+          rack_rate: room.rack_rate ? Number(room.rack_rate) + 1000 : null,
+        };
+        roomsWithVariants.push(mapRoom);
+      });
+
+      res.json({ ok: true, data: { rooms: roomsWithVariants } });
     } catch (err: any) {
       const cached = await roomCache.findMany({ orderBy: { createdAt: "desc" } });
       if (cached.length > 0) {
         const roomsFromCache = cached.map(toRoomPayloadFromCache);
         // Fetch active global flat promo and apply to cached rooms as well
         const globalFlatPromo = await getActiveGlobalFlatPromo();
+        const nights = Math.max(1, Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)));
         const roomsWithDiscount = roomsFromCache.map((room: any) => {
           // Use cached totalPrice or calculate from pricePerNight * nights
-          const nights = toInt(req.query.nights, 1);
-          const pricePerNight = Number(room.avg_price_per_night ?? room.pricePerNight ?? 0);
+          const pricePerNight = extractPricePerNight(room, checkIn, checkOut, nights);
           const totalOriginalPrice = pricePerNight * nights;
           const { originalPrice: orig, discountAmount, finalPrice, promoApplied } = applyGlobalFlatDiscount(pricePerNight, globalFlatPromo);
           return {
             ...room,
             pricePerNight,
+            avg_price_per_night: pricePerNight, // Add this field for frontend compatibility
             totalPrice: totalOriginalPrice,
             original_price: orig,
             discount_amount: discountAmount,
@@ -208,30 +273,100 @@ export const roomController = {
       const fallbackRooms = [
         {
           roomtypeunkid: "4692400000000000001",
+          Room_Name: "Deluxe Studio Suite - EP",
+          Room_Description: "Deluxe Studio Suite - EP",
+          max_adult_occupancy: 4,
+          max_child_occupancy: 2,
+          available_rooms: 10,
+          avg_price_per_night: 4275,
+          total_price: 4275,
+          currency_sign: "₹",
+          RoomAmenities: "WiFi, AC, TV",
+          rack_rate: 4500,
+          room_rates_info: {
+            exclusive_tax: { "2026-03-05": "4275.0000", "2026-03-06": "4275.0000" },
+            rack_rate: "4500.0000"
+          }
+        },
+        {
+          roomtypeunkid: "4692400000000000002",
           Room_Name: "Deluxe Studio Suite - CP",
           Room_Description: "Deluxe Studio Suite - CP",
           max_adult_occupancy: 4,
           max_child_occupancy: 2,
           available_rooms: 10,
-          avg_price_per_night: 2800,
-          total_price: 2800,
+          avg_price_per_night: 4775,
+          total_price: 4775,
           currency_sign: "₹",
-          RoomAmenities: "WiFi, AC, TV",
+          RoomAmenities: "WiFi, AC, TV, Breakfast",
+          rack_rate: 5000,
           room_rates_info: {
-            exclusive_tax: { "2026-03-05": "2800.0000", "2026-03-06": "3500.0000" }
+            exclusive_tax: { "2026-03-05": "4775.0000", "2026-03-06": "4775.0000" },
+            rack_rate: "5000.0000"
           }
         },
-        // Add other rooms as needed from checkdata.json
+        {
+          roomtypeunkid: "4692400000000000003",
+          Room_Name: "Presidentail Suite - EP",
+          Room_Description: "Presidentail Suite - EP",
+          max_adult_occupancy: 6,
+          max_child_occupancy: 2,
+          available_rooms: 5,
+          avg_price_per_night: 11875,
+          total_price: 11875,
+          currency_sign: "₹",
+          RoomAmenities: "WiFi, AC, TV, Living Area",
+          rack_rate: 12500,
+          room_rates_info: {
+            exclusive_tax: { "2026-03-05": "11875.0000", "2026-03-06": "11875.0000" },
+            rack_rate: "12500.0000"
+          }
+        },
+        {
+          roomtypeunkid: "4692400000000000004",
+          Room_Name: "DELUXE EDGE VIEW EP",
+          Room_Description: "DELUXE EDGE VIEW EP",
+          max_adult_occupancy: 3,
+          max_child_occupancy: 2,
+          available_rooms: 8,
+          avg_price_per_night: 5225,
+          total_price: 5225,
+          currency_sign: "₹",
+          RoomAmenities: "WiFi, AC, TV, View",
+          rack_rate: 5500,
+          room_rates_info: {
+            exclusive_tax: { "2026-03-05": "5225.0000", "2026-03-06": "5225.0000" },
+            rack_rate: "5500.0000"
+          }
+        },
+        {
+          roomtypeunkid: "4692400000000000005",
+          Room_Name: "Lotus Family Suite - EP",
+          Room_Description: "Lotus Family Suite - EP",
+          max_adult_occupancy: 6,
+          max_child_occupancy: 4,
+          available_rooms: 5,
+          avg_price_per_night: 7500,
+          total_price: 7500,
+          currency_sign: "₹",
+          RoomAmenities: "WiFi, AC, TV, Kitchen, Living Area",
+          rack_rate: 8000,
+          room_rates_info: {
+            exclusive_tax: { "2026-03-05": "7500.0000", "2026-03-06": "7500.0000" },
+            rack_rate: "8000.0000"
+          }
+        }
       ];
+      const nights = Math.max(1, Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)));
       const globalFlatPromo = await getActiveGlobalFlatPromo();
       const roomsWithDiscount = fallbackRooms.map((room) => {
-        const pricePerNight = extractPricePerNight(room);
-        const nights = toInt(req.query.nights, 1);
+        const pricePerNight = extractPricePerNight(room, checkIn, checkOut, nights);
         const totalOriginalPrice = pricePerNight * nights;
         const { originalPrice: orig, discountAmount, finalPrice, promoApplied } = applyGlobalFlatDiscount(pricePerNight, globalFlatPromo);
         return {
           ...room,
           pricePerNight,
+          avg_price_per_night: pricePerNight, // Add this field for frontend compatibility
           totalPrice: totalOriginalPrice,
           original_price: orig,
           discount_amount: discountAmount,
@@ -325,9 +460,11 @@ export const roomController = {
         rooms,
       });
 
+      const nights = Math.max(1, Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)));
+
       const roomPrices = list.map((r) => ({
         roomType: r.Room_Name,
-        price: r.avg_price_per_night,
+        price: extractPricePerNight(r, checkIn, checkOut, nights),
         currency: r.currency_sign || "INR",
         availability: r.available_rooms,
       }));

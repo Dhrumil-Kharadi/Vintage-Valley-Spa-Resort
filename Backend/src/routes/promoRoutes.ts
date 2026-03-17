@@ -6,7 +6,8 @@ export const promoRouter = Router();
 
 promoRouter.post("/validate", promoController.validate);
 
-promoRouter.get("/", requireAuth, requireAdminOrStaff, promoController.list);
+promoRouter.get("/", promoController.list);
 promoRouter.post("/", requireAuth, requireAdminOrStaff, promoController.create);
 promoRouter.delete("/:id", requireAuth, requireAdminOrStaff, promoController.remove);
 promoRouter.patch("/:id/active", requireAuth, requireAdminOrStaff, promoController.setActive);
+promoRouter.patch("/:id", requireAuth, requireAdminOrStaff, promoController.update);

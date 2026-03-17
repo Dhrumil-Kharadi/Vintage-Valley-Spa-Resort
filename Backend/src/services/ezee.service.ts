@@ -5,6 +5,8 @@ import { HttpError } from "../middlewares/errorHandler";
 
 export type EzeeRoom = {
   roomtypeunkid: string;
+  roomrateunkid?: string; // Added rate plan ID
+  ratetypeunkid?: string; // Added rate type ID
   Room_Name: string;
   Roomtype_Name?: string;
   Roomtype?: string;
@@ -18,6 +20,11 @@ export type EzeeRoom = {
   RoomAmenities: string;
   room_main_image?: string;
   room_rates_info?: any;
+  extra_adult_rates_info?: any;
+  extra_child_rates_info?: any;
+  rack_rate?: number; // base rack rate per night
+  rack_rate_adult?: number; // rack rate for extra adult
+  rack_rate_child?: number; // rack rate for extra child
 };
 
 const toIsoDateOnly = (value: string) => {
@@ -109,7 +116,7 @@ export const ezeeService = {
     url.searchParams.set("promotion_code", "");
     url.searchParams.set("property_configuration_info", "0");
     url.searchParams.set("showtax", "0");
-    url.searchParams.set("show_only_available_rooms", "1");
+    url.searchParams.set("show_only_available_rooms", "0");
     url.searchParams.set("language", "en");
     url.searchParams.set("packagefor", "DESKTOP");
     url.searchParams.set("promotionfor", "DESKTOP");
@@ -190,8 +197,10 @@ export const ezeeService = {
     url.searchParams.set("promotion_code", "");
     url.searchParams.set("property_configuration_info", "0");
     url.searchParams.set("showtax", "0");
-    url.searchParams.set("show_only_available_rooms", "1");
+    url.searchParams.set("show_only_available_rooms", "0");
     url.searchParams.set("language", "en");
+    url.searchParams.set("packagefor", "DESKTOP");
+    url.searchParams.set("promotionfor", "DESKTOP");
 
     try {
       const res = await axios.get(url.toString(), {
@@ -217,16 +226,61 @@ export const ezeeService = {
 
       const list = Array.isArray(rawRooms) ? rawRooms : Array.isArray(rawRooms?.Room) ? rawRooms.Room : [];
 
-      const cleaned: EzeeRoom[] = list.map((r: any) => {
-        const avg = toNumber(r?.room_rates_info?.avg_per_night_after_discount, 0);
-        const baseTotal = toNumber(r?.room_rates_info?.totalprice_inclusive_all, 0);
+      const cleaned: EzeeRoom[] = list.map((r: any, index: number) => {
+        // Enhanced price extraction logic
+        const rateInfo = r?.room_rates_info || {};
+        
+        console.log(`[DEBUG] Processing room ${index + 1}:`, {
+          roomName: r?.Room_Name,
+          roomtypeunkid: r?.roomtypeunkid,
+          rateInfoKeys: Object.keys(rateInfo),
+          avgPriceAfterDiscount: rateInfo.avg_per_night_after_discount,
+          totalPriceInclusive: rateInfo.totalprice_inclusive_all,
+          exclusiveTax: rateInfo.exclusive_tax
+        });
+        
+        // Try multiple price fields in order of preference
+        let avg = 0;
+        if (rateInfo.avg_per_night_after_discount) {
+          avg = toNumber(rateInfo.avg_per_night_after_discount, 0);
+          console.log(`[DEBUG] Using avg_per_night_after_discount: ${avg}`);
+        } else if (rateInfo.avg_per_night_before_discount) {
+          avg = toNumber(rateInfo.avg_per_night_before_discount, 0);
+          console.log(`[DEBUG] Using avg_per_night_before_discount: ${avg}`);
+        } else if (rateInfo.totalprice_inclusive_all) {
+          const nights = dateDiffNights(checkIn, checkOut);
+          avg = toNumber(rateInfo.totalprice_inclusive_all, 0) / Math.max(nights, 1);
+          console.log(`[DEBUG] Using totalprice_inclusive_all / nights: ${rateInfo.totalprice_inclusive_all} / ${nights} = ${avg}`);
+        } else if (rateInfo.totalprice_room_only) {
+          const nights = dateDiffNights(checkIn, checkOut);
+          avg = toNumber(rateInfo.totalprice_room_only, 0) / Math.max(nights, 1);
+          console.log(`[DEBUG] Using totalprice_room_only / nights: ${rateInfo.totalprice_room_only} / ${nights} = ${avg}`);
+        } else if (rateInfo.exclusive_tax && typeof rateInfo.exclusive_tax === 'object') {
+          // Handle case where exclusive_tax is an object with date keys
+          const taxValues = Object.values(rateInfo.exclusive_tax).filter(v => Number.isFinite(Number(v)));
+          if (taxValues.length > 0) {
+            avg = toNumber(taxValues[0], 0);
+            console.log(`[DEBUG] Using exclusive_tax value: ${avg}`);
+          }
+        }
+        
+        console.log(`[DEBUG] Final calculated avg price: ${avg}`);
+        
+        const baseTotal = toNumber(rateInfo.totalprice_inclusive_all || rateInfo.totalprice_room_only || 0, 0);
         const minAvail = toInt(r?.min_ava_rooms, 0);
-        const currencySign = String(r?.currency_sign ?? r?.Currency_Sign ?? "");
+        const currencySign = String((r?.currency_sign ?? r?.Currency_Sign) || "");
+
+        // Extract rack_rate for main room, extra adult, and extra child
+        const rackRate = toNumber(rateInfo.rack_rate, 0);
+        const rackRateAdult = toNumber(r?.extra_adult_rates_info?.rack_rate, 0);
+        const rackRateChild = toNumber(r?.extra_child_rates_info?.rack_rate, 0);
 
         const total = baseTotal * (numRooms > 1 ? numRooms : 1);
 
         return {
           roomtypeunkid: String(r?.roomtypeunkid ?? r?.Roomtypeunkid ?? r?.RoomTypeUNKID ?? ""),
+          roomrateunkid: String(r?.roomrateunkid ?? r?.room_rates_info?.rateplanunkid ?? r?.room_rates_info?.Rateplanunkid ?? r?.room_rates_info?.RatePlanUNKID ?? ""),
+          ratetypeunkid: String(r?.ratetypeunkid ?? r?.room_rates_info?.ratetypeunkid ?? r?.room_rates_info?.Ratetypeunkid ?? r?.room_rates_info?.RateTypeUNKID ?? ""),
           Room_Name: String(r?.Room_Name ?? r?.room_name ?? r?.RoomName ?? ""),
           Roomtype_Name: String(r?.Roomtype_Name ?? r?.roomtype_name ?? r?.RoomTypeName ?? ""),
           Roomtype: String(r?.Roomtype ?? r?.roomtype ?? ""),
@@ -240,6 +294,11 @@ export const ezeeService = {
           RoomAmenities: String(r?.RoomAmenities ?? r?.room_amenities ?? ""),
           room_main_image: r?.room_main_image ? String(r.room_main_image) : undefined,
           room_rates_info: r?.room_rates_info,
+          extra_adult_rates_info: r?.extra_adult_rates_info,
+          extra_child_rates_info: r?.extra_child_rates_info,
+          rack_rate: rackRate,
+          rack_rate_adult: rackRateAdult,
+          rack_rate_child: rackRateChild,
         };
       });
 

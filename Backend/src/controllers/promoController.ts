@@ -5,12 +5,14 @@ import { promoService } from "../services/promoService";
 const validateSchema = z.object({
   code: z.string().min(1),
   baseAmount: z.number(),
+  nights: z.number().optional(),
 });
 
 const createSchema = z.object({
   code: z.string().min(1),
   type: z.enum(["PERCENT", "FLAT"]),
   value: z.union([z.string(), z.number()]),
+  applicableLabel: z.string().max(100).optional(),
   isActive: z.boolean().optional(),
   maxUses: z.union([z.number(), z.string()]).optional().nullable(),
   startsAt: z.string().optional().nullable(),
@@ -21,6 +23,15 @@ const setActiveSchema = z.object({
   isActive: z.boolean(),
 });
 
+const updateSchema = z.object({
+  applicableLabel: z.string().max(100).optional(),
+  maxUses: z.union([z.number(), z.string()]).optional().nullable(),
+  startsAt: z.string().optional().nullable(),
+  expiresAt: z.string().optional().nullable(),
+  minNights: z.union([z.number(), z.string()]).optional().nullable(),
+  maxNights: z.union([z.number(), z.string()]).optional().nullable(),
+});
+
 export const promoController = {
   validate: asyncHandler(async (req, res) => {
     const body = validateSchema.parse(req.body);
@@ -28,6 +39,7 @@ export const promoController = {
     const result = await promoService.validateForBaseAmount({
       code: body.code,
       baseAmount: body.baseAmount,
+      nights: body.nights,
     });
 
     res.json({
@@ -54,6 +66,7 @@ export const promoController = {
       code: body.code,
       type: body.type,
       value: body.value,
+      applicableLabel: body.applicableLabel,
       isActive: body.isActive,
       maxUses: body.maxUses,
       startsAt: body.startsAt,
@@ -74,6 +87,22 @@ export const promoController = {
     if (!id) throw new Error("Invalid id");
     const body = setActiveSchema.parse(req.body);
     const promo = await promoService.setActiveAdmin({ id, isActive: body.isActive });
+    res.json({ ok: true, data: { promo } });
+  }),
+
+  update: asyncHandler(async (req, res) => {
+    const id = String(req.params.id ?? "").trim();
+    if (!id) throw new Error("Invalid id");
+    const body = updateSchema.parse(req.body);
+    const promo = await promoService.updateAdmin({
+      id,
+      applicableLabel: body.applicableLabel,
+      maxUses: body.maxUses,
+      startsAt: body.startsAt,
+      expiresAt: body.expiresAt,
+      minNights: body.minNights,
+      maxNights: body.maxNights,
+    });
     res.json({ ok: true, data: { promo } });
   }),
 };

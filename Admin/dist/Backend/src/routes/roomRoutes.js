@@ -5,4 +5,6 @@ const express_1 = require("express");
 const roomController_1 = require("../controllers/roomController");
 exports.roomRouter = (0, express_1.Router)();
 exports.roomRouter.get("/", roomController_1.roomController.list);
+exports.roomRouter.get("/raw", roomController_1.roomController.listRaw);
+exports.roomRouter.get("/prices", roomController_1.roomController.getPrices);
 exports.roomRouter.get("/:id", roomController_1.roomController.getById);

@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.roomLivePriceRouter = void 0;
+const express_1 = require("express");
+const roomLivePrice_controller_1 = require("../controllers/roomLivePrice.controller");
+exports.roomLivePriceRouter = (0, express_1.Router)();
+exports.roomLivePriceRouter.get("/", roomLivePrice_controller_1.roomLivePriceController.getPrices);
+exports.roomLivePriceRouter.post("/sync", roomLivePrice_controller_1.roomLivePriceController.syncPrices);
+exports.roomLivePriceRouter.get("/database", roomLivePrice_controller_1.roomLivePriceController.getDatabasePrices);
+exports.roomLivePriceRouter.post("/scheduler/start", roomLivePrice_controller_1.roomLivePriceController.startScheduler);
+exports.roomLivePriceRouter.post("/scheduler/stop", roomLivePrice_controller_1.roomLivePriceController.stopScheduler);
+exports.roomLivePriceRouter.get("/scheduler/status", roomLivePrice_controller_1.roomLivePriceController.getSchedulerStatus);

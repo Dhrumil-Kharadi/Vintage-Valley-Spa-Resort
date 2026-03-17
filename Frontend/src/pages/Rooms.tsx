@@ -1,9 +1,10 @@
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import FloatingContact from '@/components/FloatingContact';
-import { Wifi, Car, Tv, Bath, Users, Bed, Mountain, Coffee } from 'lucide-react';
-import { useMemo, useState, useEffect } from 'react';
+import { Wifi, Car, Tv, Bath, Users, Bed, Mountain, Coffee, Tag, CheckCircle, Calendar } from 'lucide-react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { rooms as staticRooms } from '../roomsData';
 import { roomDatabaseService, DatabaseRoom } from '../lib/roomDatabase.service';
 import { roomService, RoomPrice, RoomListResponse } from '../lib/roomService';
@@ -17,6 +18,7 @@ type UiRoom = {
   capacity: string;
   bedType: string;
   size: string;
+  available: number;
   pricing: {
     weekday: string;
     weekend: string;
@@ -39,8 +41,8 @@ const normalizeRoomType = (value: string) => {
 
   if (lower === "deluxe studio suite") return "Deluxe Studio Suite";
   if (lower === "deluxe edge view" || lower === "deluxe edge view ") return "Deluxe Edge View";
-  if (lower === "lotus family suite") return "Lotus Family Suite";
-  if (lower === "presidential suite" || lower === "presidentail suite") return "Presidential Suite";
+  if (lower === "lotus family suite" || lower === "lotus family suit") return "Lotus Family Suite";
+  if (lower === "presidential suite" || lower === "presidentail suite") return "Presidential Suite"; // Handle typo
 
   return raw;
 };
@@ -52,6 +54,24 @@ const ALLOWED_ROOM_TYPES = new Set([
   "Presidential Suite",
 ]);
 
+function isoToday() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function addDaysIso(iso: string, days: number) {
+  const dt = new Date(`${iso}T00:00:00.000Z`);
+  if (Number.isNaN(dt.getTime())) return iso;
+  dt.setUTCDate(dt.getUTCDate() + days);
+  const yyyy = dt.getUTCFullYear();
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(dt.getUTCDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 const isPlan = (roomName: string, plan: "EP" | "CP" | "MAP" | "AP") => {
   const upper = String(roomName ?? "").toUpperCase();
   const re = new RegExp(`\\b${plan}\\b`, "i");
@@ -60,6 +80,7 @@ const isPlan = (roomName: string, plan: "EP" | "CP" | "MAP" | "AP") => {
 
 const Rooms = () => {
   const navigate = useNavigate();
+  const promoStripRef = useRef<HTMLDivElement>(null);
   
   const [dbRooms, setDbRooms] = useState<DatabaseRoom[]>([]);
   const [rawRooms, setRawRooms] = useState<EzeeRawRoom[]>([]);
@@ -74,6 +95,67 @@ const Rooms = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Promo cards state
+  const [activePromos, setActivePromos] = useState<any[]>([]);
+  const [selectedRoomTitle, setSelectedRoomTitle] = useState<string | null>(null);
+  const [hasInteractedWithDates, setHasInteractedWithDates] = useState(false);
+  const [checkIn, setCheckIn] = useState<string>(isoToday());
+  const [checkOut, setCheckOut] = useState<string>(addDaysIso(isoToday(), 1));
+
+  const nights = useMemo(() => {
+    if (!checkIn || !checkOut) return 0;
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    const ms = end.getTime() - start.getTime();
+    if (!Number.isFinite(ms) || ms <= 0) return 0;
+    return Math.ceil(ms / (1000 * 60 * 60 * 24));
+  }, [checkIn, checkOut]);
+
+  const visiblePromos = useMemo(() => {
+    // Before date selection, show all promos so users can browse offers
+    if (!hasInteractedWithDates) return activePromos;
+    // After date selection, only show promos matching the selected duration
+    return activePromos.filter((p: any) => {
+      if (p.promoScope === 'GLOBAL_FLAT') return false;
+      if (nights === 0) return true;
+      // If promo has no night constraints, always show
+      if (p.minNights == null && p.maxNights == null) return true;
+      const min = p.minNights != null ? Number(p.minNights) : 0;
+      const max = p.maxNights != null ? Number(p.maxNights) : Infinity;
+      return nights >= min && nights <= max;
+    });
+  }, [activePromos, nights, hasInteractedWithDates]);
+
+  // Fetch promos on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/promos');
+        const data = await res.json().catch(() => null);
+        if (data?.ok && Array.isArray(data?.data?.promos)) {
+          setActivePromos(data.data.promos.filter((p: any) => p.isActive && p.promoScope !== 'GLOBAL_FLAT'));
+        }
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
+  const handlePromoClick = (promo: any) => {
+    if (!selectedRoomTitle) {
+      toast.info('Please select a room first', { autoClose: 2500 });
+      return;
+    }
+    // Save promo to sessionStorage and navigate to booking
+    try {
+      sessionStorage.setItem('selectedPromo', JSON.stringify({
+        code: promo.code,
+        type: promo.type,
+        value: promo.value,
+        applicableLabel: promo.applicableLabel || '',
+      }));
+    } catch { /* ignore */ }
+    navigate(`/booking?room=${encodeURIComponent(selectedRoomTitle)}`);
+  };
+
   // Fetch database rooms on component mount
   useEffect(() => {
     fetchDatabaseRooms();
@@ -87,7 +169,6 @@ const Rooms = () => {
     setRoomListError(null);
 
     try {
-      const { checkIn, checkOut } = getValidCheckInCheckOut();
       const response = await roomService.getRoomList({
         checkIn,
         checkOut,
@@ -111,43 +192,11 @@ const Rooms = () => {
     }
   };
 
-  const isoToday = () => {
-    const now = new Date();
-    const yyyy = now.getUTCFullYear();
-    const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
-    const dd = String(now.getUTCDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  };
-
-  const addDaysIso = (iso: string, days: number) => {
-    const dt = new Date(`${iso}T00:00:00.000Z`);
-    if (Number.isNaN(dt.getTime())) return iso;
-    dt.setUTCDate(dt.getUTCDate() + days);
-    const yyyy = dt.getUTCFullYear();
-    const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
-    const dd = String(dt.getUTCDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  };
-
-  const getValidCheckInCheckOut = () => {
-    const today = isoToday();
-    let checkIn = addDaysIso(today, 1);
-    let checkOut = addDaysIso(checkIn, 2);
-    // Defensive: ensure checkOut > checkIn
-    if (checkIn >= checkOut) {
-      checkIn = addDaysIso(today, 1);
-      checkOut = addDaysIso(checkIn, 2);
-    }
-    return { checkIn, checkOut };
-  };
-
   const fetchLiveRoomPrices = async () => {
     setLiveLoading(true);
     setLiveError(null);
 
     try {
-      const { checkIn, checkOut } = getValidCheckInCheckOut();
-
       const response = await roomService.getRoomPrices({
         checkIn,
         checkOut,
@@ -175,8 +224,6 @@ const Rooms = () => {
     setRawError(null);
 
     try {
-      const { checkIn, checkOut } = getValidCheckInCheckOut();
-
       const response = await roomService.getRawRoomList({
         checkIn,
         checkOut,
@@ -220,6 +267,13 @@ const Rooms = () => {
     }
   };
 
+  // Refetch data when dates change
+  useEffect(() => {
+    fetchRawRooms();
+    fetchLiveRoomPrices();
+    fetchRoomListWithDiscount();
+  }, [checkIn, checkOut]);
+
   // Get database room for a room title
   const getDatabaseRoom = (roomTitle: string) => {
     return dbRooms.find(room => 
@@ -253,26 +307,58 @@ const Rooms = () => {
   };
 
   const getAvgPriceFromRaw = (r: EzeeRawRoom) => {
-    const exclusiveTaxObj = r?.room_rates_info?.exclusive_tax;
-    if (exclusiveTaxObj && typeof exclusiveTaxObj === 'object') {
-      const values = Object.values(exclusiveTaxObj)
+    const rateInfo = r?.room_rates_info || {};
+    const directRackRate = Number((r as any)?.rack_rate ?? 0);
+    
+    console.log(`[ROOMS DEBUG] getAvgPriceFromRaw for room: ${r.Room_Name}`, {
+      direct_rack_rate: directRackRate,
+      rack_rate: rateInfo.rack_rate,
+      avg_price_per_night: r.avg_price_per_night,
+      avg_per_night_after_discount: rateInfo.avg_per_night_after_discount,
+      totalprice_inclusive_all: rateInfo.totalprice_inclusive_all,
+      exclusive_tax: rateInfo.exclusive_tax
+    });
+    
+    // PRIORITIZE rack_rate as primary price source
+    let price = 0;
+    if (Number.isFinite(directRackRate) && directRackRate > 0) {
+      price = directRackRate;
+      console.log(`[ROOMS DEBUG] Using direct rack_rate: ${price}`);
+    } else if (rateInfo.rack_rate && Number.isFinite(Number(rateInfo.rack_rate)) && Number(rateInfo.rack_rate) > 0) {
+      price = Number(rateInfo.rack_rate);
+      console.log(`[ROOMS DEBUG] Using rack_rate: ${price}`);
+    } else if (rateInfo.avg_per_night_after_discount) {
+      price = Number(rateInfo.avg_per_night_after_discount);
+      console.log(`[ROOMS DEBUG] Using avg_per_night_after_discount: ${price}`);
+    } else if (rateInfo.avg_per_night_before_discount) {
+      price = Number(rateInfo.avg_per_night_before_discount);
+      console.log(`[ROOMS DEBUG] Using avg_per_night_before_discount: ${price}`);
+    } else if (rateInfo.totalprice_inclusive_all) {
+      const nights = 1; // Default to 1 night for per night calculation
+      price = Number(rateInfo.totalprice_inclusive_all) / nights;
+      console.log(`[ROOMS DEBUG] Using totalprice_inclusive_all / nights: ${rateInfo.totalprice_inclusive_all} / ${nights} = ${price}`);
+    } else if (rateInfo.totalprice_room_only) {
+      const nights = 1;
+      price = Number(rateInfo.totalprice_room_only) / nights;
+      console.log(`[ROOMS DEBUG] Using totalprice_room_only / nights: ${rateInfo.totalprice_room_only} / ${nights} = ${price}`);
+    } else if (rateInfo.exclusive_tax && typeof rateInfo.exclusive_tax === 'object') {
+      const taxValues = Object.values(rateInfo.exclusive_tax)
         .map((v: any) => Number(v))
         .filter((v) => Number.isFinite(v) && v > 0);
-      if (values.length > 0) return values[0];
+      if (taxValues.length > 0) {
+        price = taxValues[0];
+        console.log(`[ROOMS DEBUG] Using exclusive_tax value: ${price}`);
+      }
     }
-
-    const avg = Number(r?.room_rates_info?.avg_per_night_after_discount ?? 0);
-    if (Number.isFinite(avg) && avg > 0) return avg;
-
-    const inc = r?.room_rates_info?.inclusive_tax_adjustment;
-    if (inc && typeof inc === 'object') {
-      const values = Object.values(inc)
-        .map((v: any) => Number(v))
-        .filter((v) => Number.isFinite(v) && v > 0);
-      if (values.length > 0) return values[0];
+    
+    // Final fallback to original avg_price_per_night
+    if (price === 0) {
+      price = Number(r.avg_price_per_night ?? 0);
+      console.log(`[ROOMS DEBUG] Using fallback avg_price_per_night: ${price}`);
     }
-
-    return 0;
+    
+    console.log(`[ROOMS DEBUG] Final extracted price: ${price}`);
+    return price;
   };
 
   const getCurrencyFromRaw = (r: EzeeRawRoom) => {
@@ -352,6 +438,7 @@ const Rooms = () => {
   const goToBookingByName = (roomName: string) => {
     const name = String(roomName ?? '').trim();
     if (!name) return;
+    setSelectedRoomTitle(name);
     navigate(`/booking?room=${encodeURIComponent(name)}`);
   };
 
@@ -366,6 +453,141 @@ const Rooms = () => {
   };
 
   const toUiRooms = useMemo<UiRoom[]>(() => {
+    // Prioritize roomListWithDiscount (from /api/rooms) over rawRooms (from /api/rooms/raw)
+    if (roomListWithDiscount.length > 0) {
+      console.log('[ROOMS DEBUG] Using roomListWithDiscount data:', roomListWithDiscount);
+      
+      const roomOrder = [
+        'Deluxe Studio Suite',
+        'Deluxe Edge View',
+        'Lotus Family Suite',
+        'Presidential Suite',
+      ];
+
+      const out: UiRoom[] = [];
+      let idx = 0;
+      for (const roomType of roomOrder) {
+        // Find matching room from roomListWithDiscount
+        const matchingRoom = roomListWithDiscount.find((r: any) => {
+          const roomName = String(r?.Room_Name ?? '').toLowerCase();
+          const roomBaseName = roomName.split(' - ')[0].toLowerCase();
+          return roomName.includes(roomType.toLowerCase()) || 
+                 roomType.toLowerCase().includes(roomBaseName) ||
+                 normalizeRoomType(roomBaseName) === roomType;
+        });
+        
+        // If no matching room found in roomListWithDiscount, try to find in rawRooms
+        let finalMatchingRoom = matchingRoom;
+        if (!matchingRoom && rawRooms.length > 0) {
+          const rawMatchingRoom = rawRooms.find((r: any) => {
+            const roomName = String(r?.Room_Name ?? '').toLowerCase();
+            const roomBaseName = roomName.split(' - ')[0].toLowerCase();
+            return roomName.includes(roomType.toLowerCase()) || 
+                   roomType.toLowerCase().includes(roomBaseName) ||
+                   normalizeRoomType(roomBaseName) === roomType;
+          });
+          if (rawMatchingRoom) {
+            finalMatchingRoom = rawMatchingRoom;
+          }
+        }
+        
+        // If still no matching room, create a fallback room
+          finalMatchingRoom = {
+            roomtypeunkid: "0",
+            Room_Name: `${roomType} - EP`,
+            Room_Description: `${roomType} - EP`,
+            max_adult_occupancy: 4,
+            max_child_occupancy: 2,
+            available_rooms: 0,
+            rack_rate: roomType === 'Lotus Family Suite' ? 8000 : 
+                      roomType === 'Presidential Suite' ? 12500 :
+                      roomType === 'Deluxe Edge View' ? 5500 : 4500,
+            avg_price_per_night: roomType === 'Lotus Family Suite' ? 7500 :
+                                roomType === 'Presidential Suite' ? 11875 :
+                                roomType === 'Deluxe Edge View' ? 5225 : 4275,
+            total_price: roomType === 'Lotus Family Suite' ? 7500 :
+                        roomType === 'Presidential Suite' ? 11875 :
+                        roomType === 'Deluxe Edge View' ? 5225 : 4275,
+            currency_sign: '₹',
+            RoomAmenities: 'WiFi, AC, TV',
+          } as any;
+
+        idx += 1;
+
+        const staticRoom = staticRooms.find((sr) => sr.title.toLowerCase() === roomType.toLowerCase());
+        // Use rack_rate as primary price, fallback to avg_price_per_night or pricePerNight
+        const price = Number(finalMatchingRoom.rack_rate || finalMatchingRoom.avg_price_per_night || finalMatchingRoom.pricePerNight || 0);
+        const currency = String(finalMatchingRoom.currency_sign || '₹');
+        const amenities = String(finalMatchingRoom.RoomAmenities || '').split(',').map(a => a.trim()).filter(Boolean);
+
+        // Derive EP/CP/MAP plan prices from actual API variants first (some rooms only have CP/MAP)
+        const candidatesForType = [...roomListWithDiscount, ...rawRooms].filter((rr: any) => {
+          const rt = normalizeRoomType(String(rr?.Roomtype_Name ?? rr?.Roomtype ?? rr?.Room_Name ?? '')).toLowerCase();
+          return rt === roomType.toLowerCase();
+        });
+        const epRoom = candidatesForType.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'EP'));
+        const cpRoom = candidatesForType.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'CP'));
+        const mapRoom = candidatesForType.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'MAP'));
+
+        const epFromApi = epRoom ? getAvgPriceFromRaw(epRoom) : 0;
+        const cpFromApi = cpRoom ? getAvgPriceFromRaw(cpRoom) : 0;
+        const mapFromApi = mapRoom ? getAvgPriceFromRaw(mapRoom) : 0;
+
+        // Fallback: compute from base rack_rate only if a plan variant is missing
+        const rackRate = Number(finalMatchingRoom.rack_rate || 0);
+        const base = rackRate > 0 ? rackRate : price;
+        const epPrice = Number.isFinite(epFromApi) && epFromApi > 0 ? epFromApi : 0;
+        const cpPrice = Number.isFinite(cpFromApi) && cpFromApi > 0 ? cpFromApi : base + 500;
+        const mapPrice = Number.isFinite(mapFromApi) && mapFromApi > 0 ? mapFromApi : base + 1000;
+
+        const avail = Math.max(0, ...candidatesForType.map((c: any) => getAvailabilityFromRaw(c)));
+
+        console.log(`[ROOMS DEBUG] Processed ${roomType}:`, {
+          rack_rate: finalMatchingRoom.rack_rate,
+          avg_price_per_night: finalMatchingRoom.avg_price_per_night,
+          pricePerNight: finalMatchingRoom.pricePerNight,
+          finalPrice: price,
+          epPrice,
+          cpPrice,
+          mapPrice,
+          currency,
+          roomData: finalMatchingRoom
+        });
+
+        out.push({
+          id: idx,
+          title: roomType,
+          subtitle: String(finalMatchingRoom?.Roomtype_Short_code ?? staticRoom?.subtitle ?? 'Luxury Suite'),
+          images: staticRoom?.images && staticRoom.images.length > 0 ? staticRoom.images : ['/images/room/1.jpeg', '/images/room/4.jpeg', '/images/room/5.jpeg'],
+          description: staticRoom?.description || String(finalMatchingRoom?.Room_Description ?? '').trim() || 'Luxury accommodation',
+          capacity: `${Number(finalMatchingRoom?.max_adult_occupancy ?? 0) || 2} Guests`,
+          bedType: staticRoom?.bedType || 'King Bed',
+          size: staticRoom?.size || 'Spacious',
+          available: avail,
+          pricing: {
+            weekday: `${currency}${price}`,
+            weekend: `${currency}${price}`,
+          },
+          planPrices: {
+            ep: epPrice > 0 ? `${currency}${epPrice}` : '',
+            cp: cpPrice > 0 ? `${currency}${cpPrice}` : '',
+            map: mapPrice > 0 ? `${currency}${mapPrice}` : '',
+          },
+          amenities: (amenities.length > 0 ? amenities : []).map((name) => {
+            const key = String(name ?? '').toLowerCase();
+            const Icon =
+              amenityIconByName[
+                Object.keys(amenityIconByName).find((k) => key.includes(k)) ?? ''
+              ] ?? Coffee;
+            return { icon: Icon, name };
+          }),
+        });
+      }
+
+      return out;
+    }
+
+    // Fallback to rawRooms if roomListWithDiscount is empty
     if (rawRooms.length > 0) {
       const byRoomType = new Map<string, EzeeRawRoom[]>();
       for (const r of rawRooms) {
@@ -403,6 +625,14 @@ const Rooms = () => {
         const currency = getCurrencyFromRaw(preferred);
         const amenities = getAmenitiesFromRaw(preferred);
 
+        // Calculate EP/CP/MAP prices based on rack_rate or extracted price
+        const rackRate = Number(preferred?.room_rates_info?.rack_rate || 0);
+        const epPrice = rackRate > 0 ? rackRate : price;
+        const cpPrice = rackRate > 0 ? rackRate + 500 : price + 500;
+        const mapPrice = rackRate > 0 ? rackRate + 1000 : price + 1000;
+
+        const avail = Math.max(0, ...list.map((c: any) => getAvailabilityFromRaw(c)));
+
         out.push({
           id: idx,
           title: roomType,
@@ -412,14 +642,15 @@ const Rooms = () => {
           capacity: `${Number(preferred?.max_adult_occupancy ?? preferred?.Room_Max_adult ?? 0) || 2} Guests`,
           bedType: staticRoom?.bedType || 'King Bed',
           size: staticRoom?.size || 'Spacious',
+          available: avail,
           pricing: {
             weekday: `${currency}${price}`,
             weekend: `${currency}${price}`,
           },
           planPrices: {
-            ep: ep ? `${getCurrencyFromRaw(ep)}${getAvgPriceFromRaw(ep)}` : '',
-            cp: cp ? `${getCurrencyFromRaw(cp)}${getAvgPriceFromRaw(cp)}` : '',
-            map: '',
+            ep: ep ? `${getCurrencyFromRaw(ep)}${getAvgPriceFromRaw(ep)}` : `${currency}${epPrice}`,
+            cp: cp ? `${getCurrencyFromRaw(cp)}${getAvgPriceFromRaw(cp)}` : `${currency}${cpPrice}`,
+            map: `${currency}${mapPrice}`,
           },
           amenities: (amenities.length > 0 ? amenities : []).map((name) => {
             const key = String(name ?? '').toLowerCase();
@@ -455,14 +686,15 @@ const Rooms = () => {
         capacity: `${room.person} Guests`,
         bedType: staticRoom?.bedType || 'King Bed',
         size: staticRoom?.size || 'Spacious',
+        available: room.availableRooms ?? 0,
         pricing: {
           weekday: `₹${room.pricePerNight}`,
           weekend: `₹${room.pricePerNight}`,
         },
         planPrices: {
           ep: `₹${room.epPricePerNight || room.pricePerNight}`,
-          cp: `₹${room.cpPricePerNight || room.pricePerNight}`,
-          map: `₹${room.mapPricePerNight || room.pricePerNight}`,
+          cp: `₹${room.cpPricePerNight || (room.pricePerNight + 500)}`,
+          map: `₹${room.mapPricePerNight || (room.pricePerNight + 1000)}`,
         },
         amenities: room.amenities.map((a) => {
           const key = String(a?.name ?? '').toLowerCase();
@@ -474,7 +706,7 @@ const Rooms = () => {
         }),
       };
     });
-  }, [dbRooms, rawRooms]);
+  }, [dbRooms, rawRooms, roomListWithDiscount]);
 
   return (
     <div className="min-h-screen bg-ivory">
@@ -526,6 +758,123 @@ const Rooms = () => {
               Loading live rooms...
             </div>
           )}
+          {/* Date Picker Section */}
+          <div className="mt-12 max-w-4xl mx-auto bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/20 shadow-2xl overflow-hidden relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-gold/5 via-transparent to-bronze/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-ivory/80 text-sm font-medium mb-1 ml-1 uppercase tracking-wider">
+                  <Calendar className="h-4 w-4 text-gold" /> Check-in Date
+                </label>
+                <input 
+                  type="date" 
+                  value={checkIn}
+                  onChange={(e) => {
+                    setCheckIn(e.target.value);
+                    setHasInteractedWithDates(true);
+                  }}
+                  min={isoToday()}
+                  className="w-full bg-white/10 border border-white/20 rounded-2xl px-5 py-4 text-ivory focus:outline-none focus:ring-2 focus:ring-gold/50 transition-all hover:bg-white/20 cursor-pointer text-lg font-medium"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-ivory/80 text-sm font-medium mb-1 ml-1 uppercase tracking-wider">
+                  <Calendar className="h-4 w-4 text-gold" /> Check-out Date
+                </label>
+                <input 
+                  type="date" 
+                  value={checkOut}
+                  onChange={(e) => {
+                    setCheckOut(e.target.value);
+                    setHasInteractedWithDates(true);
+                  }}
+                  min={addDaysIso(checkIn, 1)}
+                  className="w-full bg-white/10 border border-white/20 rounded-2xl px-5 py-4 text-ivory focus:outline-none focus:ring-2 focus:ring-gold/50 transition-all hover:bg-white/20 cursor-pointer text-lg font-medium"
+                />
+              </div>
+            </div>
+            {hasInteractedWithDates && (
+              <div className="mt-4 flex items-center justify-center gap-2 text-gold animate-fade-in">
+                <CheckCircle className="h-4 w-4" />
+                <span className="text-sm font-medium uppercase tracking-widest">Pricing & Offers Updated for {nights} {nights === 1 ? 'Night' : 'Nights'}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Promo Cards Strip */}
+      <section id="special-offers" className="promo-section bg-gradient-to-br from-ivory via-white to-ivory/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3 mb-6">
+            <Tag className="h-5 w-5 text-gold" />
+            <h3 className="promo-title">
+              Special Offers
+            </h3>
+            {!selectedRoomTitle && (
+              <span className="text-sm text-gray-800/50 ml-auto italic">
+                Select a room below to use a promo
+              </span>
+            )}
+          </div>
+          <div
+            ref={promoStripRef}
+            className="promo-container"
+          >
+            {visiblePromos && visiblePromos.length > 0 ? (
+              visiblePromos.map((promo: any) => (
+                <div
+                  key={promo.id || promo.code}
+                  onClick={() => handlePromoClick(promo)}
+                  className="promo-card group"
+                >
+                  <div className="relative z-10 w-3/4">
+                    <h3 className="promo-card-value">
+                      {promo.type === 'PERCENT' ? `${promo.value}%` : `₹${promo.value}`} <span>OFF</span>
+                    </h3>
+                    <p className="promo-card-label">
+                      on {promo.applicableLabel || 'your stay'}
+                    </p>
+                    {(promo.minNights != null || promo.maxNights != null) && (
+                      <p className="text-xs mt-1 opacity-70 font-medium">
+                        {promo.minNights != null && promo.maxNights != null
+                          ? promo.minNights === promo.maxNights
+                            ? `For ${promo.minNights} night${promo.minNights === 1 ? '' : 's'} only`
+                            : `For ${promo.minNights}–${promo.maxNights} nights`
+                          : promo.minNights != null
+                            ? `Min ${promo.minNights} night${promo.minNights === 1 ? '' : 's'}`
+                            : `Up to ${promo.maxNights} night${promo.maxNights === 1 ? '' : 's'}`}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="promo-card-graphic">
+                    <svg viewBox="0 0 100 70" preserveAspectRatio="none" className="w-full h-full drop-shadow-lg">
+                      <path 
+                        d="M 10 0 H 90 A 10 10 0 0 1 100 10 V 20 A 15 15 0 0 0 100 50 V 60 A 10 10 0 0 1 90 70 H 10 A 10 10 0 0 1 0 60 V 10 A 10 10 0 0 1 10 0 Z" 
+                        fill="currentColor" 
+                      />
+                      <line x1="75" y1="5" x2="75" y2="65" stroke="rgba(0,0,0,0.3)" strokeWidth="2" strokeDasharray="4 4" />
+                      <text x="37.5" y="48" fontSize="32" fill="rgba(0,0,0,0.3)" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        {promo.type === 'PERCENT' ? '%' : '₹'}
+                      </text>
+                    </svg>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="promo-card pointer-events-none opacity-80">
+                <div className="flex items-start justify-between mb-3">
+                  <h3 className="text-gray-500">
+                    No Offers Available
+                  </h3>
+                </div>
+                <p>
+                  Check back later
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
@@ -551,29 +900,21 @@ const Rooms = () => {
                     className="w-full h-96 object-cover rounded-3xl luxury-shadow"
                   />
                   {(() => {
-                    const candidates = rawRooms.filter((rr: any) => {
+                    const availabilityStatus = getAvailabilityStatus(room.available);
+                    return (
+                      <div className={`absolute top-4 left-4 ${availabilityStatus.color} text-white px-3 py-1 rounded-full text-sm font-semibold`}>
+                        {availabilityStatus.label}
+                      </div>
+                    );
+                  })()}
+                  {(() => {
+                    const candidates = [...roomListWithDiscount, ...rawRooms].filter((rr: any) => {
                       const rt = normalizeRoomType(String(rr?.Roomtype_Name ?? rr?.Roomtype ?? rr?.Room_Name ?? ''));
                       return rt.toLowerCase() === room.title.toLowerCase();
                     });
                     const cp = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'CP'));
                     const ep = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'EP'));
-                    const preferred = cp ?? ep;
-                    if (preferred) {
-                      const availabilityStatus = getAvailabilityStatus(getAvailabilityFromRaw(preferred));
-                      return (
-                        <div className={`absolute top-4 left-4 ${availabilityStatus.color} text-white px-3 py-1 rounded-full text-sm font-semibold`}>
-                          {availabilityStatus.label}
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
-                  {(() => {
-                    const candidates = rawRooms.filter((rr: any) => {
-                      const rt = normalizeRoomType(String(rr?.Roomtype_Name ?? rr?.Roomtype ?? rr?.Room_Name ?? ''));
-                      return rt.toLowerCase() === room.title.toLowerCase();
-                    });
-                    const cp = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'CP'));
+                    const preferred = cp ?? ep ?? candidates[0];
                     const currency = cp ? getCurrencyFromRaw(cp) : '₹';
                     const discountInfo = getDiscountInfo(room.title);
 
@@ -590,12 +931,13 @@ const Rooms = () => {
                       );
                     }
 
-                    if (cp) {
-                      const price = getAvgPriceFromRaw(cp);
+                    if (preferred) {
+                      const currencyToUse = getCurrencyFromRaw(preferred) || currency;
+                      const price = getAvgPriceFromRaw(preferred);
                       if (Number.isFinite(price) && price > 0) {
                         return (
                           <div className="absolute top-4 right-4 bg-gradient-to-r from-gold to-bronze text-gray-800 px-4 py-2 rounded-2xl text-sm font-bold shadow-lg">
-                            {currency}{price}/Night
+                            {currencyToUse}{price}/Night
                           </div>
                         );
                       }
@@ -608,40 +950,65 @@ const Rooms = () => {
                     'Loading rooms...'
                   ) : error || liveError || rawError || roomListError ? (
                     'Price unavailable. Please try again.'
-                  ) : (() => {
-                    const discountInfo = getDiscountInfo(room.title);
-                    if (discountInfo && discountInfo.promoApplied && discountInfo.originalPrice && discountInfo.finalPrice !== discountInfo.originalPrice) {
-                      return (
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="line-through text-gray-500">
-                              ₹{discountInfo.originalPrice}
-                            </span>
-                            <span className="font-bold text-green-600">
-                              ₹{discountInfo.finalPrice}
-                            </span>
-                          </div>
-                          <div className="text-xs text-red-600 font-semibold mt-1">
-                            Flat ₹{discountInfo.discountAmount} OFF
-                          </div>
-                        </div>
-                      );
-                    }
-                    // Fallback to existing logic
-                    const candidates = rawRooms.filter((rr: any) => {
-                      const rt = normalizeRoomType(String(rr?.Roomtype_Name ?? rr?.Roomtype ?? rr?.Room_Name ?? ''));
-                      return rt.toLowerCase() === room.title.toLowerCase();
-                    });
-                    const cp = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'CP'));
-                    const ep = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'EP'));
-                    const preferred = cp ?? ep;
-                    if (preferred) {
-                      const price = getAvgPriceFromRaw(preferred);
-                      const currency = getCurrencyFromRaw(preferred);
-                      if (Number.isFinite(price) && price > 0) return `${currency}${price}/night`;
-                    }
-                    return 'Price unavailable';
-                  })()}
+                  ) : (
+                    <div className="space-y-1">
+                      {/* Display EP/CP/MAP prices */}
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        {room.planPrices.ep && (
+                          <span className="bg-gray-100 px-2 py-1 rounded-md">
+                            EP: {room.planPrices.ep}
+                          </span>
+                        )}
+                        {room.planPrices.cp && (
+                          <span className="bg-gray-100 px-2 py-1 rounded-md">
+                            CP: {room.planPrices.cp}
+                          </span>
+                        )}
+                        {room.planPrices.map && (
+                          <span className="bg-gray-100 px-2 py-1 rounded-md">
+                            MAP: {room.planPrices.map}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {/* Existing price logic */}
+                      {(() => {
+                        const discountInfo = getDiscountInfo(room.title);
+                        if (discountInfo && discountInfo.promoApplied && discountInfo.originalPrice && discountInfo.finalPrice !== discountInfo.originalPrice) {
+                          return (
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="line-through text-gray-500">
+                                  ₹{discountInfo.originalPrice}
+                                </span>
+                                <span className="font-bold text-green-600">
+                                  ₹{discountInfo.finalPrice}
+                                </span>
+                              </div>
+                              <div className="text-xs text-red-600 font-semibold mt-1">
+                                Flat ₹{discountInfo.discountAmount} OFF
+                              </div>
+                            </div>
+                          );
+                        }
+                        // Fallback to existing logic
+                        const candidates = [...roomListWithDiscount, ...rawRooms].filter((rr: any) => {
+                          const rt = normalizeRoomType(String(rr?.Roomtype_Name ?? rr?.Roomtype ?? rr?.Room_Name ?? ''));
+                          return rt.toLowerCase() === room.title.toLowerCase();
+                        });
+                        const cp = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'CP'));
+                        const ep = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'EP'));
+                        const map = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'MAP'));
+                        const preferred = cp ?? map ?? ep ?? candidates[0];
+                        if (preferred) {
+                          const price = getAvgPriceFromRaw(preferred);
+                          const currency = getCurrencyFromRaw(preferred);
+                          if (Number.isFinite(price) && price > 0) return `${currency}${price}/night`;
+                        }
+                        return 'Price unavailable';
+                      })()}
+                    </div>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   {room.images.slice(1).map((image, imgIndex) => (
@@ -702,27 +1069,28 @@ const Rooms = () => {
                 {/* CTA Buttons */}
                 <div className="flex flex-col sm:flex-row gap-4">
                   {(() => {
-                    const candidates = rawRooms.filter((rr: any) => {
+                    const candidates = [...roomListWithDiscount, ...rawRooms].filter((rr: any) => {
                       const rt = normalizeRoomType(String(rr?.Roomtype_Name ?? rr?.Roomtype ?? rr?.Room_Name ?? ''));
                       return rt.toLowerCase() === room.title.toLowerCase();
                     });
                     const cp = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'CP'));
                     const ep = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'EP'));
-                    const preferred = cp ?? ep;
-                    const isSoldOut = preferred ? getAvailabilityFromRaw(preferred) < 1 : true;
+                    const preferred = cp ?? ep ?? candidates[0];
+                    const avail = Math.max(0, ...candidates.map((c: any) => getAvailabilityFromRaw(c)));
+                    const isSoldOut = preferred ? avail < 1 : true;
                     
                     return (
                       <button
-                        className={`px-6 py-3 rounded-full font-semibold transition-colors duration-200 flex-1 sm:flex-none ${
+                        onClick={() => {
+                          if (!room.title) return;
+                          setSelectedRoomTitle(room.title);
+                          goToBookingByName(room.title);
+                        }}
+                        className={`px-6 py-3 rounded-full font-semibold transition-colors duration-200 ${
                           isSoldOut
-                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                            ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
                             : 'bg-gold text-gray-800 hover:bg-bronze'
                         }`}
-                        onClick={() => {
-                          if (!isSoldOut) {
-                            goToBookingByName(room.title);
-                          }
-                        }}
                         disabled={isSoldOut}
                       >
                         {isSoldOut ? 'Sold Out' : 'Book This Suite'}

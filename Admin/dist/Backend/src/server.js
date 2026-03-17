@@ -16,7 +16,7 @@ const createServer = () => {
     const app = (0, express_1.default)();
     app.set("trust proxy", 1);
     app.use((0, cors_1.default)({
-        origin: env_1.env.CLIENT_URL,
+        origin: [env_1.env.CLIENT_URL, "http://localhost:8081"],
         credentials: true,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allowedHeaders: ["Content-Type", "Authorization"],

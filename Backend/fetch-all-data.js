@@ -8,14 +8,35 @@ const config = {
     apiKey: '5295697129d7c0f7f5-13a2-11f1-9'
 };
 
+function isIsoDate(value) {
+    return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function addDaysIso(iso, days) {
+    const d = new Date(`${iso}T00:00:00.000Z`);
+    d.setUTCDate(d.getUTCDate() + days);
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+const now = new Date();
+const todayIso = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+
+const argCheckIn = process.argv[2];
+const argCheckOut = process.argv[3];
+const checkInDate = isIsoDate(argCheckIn) ? argCheckIn : addDaysIso(todayIso, 7);
+const checkOutDate = isIsoDate(argCheckOut) ? argCheckOut : addDaysIso(checkInDate, 2);
+
 // Build the API URL with required parameters
 function buildApiUrl() {
     const params = new URLSearchParams({
         request_type: 'RoomList',
         HotelCode: config.hotelCode,
         APIKey: config.apiKey,
-        check_in_date: '2026-03-05',
-        check_out_date: '2026-03-07',
+        check_in_date: checkInDate,
+        check_out_date: checkOutDate,
         num_nights: '',
         number_adults: '1',
         number_children: '0',
@@ -110,7 +131,7 @@ function fetchAndSaveData() {
                 console.log('📊 Summary:');
                 console.log('- Total Rooms:', jsonData.length);
                 console.log('- Currency:', jsonData[0]?.currency_code || 'N/A');
-                console.log('- Date Range:', '2026-03-05 to 2026-03-07');
+                console.log('- Date Range:', `${checkInDate} to ${checkOutDate}`);
                 console.log('- File Size:', (fs.statSync(fileName).size / 1024).toFixed(2), 'KB');
                 
                 // Display sample data

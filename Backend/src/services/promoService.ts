@@ -17,11 +17,15 @@ export const promoService = {
       code: String(p.code),
       type: String(p.type),
       value: String(p.value),
+      applicableLabel: String(p.applicableLabel ?? ''),
+      promoScope: String(p.promoScope ?? ''),
       isActive: Boolean(p.isActive),
       usedCount: Number(p.usedCount ?? 0),
       maxUses: p.maxUses == null ? null : Number(p.maxUses),
       startsAt: p.startsAt ? new Date(p.startsAt).toISOString() : null,
       expiresAt: p.expiresAt ? new Date(p.expiresAt).toISOString() : null,
+      minNights: p.minNights == null ? null : Number(p.minNights),
+      maxNights: p.maxNights == null ? null : Number(p.maxNights),
       createdAt: p.createdAt ? new Date(p.createdAt).toISOString() : null,
       updatedAt: p.updatedAt ? new Date(p.updatedAt).toISOString() : null,
     }));
@@ -31,10 +35,13 @@ export const promoService = {
     code: string;
     type: "PERCENT" | "FLAT";
     value: string | number;
+    applicableLabel?: string;
     isActive?: boolean;
     maxUses?: string | number | null;
     startsAt?: string | null;
     expiresAt?: string | null;
+    minNights?: string | number | null;
+    maxNights?: string | number | null;
   }) {
     const code = normalizeCode(params.code);
     if (!code) throw new HttpError(400, "Promo code is required");
@@ -51,16 +58,24 @@ export const promoService = {
     const expiresAt = params.expiresAt ? new Date(params.expiresAt) : null;
     if (params.expiresAt && Number.isNaN(expiresAt?.getTime())) throw new HttpError(400, "Invalid expiresAt");
 
+    const applicableLabel = String(params.applicableLabel ?? '').trim().slice(0, 100);
+
+    const minNights = params.minNights == null || String(params.minNights).trim() === "" ? null : Number(params.minNights);
+    const maxNights = params.maxNights == null || String(params.maxNights).trim() === "" ? null : Number(params.maxNights);
+
     try {
       const created: any = await (prisma as any).promoCode.create({
         data: {
           code,
           type: params.type,
           value: new Prisma.Decimal(String(valueNum)),
+          applicableLabel: applicableLabel || null,
           isActive: params.isActive ?? true,
           maxUses,
           startsAt,
           expiresAt,
+          minNights,
+          maxNights,
         },
       });
 
@@ -69,11 +84,15 @@ export const promoService = {
         code: String(created.code),
         type: String(created.type),
         value: String(created.value),
+        applicableLabel: String(created.applicableLabel ?? ''),
+        promoScope: String(created.promoScope ?? ''),
         isActive: Boolean(created.isActive),
         usedCount: Number(created.usedCount ?? 0),
         maxUses: created.maxUses == null ? null : Number(created.maxUses),
         startsAt: created.startsAt ? new Date(created.startsAt).toISOString() : null,
         expiresAt: created.expiresAt ? new Date(created.expiresAt).toISOString() : null,
+        minNights: created.minNights == null ? null : Number(created.minNights),
+        maxNights: created.maxNights == null ? null : Number(created.maxNights),
       };
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
@@ -87,6 +106,58 @@ export const promoService = {
     await (prisma as any).promoCode.delete({ where: { id: params.id } });
   },
 
+  async updateAdmin(params: {
+    id: string;
+    applicableLabel?: string;
+    maxUses?: string | number | null;
+    startsAt?: string | null;
+    expiresAt?: string | null;
+    minNights?: string | number | null;
+    maxNights?: string | number | null;
+  }) {
+    const data: any = {};
+
+    if (params.applicableLabel !== undefined) {
+      data.applicableLabel = String(params.applicableLabel ?? '').trim().slice(0, 100) || null;
+    }
+    if (params.maxUses !== undefined) {
+      data.maxUses = params.maxUses == null || String(params.maxUses).trim() === "" ? null : Number(params.maxUses);
+    }
+    if (params.startsAt !== undefined) {
+      data.startsAt = params.startsAt ? new Date(params.startsAt) : null;
+    }
+    if (params.expiresAt !== undefined) {
+      data.expiresAt = params.expiresAt ? new Date(params.expiresAt) : null;
+    }
+    if (params.minNights !== undefined) {
+      data.minNights = params.minNights == null || String(params.minNights).trim() === "" ? null : Number(params.minNights);
+    }
+    if (params.maxNights !== undefined) {
+      data.maxNights = params.maxNights == null || String(params.maxNights).trim() === "" ? null : Number(params.maxNights);
+    }
+
+    const updated: any = await (prisma as any).promoCode.update({
+      where: { id: params.id },
+      data,
+    });
+
+    return {
+      id: String(updated.id),
+      code: String(updated.code),
+      type: String(updated.type),
+      value: String(updated.value),
+      applicableLabel: String(updated.applicableLabel ?? ''),
+      promoScope: String(updated.promoScope ?? ''),
+      isActive: Boolean(updated.isActive),
+      usedCount: Number(updated.usedCount ?? 0),
+      maxUses: updated.maxUses == null ? null : Number(updated.maxUses),
+      startsAt: updated.startsAt ? new Date(updated.startsAt).toISOString() : null,
+      expiresAt: updated.expiresAt ? new Date(updated.expiresAt).toISOString() : null,
+      minNights: updated.minNights == null ? null : Number(updated.minNights),
+      maxNights: updated.maxNights == null ? null : Number(updated.maxNights),
+    };
+  },
+
   async setActiveAdmin(params: { id: string; isActive: boolean }) {
     const updated: any = await (prisma as any).promoCode.update({
       where: { id: params.id },
@@ -98,15 +169,19 @@ export const promoService = {
       code: String(updated.code),
       type: String(updated.type),
       value: String(updated.value),
+      applicableLabel: String(updated.applicableLabel ?? ''),
+      promoScope: String(updated.promoScope ?? ''),
       isActive: Boolean(updated.isActive),
       usedCount: Number(updated.usedCount ?? 0),
       maxUses: updated.maxUses == null ? null : Number(updated.maxUses),
       startsAt: updated.startsAt ? new Date(updated.startsAt).toISOString() : null,
       expiresAt: updated.expiresAt ? new Date(updated.expiresAt).toISOString() : null,
+      minNights: updated.minNights == null ? null : Number(updated.minNights),
+      maxNights: updated.maxNights == null ? null : Number(updated.maxNights),
     };
   },
 
-  async validateForBaseAmount(params: { code: string; baseAmount: number }) {
+  async validateForBaseAmount(params: { code: string; baseAmount: number; nights?: number }) {
     const code = normalizeCode(params.code);
     if (!code) throw new HttpError(400, "Promo code is required");
 
@@ -127,6 +202,15 @@ export const promoService = {
       const maxUses = Number(promo.maxUses);
       const usedCount = Number(promo.usedCount ?? 0);
       if (maxUses >= 0 && usedCount >= maxUses) throw new HttpError(400, "Invalid Promocode");
+    }
+
+    // Enforce night-based eligibility
+    if (params.nights != null && Number.isFinite(params.nights)) {
+      const nights = params.nights;
+      if (promo.minNights != null && nights < promo.minNights)
+        throw new HttpError(400, `This promo requires at least ${promo.minNights} night(s)`);
+      if (promo.maxNights != null && nights > promo.maxNights)
+        throw new HttpError(400, `This promo is only valid for up to ${promo.maxNights} night(s)`);
     }
 
     const valueNum = Number(promo.value);

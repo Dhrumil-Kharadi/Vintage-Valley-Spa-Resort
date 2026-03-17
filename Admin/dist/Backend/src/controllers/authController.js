@@ -12,6 +12,7 @@ const cookies_1 = require("../utils/cookies");
 const env_1 = require("../config/env");
 const crypto_1 = __importDefault(require("crypto"));
 const node_fetch_1 = __importDefault(require("node-fetch"));
+const mailer_1 = require("../utils/mailer");
 const signupSchema = zod_1.z.object({
     name: zod_1.z.string().min(1),
     email: zod_1.z.string().email(),
@@ -135,7 +136,31 @@ exports.authController = {
     forgotPassword: (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         const body = forgotSchema.parse(req.body);
         const token = await authService_1.authService.createResetToken(body.email);
-        res.json({ ok: true, data: { resetToken: token ?? null } });
+        if (token) {
+            const resetUrl = `${env_1.env.CLIENT_URL}/admin/reset-password?token=${encodeURIComponent(token)}`;
+            const subject = "Admin Password Reset";
+            const html = `
+        <div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;padding:20px;line-height:1.5;color:#111827;">
+          <h2 style="margin:0 0 12px 0;">Reset your admin password</h2>
+          <p style="margin:0 0 12px 0;">Open this link to set a new password:</p>
+          <p style="margin:0 0 18px 0;"><a href="${resetUrl}">${resetUrl}</a></p>
+          <p style="margin:0;color:#6b7280;font-size:12px;">If you didn't request this, you can ignore this email.</p>
+        </div>
+      `;
+            await (0, mailer_1.sendMailSafe)({
+                to: "dhumil05@gmail.com",
+                subject,
+                html,
+                from: env_1.env.EMAIL_FROM,
+                replyTo: env_1.env.EMAIL_REPLY_TO,
+                smtpHost: env_1.env.SMTP_HOST,
+                smtpPort: env_1.env.SMTP_PORT,
+                smtpSecure: env_1.env.SMTP_SECURE,
+                smtpUser: env_1.env.SMTP_USER,
+                smtpPass: env_1.env.SMTP_PASS,
+            });
+        }
+        res.json({ ok: true, data: { resetToken: null } });
     }),
     resetPassword: (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         const body = resetSchema.parse(req.body);
