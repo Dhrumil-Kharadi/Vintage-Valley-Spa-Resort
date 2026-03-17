@@ -35,7 +35,7 @@ const AdminBookings = () => {
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "UPI" | "CARD">("CASH");
   const [additionalInformation, setAdditionalInformation] = useState("");
   const [promoInput, setPromoInput] = useState("");
-  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountAmount: number } | null>(null);
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountAmount?: number; type?: string; value?: number } | null>(null);
   const [promoLoading, setPromoLoading] = useState(false);
   const [mealPlanByDate, setMealPlanByDate] = useState<Record<string, MealPlan>>({});
 
@@ -234,11 +234,39 @@ const AdminBookings = () => {
       // Hide GLOBAL_FLAT from selectable cards
       if (p.promoScope === 'GLOBAL_FLAT') return false;
       if (nights === 0) return true;
-      const min = p.minNights ?? -1;
-      const max = p.maxNights ?? 999999;
-      return (min === -1 || nights >= min) && (max === 999999 || nights <= max);
+      const min = p.minNights != null ? Number(p.minNights) : 0;
+      const max = p.maxNights != null ? Number(p.maxNights) : Infinity;
+      if (nights < min || nights > max) return false;
+
+      // New appliesTo logic
+      if (p.appliesTo) {
+        const appliesToLow = p.appliesTo.toLowerCase();
+        if (appliesToLow.includes("night")) {
+          const match = p.appliesTo.match(/(\d+)/);
+          if (match) {
+            const requiredNights = parseInt(match[1], 10);
+            if (nights !== requiredNights) return false;
+          }
+        } else if (appliesToLow.includes("weekend")) {
+          const start = new Date(checkIn);
+          const end = new Date(checkOut);
+          let hasWeekend = false;
+          const current = new Date(start);
+          while (current < end) {
+            const day = current.getDay();
+            if (day === 5 || day === 6) { // Friday or Saturday night
+              hasWeekend = true;
+              break;
+            }
+            current.setDate(current.getDate() + 1);
+          }
+          if (!hasWeekend) return false;
+        }
+      }
+
+      return true;
     });
-  }, [activePromos, nights]);
+  }, [activePromos, nights, checkIn, checkOut]);
 
   const nightDates = useMemo(() => {
     if (!checkIn || nights <= 0) return [] as string[];
@@ -512,12 +540,67 @@ const AdminBookings = () => {
 
     const round2 = (n: number) => Math.round(n * 100) / 100;
     const base = Number(pe.base ?? 0);
-    const discount = round2(Math.max(0, Math.min(base, Number(appliedPromo?.discountAmount ?? 0))));
+    
+    let discount = 0;
+    if (appliedPromo) {
+      if (appliedPromo.type === 'PERCENT') {
+        discount = round2(base * (Number(appliedPromo.value) / 100));
+      } else if (appliedPromo.type === 'FLAT') {
+        discount = round2(Number(appliedPromo.value));
+      } else {
+        discount = round2(Number(appliedPromo.discountAmount ?? 0));
+      }
+    }
+
+    discount = round2(Math.max(0, Math.min(base, discount)));
     const baseAfterDiscount = round2(Math.max(0, base - discount));
     const gst = round2(baseAfterDiscount * 0.05);
     const total = round2(baseAfterDiscount + gst);
     return { discount, baseAfterDiscount, gst, total };
-  }, [priceEstimate, appliedPromo?.discountAmount]);
+  }, [priceEstimate, appliedPromo]);
+
+  // Auto-discard promo if dates change and it's no longer valid
+  useEffect(() => {
+    if (!appliedPromo || !checkIn || !checkOut) return;
+
+    const code = appliedPromo.code;
+    const promoData = activePromos.find((p: any) => p.code === code);
+    if (!promoData) {
+      setAppliedPromo(null);
+      return;
+    }
+
+    const min = promoData.minNights != null ? Number(promoData.minNights) : 0;
+    const max = promoData.maxNights != null ? Number(promoData.maxNights) : Infinity;
+    let isValid = (nights >= min && nights <= max);
+
+    if (isValid && promoData.appliesTo) {
+      const app = promoData.appliesTo.toLowerCase();
+      if (app.includes("night")) {
+        const match = promoData.appliesTo.match(/(\d+)/);
+        if (match) {
+          const req = parseInt(match[1], 10);
+          if (nights !== req) isValid = false;
+        }
+      } else if (app.includes("weekend")) {
+        const start = new Date(checkIn);
+        const end = new Date(checkOut);
+        let hasWeekend = false;
+        const cur = new Date(start);
+        while (cur < end) {
+          const day = cur.getDay();
+          if (day === 5 || day === 6) { hasWeekend = true; break; }
+          cur.setDate(cur.getDate() + 1);
+        }
+        if (!hasWeekend) isValid = false;
+      }
+    }
+
+    if (!isValid) {
+      setAppliedPromo(null);
+      toast.info("Applied promo removed as it's no longer valid for the selected dates");
+    }
+  }, [checkIn, checkOut, nights, activePromos]);
 
   const effectiveEstimateForUi = useMemo(() => {
     const pe = priceEstimate;
@@ -814,7 +897,7 @@ const AdminBookings = () => {
     <AdminLayout title="Bookings" description="View and manage bookings.">
 
       {/* Promo Cards Strip */}
-      <div className="promo-section mb-8 relative">
+      {/* <div className="promo-section mb-8 relative">
         <div className="flex items-center gap-3 mb-4">
           <Tag className="h-5 w-5 text-gold" />
           <h3 className="promo-title">
@@ -881,7 +964,7 @@ const AdminBookings = () => {
             </div>
           )}
         </div>
-      </div>
+      </div> */}
 
       <div className="bg-white rounded-3xl p-4 sm:p-8 luxury-shadow">
         <div className="mb-8">
@@ -1270,7 +1353,74 @@ const AdminBookings = () => {
           </div>
 
           <div className="mt-6">
-            <div className="text-gray-800 font-semibold">Promo Code (optional)</div>
+            <div className="text-gray-800 font-semibold mb-3 text-lg flex items-center gap-2">
+              <Tag className="w-5 h-5 text-gold" />
+              Offers & Promotions
+            </div>
+            
+            {/* Promo Cards Scroll Area */}
+            {checkIn && checkOut && visiblePromos.length > 0 && (
+              <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-2 px-2 mb-4">
+                {visiblePromos.map((promo: any) => {
+                  const isActive = appliedPromo?.code === promo.code;
+                  return (
+                    <div
+                      key={promo.id}
+                      onClick={() => {
+                        if (isActive) {
+                          setAppliedPromo(null);
+                          toast.info("Promo removed");
+                        } else if (priceEstimate) {
+                          setAppliedPromo({
+                            code: promo.code,
+                            type: promo.type,
+                            value: Number(promo.value)
+                          });
+                          toast.success(`Promo ${promo.code} applied`);
+                        }
+                      }}
+                      className={`min-w-[240px] p-4 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden group ${
+                        isActive 
+                          ? 'border-gold bg-gold/5 shadow-md' 
+                          : 'border-gold/10 bg-white hover:border-gold/30'
+                      }`}
+                    >
+                      <div className="relative z-10">
+                        <div className="text-2xl font-bold text-gray-900 mb-1">
+                          {promo.type === 'PERCENT' ? `${promo.value}%` : `₹${promo.value}`} <span className="text-xs font-normal">OFF</span>
+                        </div>
+                        <div className="text-sm font-semibold text-gold mb-2">{promo.code}</div>
+                        {(promo.minNights != null || promo.maxNights != null) && (
+                          <div className="text-[10px] text-gray-500 font-medium bg-gray-100 px-2 py-0.5 rounded-full inline-block">
+                            {promo.minNights != null && promo.maxNights != null
+                              ? promo.minNights === promo.maxNights
+                                ? `For ${promo.minNights} night${promo.minNights === 1 ? '' : 's'}`
+                                : `For ${promo.minNights}–${promo.maxNights} nights`
+                              : promo.minNights != null
+                                ? `Min ${promo.minNights} night${promo.minNights === 1 ? '' : 's'}`
+                                : `Up to ${promo.maxNights} night${promo.maxNights === 1 ? '' : 's'}`}
+                          </div>
+                        )}
+                        {promo.appliesTo && (
+                          <div className="text-[10px] text-gold/80 font-semibold mt-1 uppercase">
+                            {promo.appliesTo}
+                          </div>
+                        )}
+                      </div>
+                      <div className="absolute right-[-15px] top-[-15px] opacity-5 group-hover:opacity-10 transition-opacity">
+                        <Tag className="w-20 h-20" />
+                      </div>
+                      {isActive && (
+                        <div className="absolute top-2 right-2 text-gold">
+                          <CheckCircle className="w-5 h-5 fill-gold text-white" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             <div className="mt-2">
               {!appliedPromo ? (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full md:w-1/2">
@@ -1278,7 +1428,7 @@ const AdminBookings = () => {
                     value={promoInput}
                     onChange={(e) => setPromoInput(e.target.value)}
                     placeholder="Enter promo code"
-                    className="flex-1 px-4 py-3 rounded-2xl border border-gold/20 focus:outline-none focus:ring-2 focus:ring-gold/30"
+                    className="flex-1 px-4 py-3 rounded-2xl border border-gold/20 focus:outline-none focus:ring-2 focus:ring-gold/30 placeholder:text-gray-400"
                   />
                   <button
                     type="button"
@@ -1301,18 +1451,19 @@ const AdminBookings = () => {
                         });
                         const data = await res.json().catch(() => null);
                         if (!res.ok) {
-                          toast.error("Invalid Promocode");
+                          toast.error(data?.message || "Invalid Promocode");
                           return;
                         }
-                        const discountAmount = Number(data?.data?.discountAmount ?? 0);
-                        const promoCode = String(data?.data?.promo?.code ?? code).trim();
-                        if (!promoCode) {
+                        const p = data?.data?.promo;
+                        if (!p) {
                           toast.error("Invalid promo code");
                           return;
                         }
                         setAppliedPromo({
-                          code: promoCode,
-                          discountAmount: Number.isFinite(discountAmount) ? discountAmount : 0,
+                          code: p.code,
+                          type: p.type,
+                          value: Number(p.value),
+                          discountAmount: Number(data?.data?.discountAmount ?? 0)
                         });
                         toast.success("Promo applied");
                       } catch {
@@ -1321,16 +1472,16 @@ const AdminBookings = () => {
                         setPromoLoading(false);
                       }
                     }}
-                    className="px-4 py-3 rounded-2xl font-semibold bg-gold text-gray-800 hover:bg-bronze transition-colors disabled:opacity-60"
+                    className="px-6 py-3 rounded-2xl font-semibold bg-gray-900 text-ivory hover:bg-gray-800 transition-colors disabled:opacity-60"
                   >
                     {promoLoading ? "Applying…" : "Apply"}
                   </button>
                 </div>
               ) : (
-                <div className="w-full md:w-1/2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-gold/10 border border-gold/20 rounded-2xl px-4 py-3">
+                <div className="w-full md:w-1/2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-gold/5 border-2 border-gold rounded-2xl px-6 py-4">
                   <div className="text-gray-800/80 min-w-0">
-                    <div className="font-semibold text-gray-800 break-words">{appliedPromo.code}</div>
-                    <div className="text-sm text-gray-800/70">Discount: {formatInr(discountedEstimate?.discount ?? 0)}</div>
+                    <div className="font-bold text-gray-900 text-lg break-words">{appliedPromo.code}</div>
+                    <div className="text-sm font-medium text-gold/80">Applied: {formatInr(discountedEstimate?.discount ?? 0)} OFF</div>
                   </div>
                   <button
                     type="button"
@@ -1338,7 +1489,7 @@ const AdminBookings = () => {
                       setAppliedPromo(null);
                       toast.info("Promo removed");
                     }}
-                    className="px-4 py-2 rounded-full border-2 border-gold/30 text-gray-800 hover:bg-gold/10 transition-colors"
+                    className="px-5 py-2 rounded-full border-2 border-gold/20 text-gray-800 font-semibold hover:bg-gold/5 transition-colors"
                   >
                     Remove
                   </button>
