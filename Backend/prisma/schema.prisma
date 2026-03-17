@@ -196,6 +196,7 @@ model PromoCode {
   // New fields for stay duration logic
   minNights   Int?
   maxNights   Int?
+  appliesTo   String?           @db.VarChar(50)
 
   bookings    Booking[]
 

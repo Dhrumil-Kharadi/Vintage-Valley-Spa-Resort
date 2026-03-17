@@ -19,6 +19,9 @@ const createSchema = z.object({
   maxUses: z.union([z.number(), z.string()]).optional().nullable(),
   startsAt: z.string().optional().nullable(),
   expiresAt: z.string().optional().nullable(),
+  minNights: z.union([z.number(), z.string()]).optional().nullable(),
+  maxNights: z.union([z.number(), z.string()]).optional().nullable(),
+  appliesTo: z.string().optional().nullable(),
 });
 
 const setActiveSchema = z.object({
@@ -32,6 +35,7 @@ const updateSchema = z.object({
   expiresAt: z.string().optional().nullable(),
   minNights: z.union([z.number(), z.string()]).optional().nullable(),
   maxNights: z.union([z.number(), z.string()]).optional().nullable(),
+  appliesTo: z.string().optional().nullable(),
 });
 
 export const promoController = {
@@ -75,6 +79,9 @@ export const promoController = {
       maxUses: body.maxUses,
       startsAt: body.startsAt,
       expiresAt: body.expiresAt,
+      minNights: body.minNights,
+      maxNights: body.maxNights,
+      appliesTo: body.appliesTo,
     });
     res.json({ ok: true, data: { promo } });
   }),
@@ -106,6 +113,7 @@ export const promoController = {
       expiresAt: body.expiresAt,
       minNights: body.minNights,
       maxNights: body.maxNights,
+      appliesTo: body.appliesTo,
     });
     res.json({ ok: true, data: { promo } });
   }),

@@ -712,13 +712,40 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
   const visiblePromos = useMemo(() => {
     // Before dates are selected, show all promos
     if (nights === 0) return activePromos;
+
     // After dates are selected, only show promos matching the selected duration
     return activePromos.filter((p: any) => {
-      // If promo has no night constraints, always show
-      if (p.minNights == null && p.maxNights == null) return true;
       const min = p.minNights != null ? Number(p.minNights) : 0;
       const max = p.maxNights != null ? Number(p.maxNights) : Infinity;
-      return nights >= min && nights <= max;
+      if (nights < min || nights > max) return false;
+
+      // New appliesTo logic
+      if (p.appliesTo) {
+        const appliesToLow = p.appliesTo.toLowerCase();
+        if (appliesToLow.includes("night")) {
+          const match = p.appliesTo.match(/(\d+)/);
+          if (match) {
+            const requiredNights = parseInt(match[1], 10);
+            if (nights !== requiredNights) return false;
+          }
+        } else if (appliesToLow.includes("weekend")) {
+          const start = new Date(checkIn);
+          const end = new Date(checkOut);
+          let hasWeekend = false;
+          const current = new Date(start);
+          while (current < end) {
+            const day = current.getDay();
+            if (day === 5 || day === 6) { // Friday or Saturday night
+              hasWeekend = true;
+              break;
+            }
+            current.setDate(current.getDate() + 1);
+          }
+          if (!hasWeekend) return false;
+        }
+      }
+
+      return true;
     });
   }, [activePromos, nights]);
 
@@ -727,6 +754,43 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
     if (key !== lastDateRangeKeyRef.current) {
       lastDateRangeKeyRef.current = key;
       setMealPlanByDate({});
+      
+      // Auto-discard promo if it no longer fits the date range
+      if (appliedPromo) {
+        const promoData = activePromos.find(p => p.code === appliedPromo.code);
+        if (promoData) {
+          const min = promoData.minNights != null ? Number(promoData.minNights) : 0;
+          const max = promoData.maxNights != null ? Number(promoData.maxNights) : Infinity;
+          let isValid = (nights >= min && nights <= max);
+          
+          if (isValid && promoData.appliesTo) {
+            const app = promoData.appliesTo.toLowerCase();
+            if (app.includes("night")) {
+              const match = promoData.appliesTo.match(/(\d+)/);
+              if (match) {
+                const req = parseInt(match[1], 10);
+                if (nights !== req) isValid = false;
+              }
+            } else if (app.includes("weekend")) {
+              const start = new Date(checkIn);
+              const end = new Date(checkOut);
+              let hasWeekend = false;
+              const cur = new Date(start);
+              while (cur < end) {
+                const day = cur.getDay();
+                if (day === 5 || day === 6) { hasWeekend = true; break; }
+                cur.setDate(cur.getDate() + 1);
+              }
+              if (!hasWeekend) isValid = false;
+            }
+          }
+          
+          if (!isValid) {
+            setAppliedPromo(null);
+            toast.info(`Promo code ${appliedPromo.code} removed (not valid for selected dates)`);
+          }
+        }
+      }
     }
   }, [checkIn, checkOut]);
 
@@ -967,6 +1031,7 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
   }, [appliedPromo, discounted.total, priceBreakdown.totalAmount]);
 
   const formattedPerNight = useMemo(() => {
+    if (nights === 0) return '₹ 0';
     const basePerNight = Number(room?.pricePerNight ?? 0);
     const perNight = effectivePlanPrice[selectedPlan] ?? basePerNight;
     const globalFlat = globalPromo?.promoApplied ? Number(globalPromo?.discountPerNight ?? 0) : 0;
@@ -976,7 +1041,7 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
     } catch {
       return String(finalPerNight);
     }
-  }, [room?.pricePerNight, selectedPlan, effectivePlanPrice, globalPromo?.promoApplied, globalPromo?.discountPerNight]);
+  }, [room?.pricePerNight, selectedPlan, effectivePlanPrice, globalPromo?.promoApplied, globalPromo?.discountPerNight, nights]);
 
   const baseLabel = useMemo(() => {
     if (selectedPlan === 'CP') return 'Base (Room With Breakfast)';
@@ -1673,7 +1738,7 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between text-gray-800/80">
                   <span>Per night</span>
-                  <span className="font-semibold text-gray-800">{formattedPerNight}</span>
+                  <span className="font-semibold text-gray-800">{nights === 0 ? '₹0' : formattedPerNight}</span>
                 </div>
 
                 <div className="flex items-center justify-between text-gray-800/80">
@@ -1757,7 +1822,13 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               credentials: 'include',
-                              body: JSON.stringify({ code, baseAmount: Number(priceBreakdown.baseAmount ?? 0) }),
+                              body: JSON.stringify({ 
+                              code, 
+                              baseAmount: Number(priceBreakdown.baseAmount ?? 0),
+                              nights,
+                              checkIn,
+                              checkOut
+                            }),
                             });
                             const data = await res.json().catch(() => null);
                             if (!res.ok) {

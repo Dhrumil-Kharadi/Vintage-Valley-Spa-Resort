@@ -26,6 +26,7 @@ export const promoService = {
       expiresAt: p.expiresAt ? new Date(p.expiresAt).toISOString() : null,
       minNights: p.minNights == null ? null : Number(p.minNights),
       maxNights: p.maxNights == null ? null : Number(p.maxNights),
+      appliesTo: p.appliesTo == null ? null : String(p.appliesTo),
       createdAt: p.createdAt ? new Date(p.createdAt).toISOString() : null,
       updatedAt: p.updatedAt ? new Date(p.updatedAt).toISOString() : null,
     }));
@@ -42,6 +43,7 @@ export const promoService = {
     expiresAt?: string | null;
     minNights?: string | number | null;
     maxNights?: string | number | null;
+    appliesTo?: string | null;
   }) {
     const code = normalizeCode(params.code);
     if (!code) throw new HttpError(400, "Promo code is required");
@@ -76,6 +78,7 @@ export const promoService = {
           expiresAt,
           minNights,
           maxNights,
+          appliesTo: params.appliesTo || null,
         },
       });
 
@@ -93,6 +96,7 @@ export const promoService = {
         expiresAt: created.expiresAt ? new Date(created.expiresAt).toISOString() : null,
         minNights: created.minNights == null ? null : Number(created.minNights),
         maxNights: created.maxNights == null ? null : Number(created.maxNights),
+        appliesTo: created.appliesTo == null ? null : String(created.appliesTo),
       };
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
@@ -114,6 +118,7 @@ export const promoService = {
     expiresAt?: string | null;
     minNights?: string | number | null;
     maxNights?: string | number | null;
+    appliesTo?: string | null;
   }) {
     const data: any = {};
 
@@ -135,6 +140,9 @@ export const promoService = {
     if (params.maxNights !== undefined) {
       data.maxNights = params.maxNights == null || String(params.maxNights).trim() === "" ? null : Number(params.maxNights);
     }
+    if (params.appliesTo !== undefined) {
+      data.appliesTo = params.appliesTo == null || String(params.appliesTo).trim() === "" ? null : String(params.appliesTo);
+    }
 
     const updated: any = await (prisma as any).promoCode.update({
       where: { id: params.id },
@@ -155,6 +163,7 @@ export const promoService = {
       expiresAt: updated.expiresAt ? new Date(updated.expiresAt).toISOString() : null,
       minNights: updated.minNights == null ? null : Number(updated.minNights),
       maxNights: updated.maxNights == null ? null : Number(updated.maxNights),
+      appliesTo: updated.appliesTo == null ? null : String(updated.appliesTo),
     };
   },
 
@@ -178,6 +187,7 @@ export const promoService = {
       expiresAt: updated.expiresAt ? new Date(updated.expiresAt).toISOString() : null,
       minNights: updated.minNights == null ? null : Number(updated.minNights),
       maxNights: updated.maxNights == null ? null : Number(updated.maxNights),
+      appliesTo: updated.appliesTo == null ? null : String(updated.appliesTo),
     };
   },
 
@@ -217,14 +227,27 @@ export const promoService = {
         throw new HttpError(400, `This promo requires at least ${promo.minNights} night(s)`);
       if (promo.maxNights != null && nights > promo.maxNights)
         throw new HttpError(400, `This promo is only valid for up to ${promo.maxNights} night(s)`);
+
+      // Enforce specific night counts or weekend logic from appliesTo
+      if (promo.appliesTo) {
+        if (promo.appliesTo.includes("night")) {
+          const match = promo.appliesTo.match(/(\d+)/);
+          if (match) {
+            const requiredNights = parseInt(match[1], 10);
+            if (nights !== requiredNights) {
+              throw new HttpError(400, `This promo is only valid for exactly ${requiredNights} night(s)`);
+            }
+          }
+        }
+      }
     }
 
-    // Enforce weekend-only applicability if label contains "weekend"
+    // Enforce weekend-only applicability if label contains "weekend" or appliesTo is "weekend stay"
     const label = String(promo.applicableLabel ?? "").toLowerCase();
-    if (label.includes("weekend")) {
+    const appliesTo = String(promo.appliesTo ?? "").toLowerCase();
+    if (label.includes("weekend") || appliesTo.includes("weekend")) {
       if (!params.checkIn || !params.checkOut) {
-        // If dates are missing, we can't verify, but we should probably err on the side of caution or allow if nights > 5
-        // Ideally, the frontend always sends dates.
+        // If dates are missing, we can't verify, but we should probably allow or err on side of caution
       } else {
         const start = new Date(params.checkIn);
         const end = new Date(params.checkOut);

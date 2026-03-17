@@ -114,15 +114,40 @@ const Rooms = () => {
   const visiblePromos = useMemo(() => {
     // Before date selection, show all promos so users can browse offers
     if (!hasInteractedWithDates) return activePromos;
+
     // After date selection, only show promos matching the selected duration
     return activePromos.filter((p: any) => {
-      if (p.promoScope === 'GLOBAL_FLAT') return false;
-      if (nights === 0) return true;
-      // If promo has no night constraints, always show
-      if (p.minNights == null && p.maxNights == null) return true;
       const min = p.minNights != null ? Number(p.minNights) : 0;
       const max = p.maxNights != null ? Number(p.maxNights) : Infinity;
-      return nights >= min && nights <= max;
+      if (nights < min || nights > max) return false;
+
+      // New appliesTo logic
+      if (p.appliesTo) {
+        const appliesToLow = p.appliesTo.toLowerCase();
+        if (appliesToLow.includes("night")) {
+          const match = p.appliesTo.match(/(\d+)/);
+          if (match) {
+            const requiredNights = parseInt(match[1], 10);
+            if (nights !== requiredNights) return false;
+          }
+        } else if (appliesToLow.includes("weekend")) {
+          const start = new Date(checkIn);
+          const end = new Date(checkOut);
+          let hasWeekend = false;
+          const current = new Date(start);
+          while (current < end) {
+            const day = current.getDay();
+            if (day === 5 || day === 6) { // Friday or Saturday night
+              hasWeekend = true;
+              break;
+            }
+            current.setDate(current.getDate() + 1);
+          }
+          if (!hasWeekend) return false;
+        }
+      }
+
+      return true;
     });
   }, [activePromos, nights, hasInteractedWithDates]);
 
@@ -565,8 +590,8 @@ const Rooms = () => {
           size: staticRoom?.size || 'Spacious',
           available: avail,
           pricing: {
-            weekday: `${currency}${price}`,
-            weekend: `${currency}${price}`,
+            weekday: !hasInteractedWithDates ? `₹0` : `${currency}${price}`,
+            weekend: !hasInteractedWithDates ? `₹0` : `${currency}${price}`,
           },
           planPrices: {
             ep: epPrice > 0 ? `${currency}${epPrice}` : '',
@@ -644,8 +669,8 @@ const Rooms = () => {
           size: staticRoom?.size || 'Spacious',
           available: avail,
           pricing: {
-            weekday: `${currency}${price}`,
-            weekend: `${currency}${price}`,
+            weekday: !hasInteractedWithDates ? `₹0` : `${currency}${price}`,
+            weekend: !hasInteractedWithDates ? `₹0` : `${currency}${price}`,
           },
           planPrices: {
             ep: ep ? `${getCurrencyFromRaw(ep)}${getAvgPriceFromRaw(ep)}` : `${currency}${epPrice}`,
@@ -688,8 +713,8 @@ const Rooms = () => {
         size: staticRoom?.size || 'Spacious',
         available: room.availableRooms ?? 0,
         pricing: {
-          weekday: `₹${room.pricePerNight}`,
-          weekend: `₹${room.pricePerNight}`,
+          weekday: !hasInteractedWithDates ? `₹0` : `₹${room.pricePerNight}`,
+          weekend: !hasInteractedWithDates ? `₹0` : `₹${room.pricePerNight}`,
         },
         planPrices: {
           ep: `₹${room.epPricePerNight || room.pricePerNight}`,

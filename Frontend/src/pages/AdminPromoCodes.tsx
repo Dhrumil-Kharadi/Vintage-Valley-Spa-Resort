@@ -16,6 +16,7 @@ type Promo = {
   minNights?: number | null;
   maxNights?: number | null;
   maxUses?: number | null;
+  appliesTo?: string | null;
   usedCount?: number;
   createdAt?: string;
 };
@@ -35,6 +36,7 @@ const AdminPromoCodes = () => {
   const [expiresAt, setExpiresAt] = useState<string>("");
   const [minNights, setMinNights] = useState<string>("");
   const [maxNights, setMaxNights] = useState<string>("");
+  const [appliesTo, setAppliesTo] = useState<string>("");
   const [isActive, setIsActive] = useState(true);
 
   const load = async () => {
@@ -119,6 +121,7 @@ const AdminPromoCodes = () => {
     if (expiresAt.trim()) payload.expiresAt = expiresAt;
     if (minNights.trim()) payload.minNights = Number(minNights);
     if (maxNights.trim()) payload.maxNights = Number(maxNights);
+    payload.appliesTo = appliesTo.trim() || null;
 
     try {
       const res = await fetch("/api/promos", {
@@ -145,6 +148,7 @@ const AdminPromoCodes = () => {
       setExpiresAt("");
       setMinNights("");
       setMaxNights("");
+      setAppliesTo("");
       setIsActive(true);
       await load();
     } catch {
@@ -270,6 +274,27 @@ const AdminPromoCodes = () => {
 
               <div>
                 <label className="block text-gray-800 font-medium mb-2">
+                  Offer Applies To (New)
+                </label>
+                <select
+                  value={appliesTo}
+                  onChange={(e) => setAppliesTo(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gold/20 focus:border-gold focus:outline-none transition-colors bg-ivory/50"
+                >
+                  <option value="">Any Stay</option>
+                  <option value="1 night">1 night</option>
+                  <option value="2 nights">2 nights</option>
+                  <option value="3 nights">3 nights</option>
+                  <option value="4 nights">4 nights</option>
+                  <option value="5 nights">5 nights</option>
+                  <option value="6 nights">6 nights</option>
+                  <option value="7 nights">7 nights</option>
+                  <option value="weekend stay">Weekend Stay</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-gray-800 font-medium mb-2">
                   Max uses (optional)
                 </label>
                 <input
@@ -373,7 +398,10 @@ const AdminPromoCodes = () => {
                             : `₹${p.value}`}
                         </td>
                         <td className="py-3 pr-4 text-gray-800/80">
-                          {p.applicableLabel || '—'}
+                          <div className="flex flex-col gap-1">
+                            <span className="text-xs font-medium text-gold">{p.appliesTo}</span>
+                            <span className="text-xs text-gray-500">{p.applicableLabel}</span>
+                          </div>
                         </td>
                         <td className="py-3 pr-4 text-gray-800/80 text-sm">
                           <div className="flex items-center gap-1">
