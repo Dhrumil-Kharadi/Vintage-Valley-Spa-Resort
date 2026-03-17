@@ -181,7 +181,13 @@ export const promoService = {
     };
   },
 
-  async validateForBaseAmount(params: { code: string; baseAmount: number; nights?: number }) {
+  async validateForBaseAmount(params: {
+    code: string;
+    baseAmount: number;
+    nights?: number;
+    checkIn?: string;
+    checkOut?: string;
+  }) {
     const code = normalizeCode(params.code);
     if (!code) throw new HttpError(400, "Promo code is required");
 
@@ -211,6 +217,34 @@ export const promoService = {
         throw new HttpError(400, `This promo requires at least ${promo.minNights} night(s)`);
       if (promo.maxNights != null && nights > promo.maxNights)
         throw new HttpError(400, `This promo is only valid for up to ${promo.maxNights} night(s)`);
+    }
+
+    // Enforce weekend-only applicability if label contains "weekend"
+    const label = String(promo.applicableLabel ?? "").toLowerCase();
+    if (label.includes("weekend")) {
+      if (!params.checkIn || !params.checkOut) {
+        // If dates are missing, we can't verify, but we should probably err on the side of caution or allow if nights > 5
+        // Ideally, the frontend always sends dates.
+      } else {
+        const start = new Date(params.checkIn);
+        const end = new Date(params.checkOut);
+        
+        let hasWeekend = false;
+        // Check each night of the stay
+        const current = new Date(start);
+        while (current < end) {
+          const day = current.getDay(); // 0: Sun, 1: Mon, ..., 5: Fri, 6: Sat
+          if (day === 5 || day === 6) { // Friday or Saturday night
+            hasWeekend = true;
+            break;
+          }
+          current.setDate(current.getDate() + 1);
+        }
+
+        if (!hasWeekend) {
+          throw new HttpError(400, "This promo code is only applicable for weekend stays (Friday or Saturday nights).");
+        }
+      }
     }
 
     const valueNum = Number(promo.value);

@@ -468,7 +468,7 @@ export async function createAndConfirmBooking(params: CreateAndConfirmBookingPar
     Room_Details: roomDetails,
     check_in_date: checkInStr,
     check_out_date: checkOutStr,
-    Booking_Payment_Mode: "0",
+    Booking_Payment_Mode: String(bookingPaymentMode),
     Email_Address: String(email),
     Source_Id: "",
     MobileNo: String(params.phone ?? "").trim(),

@@ -25,6 +25,7 @@ import AdminBookings from "./pages/AdminBookings";
 import AdminPayments from "./pages/AdminPayments";
 import AdminInquiries from "./pages/AdminInquiries";
 import AdminPromoCodes from "./pages/AdminPromoCodes";
+import AdminTariff from "./pages/AdminTariff";
 import Booking from "./pages/booking";
 import Tariff from "./pages/Tariff";
 import Facilities from "./pages/Facilities";
@@ -64,6 +65,7 @@ const App = () => (
             <Route path="/admin/payments" element={<AdminPayments />} />
             <Route path="/admin/inquiries" element={<AdminInquiries />} />
             <Route path="/admin/promos" element={<AdminPromoCodes />} />
+            <Route path="/admin/tariff" element={<AdminTariff />} />
             <Route path="/booking" element={<Booking />} />
             <Route path="/booking/:id" element={<Booking />} />
             <Route path="/tariff" element={<Tariff />} />

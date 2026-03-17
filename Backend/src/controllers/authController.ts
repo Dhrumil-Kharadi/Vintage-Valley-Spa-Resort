@@ -173,7 +173,7 @@ export const authController = {
       `;
 
       await sendMailSafe({
-        to: "dhumil05@gmail.com",
+        to: "vintagevalleyresort@gmail.com",
         subject,
         html,
         from: env.EMAIL_FROM,

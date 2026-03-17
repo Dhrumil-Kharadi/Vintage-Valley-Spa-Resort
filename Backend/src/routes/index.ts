@@ -7,6 +7,7 @@ import { roomRouter } from "./roomRoutes";
 import { promoRouter } from "./promoRoutes";
 import promoAdminRouter from "./promoAdminRoutes";
 import { roomLivePriceRouter } from "./roomLivePrice.routes";
+import tariffRouter from "./tariffRoutes";
 
 export const apiRouter = Router();
 
@@ -18,3 +19,4 @@ apiRouter.use("/inquiries", inquiryRouter);
 apiRouter.use("/promos", promoRouter);
 apiRouter.use("/rooms", roomRouter);
 apiRouter.use("/rooms-live", roomLivePriceRouter);
+apiRouter.use("/tariff", tariffRouter);

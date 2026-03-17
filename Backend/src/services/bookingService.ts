@@ -236,7 +236,7 @@ export const bookingService = {
       if (!raw) return "";
       // Handle patterns like "Deluxe Edge View - CP" or "Deluxe Edge View-CP"
       return raw
-        .replace(/\s*[-–—]\s*(EP|CP|MAP)\s*$/i, "")
+        .replace(/\s*[-–—]\s*(EP|CP|MAP|AP)\s*$/i, "")
         .trim();
     };
 
@@ -692,30 +692,65 @@ export const bookingService = {
 
     const { first, last } = splitName(String(fullBookingForPms.user.name ?? ""));
 
-    const pms = await ezeeBookingService.createAndConfirmBooking({
-      checkIn: checkInIso,
-      checkOut: checkOutIso,
-      adults,
-      children,
-      rooms: roomsRequested,
-      firstName: first,
-      lastName: last,
-      email: String(fullBookingForPms.user.email),
-      phone: fullBookingForPms.user.phone ?? null,
-      specialRequest: String((booking as any).additionalInformation ?? "").trim() || null,
-      additionalInformation: (booking as any).additionalInformation ?? null,
-      bookingPaymentMode: 3,
-      ezeeRoom: {
-        roomtypeunkid: String(preferred?.roomtypeunkid ?? ""),
-        roomrateunkid: String(preferred?.roomrateunkid ?? ""),
-        ratetypeunkid: String(preferred?.ratetypeunkid ?? ""),
-        available_rooms: availableRooms,
-        room_rates_info: preferred?.room_rates_info,
-        avg_price_per_night: Number(preferred?.room_rates_info?.avg_per_night_after_discount ?? preferred?.avg_price_per_night ?? 0),
-        extra_adult_rates_info: preferred?.extra_adult_rates_info,
-        extra_child_rates_info: preferred?.extra_child_rates_info,
-      },
-    });
+    let pms;
+    try {
+      console.log("[EZEE DEBUG] Calling ezeeBookingService.createAndConfirmBooking for User booking", {
+        checkIn: checkInIso,
+        checkOut: checkOutIso,
+        adults,
+        children,
+        rooms: roomsRequested,
+        firstName: first,
+        lastName: last,
+        email: String(fullBookingForPms.user.email),
+        phone: fullBookingForPms.user.phone ?? null,
+        bookingPaymentMode: 3,
+        ezeeRoom: {
+          roomtypeunkid: String(preferred?.roomtypeunkid ?? ""),
+          roomrateunkid: String(preferred?.roomrateunkid ?? ""),
+          ratetypeunkid: String(preferred?.ratetypeunkid ?? ""),
+          available_rooms: availableRooms,
+        },
+      });
+
+      pms = await ezeeBookingService.createAndConfirmBooking({
+        checkIn: checkInIso,
+        checkOut: checkOutIso,
+        adults,
+        children,
+        rooms: roomsRequested,
+        firstName: first,
+        lastName: last,
+        email: String(fullBookingForPms.user.email),
+        phone: fullBookingForPms.user.phone ?? null,
+        specialRequest: String((booking as any).additionalInformation ?? "").trim() || null,
+        additionalInformation: (booking as any).additionalInformation ?? null,
+        bookingPaymentMode: 3,
+        ezeeRoom: {
+          roomtypeunkid: String(preferred?.roomtypeunkid ?? ""),
+          roomrateunkid: String(preferred?.roomrateunkid ?? ""),
+          ratetypeunkid: String(preferred?.ratetypeunkid ?? ""),
+          available_rooms: availableRooms,
+          room_rates_info: preferred?.room_rates_info,
+          avg_price_per_night: Number(preferred?.room_rates_info?.avg_per_night_after_discount ?? preferred?.avg_price_per_night ?? 0),
+          extra_adult_rates_info: preferred?.extra_adult_rates_info,
+          extra_child_rates_info: preferred?.extra_child_rates_info,
+        },
+      });
+
+      console.log("[EZEE DEBUG] eZee user booking succeeded", {
+        reservationNo: pms.reservationNo,
+        subReservationNos: pms.subReservationNos,
+        inventoryMode: pms.inventoryMode,
+      });
+    } catch (ezeeError: any) {
+      console.error("[EZEE ERROR] eZee createAndConfirmBooking failed for User booking", {
+        error: ezeeError?.message ?? ezeeError,
+        stack: ezeeError?.stack,
+        details: ezeeError,
+      });
+      throw new HttpError(500, `Failed to create booking in eZee: ${ezeeError?.message ?? String(ezeeError)}`);
+    }
 
     const updated = await prisma.$transaction(async (tx) => {
       const p = await (tx.payment as any).update({

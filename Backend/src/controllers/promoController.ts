@@ -6,6 +6,8 @@ const validateSchema = z.object({
   code: z.string().min(1),
   baseAmount: z.number(),
   nights: z.number().optional(),
+  checkIn: z.string().optional(),
+  checkOut: z.string().optional(),
 });
 
 const createSchema = z.object({
@@ -40,6 +42,8 @@ export const promoController = {
       code: body.code,
       baseAmount: body.baseAmount,
       nights: body.nights,
+      checkIn: body.checkIn,
+      checkOut: body.checkOut,
     });
 
     res.json({
