@@ -507,20 +507,12 @@ const AdminBookings = () => {
     const safeExtraAdults = Number.isFinite(extraAdults) && extraAdults >= 0 ? extraAdults : 0;
 
     const title = String(room?.title ?? "").toLowerCase();
-    const mapRatePerGuestPerNight = title.includes("lotus") || title.includes("presidential")
-      ? 2000
-      : title.includes("deluxe") || title.includes("edge")
-      ? 1000
-      : 0;
-
-    const basePerNight = Number(room.pricePerNight ?? 0);
+    const basePerNight = Number(livePlans?.EP?.pricePerNight ?? room.pricePerNight ?? 0);
     const liveEp = Number(livePlans?.EP?.pricePerNight ?? 0);
-    const liveCp = Number(livePlans?.CP?.pricePerNight ?? 0);
-    const liveMap = Number(livePlans?.MAP?.pricePerNight ?? 0);
 
     const effectiveEp = Number.isFinite(liveEp) && liveEp > 0 ? liveEp : basePerNight;
-    const effectiveCp = Number.isFinite(liveCp) && liveCp > 0 ? liveCp : basePerNight;
-    const effectiveMap = Number.isFinite(liveMap) && liveMap > 0 ? liveMap : basePerNight + mapRatePerGuestPerNight;
+    const effectiveCp = effectiveEp + 500;
+    const effectiveMap = effectiveEp + 1000;
 
     const roomTotal = round2(
       (effectiveEp * epNights + effectiveCp * cpNights + (
@@ -1533,21 +1525,31 @@ const AdminBookings = () => {
                 <div className="text-red-600 text-sm">{livePlansError}</div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="px-4 py-3 rounded-2xl border border-gold/20 bg-ivory/40">
-                    <div className="text-xs text-gray-800/70">EP (per night)</div>
-                    <div className="text-gray-900 font-semibold">{formatInr(livePlans?.EP?.pricePerNight ?? 0)}</div>
-                    <div className="text-xs text-gray-800/70 mt-1">Avail: {Number(livePlans?.EP?.availability ?? 0)}</div>
-                  </div>
-                  <div className="px-4 py-3 rounded-2xl border border-gold/20 bg-ivory/40">
-                    <div className="text-xs text-gray-800/70">CP (per night)</div>
-                    <div className="text-gray-900 font-semibold">{formatInr(livePlans?.CP?.pricePerNight ?? 0)}</div>
-                    <div className="text-xs text-gray-800/70 mt-1">Avail: {Number(livePlans?.CP?.availability ?? 0)}</div>
-                  </div>
-                  <div className="px-4 py-3 rounded-2xl border border-gold/20 bg-ivory/40">
-                    <div className="text-xs text-gray-800/70">MAP (per night)</div>
-                    <div className="text-gray-900 font-semibold">{formatInr(livePlans?.MAP?.pricePerNight ?? 0)}</div>
-                    <div className="text-xs text-gray-800/70 mt-1">Avail: {Number(livePlans?.MAP?.availability ?? 0)}</div>
-                  </div>
+                  {(() => {
+                    const ep = Number(livePlans?.EP?.pricePerNight ?? 0);
+                    const cp = Number.isFinite(ep) && ep > 0 ? ep + 500 : Number(livePlans?.CP?.pricePerNight ?? 0);
+                    const map = Number.isFinite(ep) && ep > 0 ? ep + 1000 : Number(livePlans?.MAP?.pricePerNight ?? 0);
+
+                    return (
+                      <>
+                        <div className="px-4 py-3 rounded-2xl border border-gold/20 bg-ivory/40">
+                          <div className="text-xs text-gray-800/70">EP (per night)</div>
+                          <div className="text-gray-900 font-semibold">{formatInr(ep)}</div>
+                          <div className="text-xs text-gray-800/70 mt-1">Avail: {Number(livePlans?.EP?.availability ?? 0)}</div>
+                        </div>
+                        <div className="px-4 py-3 rounded-2xl border border-gold/20 bg-ivory/40">
+                          <div className="text-xs text-gray-800/70">CP (per night)</div>
+                          <div className="text-gray-900 font-semibold">{formatInr(cp)}</div>
+                          <div className="text-xs text-gray-800/70 mt-1">Avail: {Number(livePlans?.CP?.availability ?? 0)}</div>
+                        </div>
+                        <div className="px-4 py-3 rounded-2xl border border-gold/20 bg-ivory/40">
+                          <div className="text-xs text-gray-800/70">MAP (per night)</div>
+                          <div className="text-gray-900 font-semibold">{formatInr(map)}</div>
+                          <div className="text-xs text-gray-800/70 mt-1">Avail: {Number(livePlans?.MAP?.availability ?? 0)}</div>
+                        </div>
+                      </>
+                    );
+                  })()}
                   <div className="px-4 py-3 rounded-2xl border border-gold/20 bg-ivory/40">
                     <div className="text-xs text-gray-800/70">Global promo</div>
                     {globalPromo?.promoApplied ? (
