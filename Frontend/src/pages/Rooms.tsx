@@ -1000,63 +1000,7 @@ const Rooms = () => {
                   ) : error || liveError || rawError || roomListError ? (
                     'Price unavailable. Please try again.'
                   ) : (
-                    <div className="space-y-1">
-                      {/* Display EP/CP/MAP prices */}
-                      <div className="flex flex-wrap gap-2 text-xs">
-                        {room.planPrices.ep && (
-                          <span className="bg-gray-100 px-2 py-1 rounded-md">
-                            EP: {room.planPrices.ep}
-                          </span>
-                        )}
-                        {room.planPrices.cp && (
-                          <span className="bg-gray-100 px-2 py-1 rounded-md">
-                            CP: {room.planPrices.cp}
-                          </span>
-                        )}
-                        {room.planPrices.map && (
-                          <span className="bg-gray-100 px-2 py-1 rounded-md">
-                            MAP: {room.planPrices.map}
-                          </span>
-                        )}
-                      </div>
-                      
-                      {/* Existing price logic */}
-                      {(() => {
-                        const discountInfo = getDiscountInfo(room.title);
-                        if (discountInfo && discountInfo.promoApplied && discountInfo.originalPrice && discountInfo.finalPrice !== discountInfo.originalPrice) {
-                          return (
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="line-through text-gray-500">
-                                  ₹{discountInfo.originalPrice}
-                                </span>
-                                <span className="font-bold text-green-600">
-                                  ₹{discountInfo.finalPrice}
-                                </span>
-                              </div>
-                              <div className="text-xs text-red-600 font-semibold mt-1">
-                                Flat ₹{discountInfo.discountAmount} OFF
-                              </div>
-                            </div>
-                          );
-                        }
-                        // Fallback to existing logic
-                        const candidates = [...roomListWithDiscount, ...rawRooms].filter((rr: any) => {
-                          const rt = normalizeRoomType(String(rr?.Roomtype_Name ?? rr?.Roomtype ?? rr?.Room_Name ?? ''));
-                          return rt.toLowerCase() === room.title.toLowerCase();
-                        });
-                        const cp = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'CP'));
-                        const ep = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'EP'));
-                        const map = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'MAP'));
-                        const preferred = cp ?? map ?? ep ?? candidates[0];
-                        if (preferred) {
-                          const price = getAvgPriceFromRaw(preferred);
-                          const currency = getCurrencyFromRaw(preferred);
-                          if (Number.isFinite(price) && price > 0) return `${currency}${price}/night`;
-                        }
-                        return 'Price unavailable';
-                      })()}
-                    </div>
+                    null
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-4">
