@@ -345,7 +345,11 @@ export const bookingService = {
           .filter((v) => Number.isFinite(v) && v > 0);
         if (values.length > 0) return values[0];
       }
-      const rack = Number(extra?.rack_rate ?? 0);
+      const dayWise = extra?.day_wise_beforediscount;
+      const rack = Number(
+        (Array.isArray(dayWise) && dayWise.length > 0 ? dayWise[0] : null) ??
+        extra?.rack_rate ?? 0
+      );
       return Number.isFinite(rack) && rack > 0 ? rack : 0;
     };
 

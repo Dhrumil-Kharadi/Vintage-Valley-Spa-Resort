@@ -21,7 +21,7 @@ type RoomDetails = {
   amenities: string[];
   images: string[];
   availableRooms: number;
-  rack_rate?: number; // base rack rate for EP/CP/MAP pricing
+  day_wise_beforediscount?: any;
 };
 
 type MealPlan = 'EP' | 'CP' | 'MAP';
@@ -393,8 +393,28 @@ const Booking = () => {
 
 const extractPricePerNight = (r: EzeeRawRoom): number => {
     const rateInfo = r?.room_rates_info || {};
+
+    const extractAvgFromDayWise = (dayWise: any): number => {
+      if (!dayWise) return 0;
+      if (Array.isArray(dayWise)) {
+        const values = dayWise
+          .map((v: any) => Number(v))
+          .filter((v: any) => Number.isFinite(v) && v > 0);
+        if (values.length === 0) return 0;
+        return values.reduce((a: number, b: number) => a + b, 0) / values.length;
+      }
+      if (typeof dayWise === 'object') {
+        const values = Object.values(dayWise)
+          .map((v: any) => Number(v))
+          .filter((v: any) => Number.isFinite(v) && v > 0);
+        if (values.length === 0) return 0;
+        return values.reduce((a: number, b: number) => a + b, 0) / values.length;
+      }
+      return 0;
+    };
     
     console.log(`[FRONTEND DEBUG] extractPricePerNight for room: ${r.Room_Name}`, {
+      day_wise_beforediscount: rateInfo.day_wise_beforediscount,
       rack_rate: rateInfo.rack_rate,
       avg_price_per_night: r.avg_price_per_night,
       avg_per_night_after_discount: rateInfo.avg_per_night_after_discount,
@@ -402,11 +422,12 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
       exclusive_tax: rateInfo.exclusive_tax
     });
     
-    // PRIORITIZE rack_rate as primary price source
+    // PRIORITIZE day_wise_beforediscount as primary price source
     let price = 0;
-    if (rateInfo.rack_rate) {
-      price = Number(rateInfo.rack_rate);
-      console.log(`[FRONTEND DEBUG] Using rack_rate: ${price}`);
+    const dayWise = extractAvgFromDayWise(rateInfo.day_wise_beforediscount);
+    if (Number.isFinite(dayWise) && dayWise > 0) {
+      price = dayWise;
+      console.log(`[FRONTEND DEBUG] Using day_wise_beforediscount (avg): ${price}`);
     } else if (rateInfo.avg_per_night_after_discount) {
       price = Number(rateInfo.avg_per_night_after_discount);
       console.log(`[FRONTEND DEBUG] Using avg_per_night_after_discount: ${price}`);
@@ -550,7 +571,7 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
           if (!cancelled) {
             setEzeePlans(plans);
             
-            // Find the specific room that matches the selected room type to get its rack_rate
+            // Find the specific room that matches the selected room type to get its day-wise before-discount rates
             const titleNorm = normalizeRoomType(String(room?.title ?? roomNameFromQuery ?? ''));
             const getAnyRoomTypeName = (r: any) => {
               return String(r?.Roomtype_Name ?? r?.Roomtype ?? r?.Room_Name ?? '').trim();
@@ -563,15 +584,29 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
             };
             
             const matchingRoom = resp.data.rooms.find(match);
-            const baseRackRate = matchingRoom?.rack_rate ? Number(matchingRoom.rack_rate) : null;
+            const baseDayWise = (matchingRoom as any)?.day_wise_beforediscount ?? (matchingRoom as any)?.room_rates_info?.day_wise_beforediscount;
+            const baseDayWiseAvg = (() => {
+              if (!baseDayWise) return null;
+              if (Array.isArray(baseDayWise)) {
+                const vals = baseDayWise.map((v: any) => Number(v)).filter((v: any) => Number.isFinite(v) && v > 0);
+                if (vals.length === 0) return null;
+                return vals.reduce((a: number, b: number) => a + b, 0) / vals.length;
+              }
+              if (typeof baseDayWise === 'object') {
+                const vals = Object.values(baseDayWise).map((v: any) => Number(v)).filter((v: any) => Number.isFinite(v) && v > 0);
+                if (vals.length === 0) return null;
+                return vals.reduce((a: number, b: number) => a + b, 0) / vals.length;
+              }
+              return null;
+            })();
             
-            console.log('[FRONTEND DEBUG] Found matching room for rack_rate:', {
+            console.log('[FRONTEND DEBUG] Found matching room for day_wise_beforediscount:', {
               roomTitle: room?.title,
               roomNameFromQuery,
               titleNorm,
               matchingRoom: matchingRoom?.Room_Name,
-              rack_rate: matchingRoom?.rack_rate,
-              baseRackRate
+              day_wise_beforediscount: baseDayWise,
+              baseDayWiseAvg,
             });
             
             const bestPlanPerNight =
@@ -592,12 +627,12 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
                     pricePerNight:
                       Number(prev?.pricePerNight ?? 0) > 0
                         ? prev.pricePerNight
-                        : baseRackRate && Number.isFinite(baseRackRate) && baseRackRate > 0
-                          ? baseRackRate
+                        : baseDayWiseAvg && Number.isFinite(baseDayWiseAvg) && baseDayWiseAvg > 0
+                          ? baseDayWiseAvg
                           : Number.isFinite(bestPlanPerNight) && bestPlanPerNight > 0
                             ? bestPlanPerNight
                             : prev.pricePerNight,
-                    rack_rate: baseRackRate ?? prev.rack_rate,
+                    day_wise_beforediscount: baseDayWise ?? prev.day_wise_beforediscount,
                   }
                 : prev
             );
@@ -852,23 +887,34 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
 
   const effectivePlanPrice = useMemo(() => {
     // Use the same pricing logic as the room page
-    const rackRate = Number(room?.rack_rate ?? 0);
-    const basePrice = rackRate > 0 ? rackRate : Number(room?.pricePerNight ?? 0);
+    const baseDayWise = (room as any)?.day_wise_beforediscount;
+    const baseDayWiseAvg = (() => {
+      if (!baseDayWise) return 0;
+      if (Array.isArray(baseDayWise)) {
+        const vals = baseDayWise.map((v: any) => Number(v)).filter((v: any) => Number.isFinite(v) && v > 0);
+        if (vals.length === 0) return 0;
+        return vals.reduce((a: number, b: number) => a + b, 0) / vals.length;
+      }
+      if (typeof baseDayWise === 'object') {
+        const vals = Object.values(baseDayWise).map((v: any) => Number(v)).filter((v: any) => Number.isFinite(v) && v > 0);
+        if (vals.length === 0) return 0;
+        return vals.reduce((a: number, b: number) => a + b, 0) / vals.length;
+      }
+      return 0;
+    })();
+    const basePrice = baseDayWiseAvg > 0 ? baseDayWiseAvg : Number(room?.pricePerNight ?? 0);
     
-    // Calculate EP/CP/MAP prices based on rack_rate (same as room page)
-    // EP = rack_rate, CP = rack_rate + 500 (breakfast), MAP = rack_rate + 1000 (breakfast + dinner)
+    // Calculate EP/CP/MAP prices based on base price
     const epPrice = basePrice;
     const cpPrice = basePrice + 500;
     const mapPrice = basePrice + 1000;
 
     console.log('[FRONTEND DEBUG] effectivePlanPrice calculated:', {
-      rack_rate: room?.rack_rate,
       pricePerNight: room?.pricePerNight,
       basePrice,
       epPrice,
       cpPrice,
       mapPrice,
-      ezeePlans: ezeePlans // For comparison
     });
 
     // Always use our calculated prices to ensure consistency with room page
@@ -877,7 +923,7 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
       CP: cpPrice,
       MAP: mapPrice,
     } as Record<MealPlan, number>;
-  }, [ezeePlans?.EP?.pricePerNight, ezeePlans?.CP?.pricePerNight, ezeePlans?.MAP?.pricePerNight, room?.pricePerNight, room?.rack_rate, room?.title, roomNameFromQuery]);
+  }, [room?.pricePerNight, (room as any)?.day_wise_beforediscount, room?.title, roomNameFromQuery]);
 
   const effectiveExtraAdultPerNight = useMemo(() => {
     const ep = Number(ezeePlans?.EP?.extraAdultPerNight ?? 0);
@@ -999,7 +1045,7 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
       taxAndServiceFeesAmount,
       totalAmount,
     };
-  }, [room?.pricePerNight, (room as any)?.mapPricePerNight, effectivePlanPrice, rooms, nights, nightDates, mealPlanByDate, children5To10, extraAdultsAbove10, effectiveExtraAdultPerNight, effectiveExtraChildPerNight, globalPromo?.promoApplied, globalPromo?.discountPerNight]);
+  }, [room?.pricePerNight, (room as any)?.day_wise_beforediscount, effectivePlanPrice, rooms, nights, nightDates, mealPlanByDate, children5To10, extraAdultsAbove10, effectiveExtraAdultPerNight, effectiveExtraChildPerNight, globalPromo?.promoApplied, globalPromo?.discountPerNight]);
 
   const discounted = useMemo(() => {
     const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -1128,7 +1174,7 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
       
       console.log('[FRONTEND DEBUG] Sending booking with total amount:', {
         roomTitle: room?.title,
-        rack_rate: room?.rack_rate,
+        day_wise_beforediscount: (room as any)?.day_wise_beforediscount,
         nights,
         rooms,
         mealPlanByDate,

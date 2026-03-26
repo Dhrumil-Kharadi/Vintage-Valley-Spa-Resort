@@ -100,7 +100,7 @@ export const sendMailSafe = async (params: {
   if (port === 465 && secure === false) secure = true;
 
   // eslint-disable-next-line no-console
-  console.error("MAILER CONFIG >>>", {
+  console.log("MAILER CONFIG >>>", {
     host,
     port,
     secure,
@@ -166,7 +166,7 @@ export const sendMailSafe = async (params: {
     }
 
     // eslint-disable-next-line no-console
-    console.error("MAILER SENT >>>", {
+    console.log("MAILER SENT >>>", {
       to: params.to,
       subject: params.subject,
       messageId: (info as any)?.messageId,

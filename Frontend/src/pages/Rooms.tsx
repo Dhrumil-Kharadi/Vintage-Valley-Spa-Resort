@@ -334,8 +334,29 @@ const Rooms = () => {
   const getAvgPriceFromRaw = (r: EzeeRawRoom) => {
     const rateInfo = r?.room_rates_info || {};
     const directRackRate = Number((r as any)?.rack_rate ?? 0);
+    const directDayWiseBeforeDiscount = (r as any)?.day_wise_beforediscount;
+
+    const extractAvgFromDayWise = (dayWise: any): number => {
+      if (!dayWise) return 0;
+      if (Array.isArray(dayWise)) {
+        const values = dayWise
+          .map((v: any) => Number(v))
+          .filter((v: any) => Number.isFinite(v) && v > 0);
+        if (values.length === 0) return 0;
+        return values.reduce((a: number, b: number) => a + b, 0) / values.length;
+      }
+      if (typeof dayWise === 'object') {
+        const values = Object.values(dayWise)
+          .map((v: any) => Number(v))
+          .filter((v: any) => Number.isFinite(v) && v > 0);
+        if (values.length === 0) return 0;
+        return values.reduce((a: number, b: number) => a + b, 0) / values.length;
+      }
+      return 0;
+    };
     
     console.log(`[ROOMS DEBUG] getAvgPriceFromRaw for room: ${r.Room_Name}`, {
+      direct_day_wise_beforediscount: directDayWiseBeforeDiscount,
       direct_rack_rate: directRackRate,
       rack_rate: rateInfo.rack_rate,
       avg_price_per_night: r.avg_price_per_night,
@@ -344,14 +365,12 @@ const Rooms = () => {
       exclusive_tax: rateInfo.exclusive_tax
     });
     
-    // PRIORITIZE rack_rate as primary price source
+    // PRIORITIZE day_wise_beforediscount as primary price source
     let price = 0;
-    if (Number.isFinite(directRackRate) && directRackRate > 0) {
-      price = directRackRate;
-      console.log(`[ROOMS DEBUG] Using direct rack_rate: ${price}`);
-    } else if (rateInfo.rack_rate && Number.isFinite(Number(rateInfo.rack_rate)) && Number(rateInfo.rack_rate) > 0) {
-      price = Number(rateInfo.rack_rate);
-      console.log(`[ROOMS DEBUG] Using rack_rate: ${price}`);
+    const dayWise = extractAvgFromDayWise(rateInfo.day_wise_beforediscount ?? directDayWiseBeforeDiscount);
+    if (Number.isFinite(dayWise) && dayWise > 0) {
+      price = dayWise;
+      console.log(`[ROOMS DEBUG] Using day_wise_beforediscount (avg): ${price}`);
     } else if (rateInfo.avg_per_night_after_discount) {
       price = Number(rateInfo.avg_per_night_after_discount);
       console.log(`[ROOMS DEBUG] Using avg_per_night_after_discount: ${price}`);
@@ -374,6 +393,12 @@ const Rooms = () => {
         price = taxValues[0];
         console.log(`[ROOMS DEBUG] Using exclusive_tax value: ${price}`);
       }
+    } else if (Number.isFinite(directRackRate) && directRackRate > 0) {
+      price = directRackRate;
+      console.log(`[ROOMS DEBUG] Using fallback direct rack_rate: ${price}`);
+    } else if (rateInfo.rack_rate && Number.isFinite(Number(rateInfo.rack_rate)) && Number(rateInfo.rack_rate) > 0) {
+      price = Number(rateInfo.rack_rate);
+      console.log(`[ROOMS DEBUG] Using fallback rack_rate: ${price}`);
     }
     
     // Final fallback to original avg_price_per_night
@@ -540,8 +565,8 @@ const Rooms = () => {
         idx += 1;
 
         const staticRoom = staticRooms.find((sr) => sr.title.toLowerCase() === roomType.toLowerCase());
-        // Use rack_rate as primary price, fallback to avg_price_per_night or pricePerNight
-        const price = Number(finalMatchingRoom.rack_rate || finalMatchingRoom.avg_price_per_night || finalMatchingRoom.pricePerNight || 0);
+        // Use day_wise_beforediscount as primary price, fallback to avg_price_per_night or pricePerNight
+        const price = getAvgPriceFromRaw(finalMatchingRoom);
         const currency = String(finalMatchingRoom.currency_sign || '₹');
         const amenities = String(finalMatchingRoom.RoomAmenities || '').split(',').map(a => a.trim()).filter(Boolean);
 
@@ -558,9 +583,8 @@ const Rooms = () => {
         const cpFromApi = cpRoom ? getAvgPriceFromRaw(cpRoom) : 0;
         const mapFromApi = mapRoom ? getAvgPriceFromRaw(mapRoom) : 0;
 
-        // Fallback: compute from base rack_rate only if a plan variant is missing
-        const rackRate = Number(finalMatchingRoom.rack_rate || 0);
-        const base = rackRate > 0 ? rackRate : price;
+        // Fallback: compute from base price only if a plan variant is missing
+        const base = Number.isFinite(price) && price > 0 ? price : 0;
         const epPrice = Number.isFinite(epFromApi) && epFromApi > 0 ? epFromApi : 0;
         const cpPrice = Number.isFinite(cpFromApi) && cpFromApi > 0 ? cpFromApi : base + 500;
         const mapPrice = Number.isFinite(mapFromApi) && mapFromApi > 0 ? mapFromApi : base + 1000;
@@ -568,6 +592,7 @@ const Rooms = () => {
         const avail = Math.max(0, ...candidatesForType.map((c: any) => getAvailabilityFromRaw(c)));
 
         console.log(`[ROOMS DEBUG] Processed ${roomType}:`, {
+          day_wise_beforediscount: (finalMatchingRoom as any)?.day_wise_beforediscount,
           rack_rate: finalMatchingRoom.rack_rate,
           avg_price_per_night: finalMatchingRoom.avg_price_per_night,
           pricePerNight: finalMatchingRoom.pricePerNight,
@@ -650,11 +675,10 @@ const Rooms = () => {
         const currency = getCurrencyFromRaw(preferred);
         const amenities = getAmenitiesFromRaw(preferred);
 
-        // Calculate EP/CP/MAP prices based on rack_rate or extracted price
-        const rackRate = Number(preferred?.room_rates_info?.rack_rate || 0);
-        const epPrice = rackRate > 0 ? rackRate : price;
-        const cpPrice = rackRate > 0 ? rackRate + 500 : price + 500;
-        const mapPrice = rackRate > 0 ? rackRate + 1000 : price + 1000;
+        // Calculate EP/CP/MAP prices based on extracted price
+        const epPrice = price;
+        const cpPrice = price + 500;
+        const mapPrice = price + 1000;
 
         const avail = Math.max(0, ...list.map((c: any) => getAvailabilityFromRaw(c)));
 

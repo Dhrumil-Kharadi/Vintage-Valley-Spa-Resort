@@ -1,0 +1,63 @@
+{
+  "ezee": {
+    "baseUrlPath": "booking/reservation_api/listing.php",
+    "contentType": "application/x-www-form-urlencoded",
+    "postRequests": {
+      "InsertBooking": {
+        "formFields": {
+          "request_type": "InsertBooking",
+          "HotelCode": null,
+          "APIKey": null,
+          "BookingData": {
+            "Room_Details": {
+              "Room_1": {
+                "Rateplan_Id": null,
+                "Ratetype_Id": null,
+                "Roomtype_Id": null,
+                "baserate": null,
+                "extradultrate": null,
+                "extrachildrate": null,
+                "number_adults": null,
+                "number_children": null,
+                "ExtraChild_Age": null,
+                "Title": null,
+                "First_Name": null,
+                "Last_Name": null,
+                "Gender": null,
+                "SpecialRequest": null
+              }
+            },
+            "check_in_date": null,
+            "check_out_date": null,
+            "Booking_Payment_Mode": null,
+            "Email_Address": null,
+            "Source_Id": null,
+            "MobileNo": null,
+            "Address": null,
+            "State": null,
+            "Country": null,
+            "City": null,
+            "Zipcode": null,
+            "Fax": null,
+            "Device": null,
+            "Languagekey": "en",
+            "paymenttypeunkid": null
+          }
+        }
+      },
+      "ProcessBooking_ConfirmBooking": {
+        "formFields": {
+          "request_type": "ProcessBooking",
+          "HotelCode": null,
+          "APIKey": null,
+          "Process_Data": {
+            "Action": "ConfirmBooking",
+            "ReservationNo": null,
+            "Inventory_Mode": null,
+            "Error_Text": null
+          }
+        }
+      }
+    }
+  }
+}

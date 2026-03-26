@@ -1,0 +1,764 @@
+{
+  "fetchInfo": {
+    "timestamp": "2026-03-26T11:27:03.377Z",
+    "baseUrl": "http://localhost:5050",
+    "url": "http://localhost:5050/api/rooms?checkIn=2026-03-26&checkOut=2026-03-27&adults=1&children=0&rooms=1",
+    "status": 200,
+    "checkIn": "2026-03-26",
+    "checkOut": "2026-03-27"
+  },
+  "apiResponse": {
+    "ok": true,
+    "data": {
+      "rooms": [
+        {
+          "roomtypeunkid": "4692400000000000001",
+          "roomrateunkid": "4692400000000000001",
+          "ratetypeunkid": "4692400000000000001",
+          "Room_Name": "Deluxe Studio Suite - EP",
+          "Roomtype_Name": "Deluxe Studio Suite",
+          "Roomtype": "",
+          "Room_Description": "Deluxe Studio Suite - EP",
+          "max_adult_occupancy": 4,
+          "max_child_occupancy": 2,
+          "available_rooms": 15,
+          "avg_price_per_night": 4950,
+          "total_price": 4950,
+          "currency_sign": "Rs",
+          "RoomAmenities": "",
+          "room_main_image": "https://static.ipms247.com/uploads/46924_20240628070609_0115387001719558369_582_IMG_5848_-_Copy.JPG",
+          "room_rates_info": {
+            "before_discount_inclusive_tax_adjustment": [],
+            "exclusive_tax": {
+              "2026-03-26": "4950.0000"
+            },
+            "exclusivetax_baserate": {
+              "2026-03-26": "4950.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 4950
+            },
+            "rack_rate": "4500.0000",
+            "totalprice_room_only": 4950,
+            "totalprice_inclusive_all": 4950,
+            "avg_per_night_before_discount": "",
+            "avg_per_night_after_discount": 4950,
+            "avg_per_night_without_tax": 4950,
+            "day_wise_baserackrate": [
+              "4950.0000"
+            ],
+            "day_wise_beforediscount": [
+              "4950.0000"
+            ]
+          },
+          "extra_adult_rates_info": {
+            "exclusive_tax": {
+              "2026-03-26": "1200.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 1200
+            },
+            "rack_rate": "1200.0000"
+          },
+          "extra_child_rates_info": {
+            "exclusive_tax": {
+              "2026-03-26": "1000.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 1000
+            },
+            "rack_rate": "1000.0000"
+          },
+          "rack_rate": 4500,
+          "rack_rate_adult": 1200,
+          "rack_rate_child": 1000,
+          "pricePerNight": 4950,
+          "totalPrice": 4950,
+          "original_price": 4950,
+          "discount_amount": 0,
+          "final_price": 4950,
+          "promo_applied": false,
+          "day_wise_beforediscount": [
+            "4950.0000"
+          ]
+        },
+        {
+          "roomtypeunkid": "4692400000001000001",
+          "roomrateunkid": "4692400000000000001",
+          "ratetypeunkid": "4692400000000000001",
+          "Room_Name": "Deluxe Studio Suite - CP",
+          "Roomtype_Name": "Deluxe Studio Suite",
+          "Roomtype": "",
+          "Room_Description": "Deluxe Studio Suite - EP",
+          "max_adult_occupancy": 4,
+          "max_child_occupancy": 2,
+          "available_rooms": 15,
+          "avg_price_per_night": 5450,
+          "total_price": 4950,
+          "currency_sign": "Rs",
+          "RoomAmenities": "",
+          "room_main_image": "https://static.ipms247.com/uploads/46924_20240628070609_0115387001719558369_582_IMG_5848_-_Copy.JPG",
+          "room_rates_info": {
+            "before_discount_inclusive_tax_adjustment": [],
+            "exclusive_tax": {
+              "2026-03-26": "4950.0000"
+            },
+            "exclusivetax_baserate": {
+              "2026-03-26": "4950.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 4950
+            },
+            "rack_rate": "4500.0000",
+            "totalprice_room_only": 4950,
+            "totalprice_inclusive_all": 4950,
+            "avg_per_night_before_discount": "",
+            "avg_per_night_after_discount": 4950,
+            "avg_per_night_without_tax": 4950,
+            "day_wise_baserackrate": [
+              "4950.0000"
+            ],
+            "day_wise_beforediscount": [
+              "4950.0000"
+            ]
+          },
+          "extra_adult_rates_info": {
+            "exclusive_tax": {
+              "2026-03-26": "1200.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 1200
+            },
+            "rack_rate": "1200.0000"
+          },
+          "extra_child_rates_info": {
+            "exclusive_tax": {
+              "2026-03-26": "1000.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 1000
+            },
+            "rack_rate": "1000.0000"
+          },
+          "rack_rate": 5000,
+          "rack_rate_adult": 1200,
+          "rack_rate_child": 1000,
+          "pricePerNight": 5450,
+          "totalPrice": 4950,
+          "original_price": 4950,
+          "discount_amount": 0,
+          "final_price": 4950,
+          "promo_applied": false,
+          "day_wise_beforediscount": [
+            "5450"
+          ]
+        },
+        {
+          "roomtypeunkid": "4692400000002000001",
+          "roomrateunkid": "4692400000000000001",
+          "ratetypeunkid": "4692400000000000001",
+          "Room_Name": "Deluxe Studio Suite - MAP",
+          "Roomtype_Name": "Deluxe Studio Suite",
+          "Roomtype": "",
+          "Room_Description": "Deluxe Studio Suite - EP",
+          "max_adult_occupancy": 4,
+          "max_child_occupancy": 2,
+          "available_rooms": 15,
+          "avg_price_per_night": 5950,
+          "total_price": 4950,
+          "currency_sign": "Rs",
+          "RoomAmenities": "",
+          "room_main_image": "https://static.ipms247.com/uploads/46924_20240628070609_0115387001719558369_582_IMG_5848_-_Copy.JPG",
+          "room_rates_info": {
+            "before_discount_inclusive_tax_adjustment": [],
+            "exclusive_tax": {
+              "2026-03-26": "4950.0000"
+            },
+            "exclusivetax_baserate": {
+              "2026-03-26": "4950.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 4950
+            },
+            "rack_rate": "4500.0000",
+            "totalprice_room_only": 4950,
+            "totalprice_inclusive_all": 4950,
+            "avg_per_night_before_discount": "",
+            "avg_per_night_after_discount": 4950,
+            "avg_per_night_without_tax": 4950,
+            "day_wise_baserackrate": [
+              "4950.0000"
+            ],
+            "day_wise_beforediscount": [
+              "4950.0000"
+            ]
+          },
+          "extra_adult_rates_info": {
+            "exclusive_tax": {
+              "2026-03-26": "1200.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 1200
+            },
+            "rack_rate": "1200.0000"
+          },
+          "extra_child_rates_info": {
+            "exclusive_tax": {
+              "2026-03-26": "1000.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 1000
+            },
+            "rack_rate": "1000.0000"
+          },
+          "rack_rate": 5500,
+          "rack_rate_adult": 1200,
+          "rack_rate_child": 1000,
+          "pricePerNight": 5950,
+          "totalPrice": 4950,
+          "original_price": 4950,
+          "discount_amount": 0,
+          "final_price": 4950,
+          "promo_applied": false,
+          "day_wise_beforediscount": [
+            "5950"
+          ]
+        },
+        {
+          "roomtypeunkid": "4692400000000000003",
+          "roomrateunkid": "4692400000000000016",
+          "ratetypeunkid": "4692400000000000001",
+          "Room_Name": "Presidentail Suite - EP",
+          "Roomtype_Name": "Presidentail Suite",
+          "Roomtype": "",
+          "Room_Description": "Presidentail Suite - EP",
+          "max_adult_occupancy": 6,
+          "max_child_occupancy": 2,
+          "available_rooms": 2,
+          "avg_price_per_night": 13750,
+          "total_price": 13750,
+          "currency_sign": "Rs",
+          "RoomAmenities": "",
+          "room_main_image": "https://static.ipms247.com/uploads/46924_20240628070714_0174346001719558434_643_IMG_5848_-_Copy.JPG",
+          "room_rates_info": {
+            "before_discount_inclusive_tax_adjustment": [],
+            "exclusive_tax": {
+              "2026-03-26": "13750.0000"
+            },
+            "exclusivetax_baserate": {
+              "2026-03-26": "13750.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 13750
+            },
+            "rack_rate": "12500.0000",
+            "totalprice_room_only": 13750,
+            "totalprice_inclusive_all": 13750,
+            "avg_per_night_before_discount": "",
+            "avg_per_night_after_discount": 13750,
+            "avg_per_night_without_tax": 13750,
+            "day_wise_baserackrate": [
+              "13750.0000"
+            ],
+            "day_wise_beforediscount": [
+              "13750.0000"
+            ]
+          },
+          "extra_adult_rates_info": {
+            "exclusive_tax": {
+              "2026-03-26": "1200.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 1200
+            },
+            "rack_rate": "1200.0000"
+          },
+          "extra_child_rates_info": {
+            "exclusive_tax": {
+              "2026-03-26": "1000.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 1000
+            },
+            "rack_rate": "1000.0000"
+          },
+          "rack_rate": 12500,
+          "rack_rate_adult": 1200,
+          "rack_rate_child": 1000,
+          "pricePerNight": 13750,
+          "totalPrice": 13750,
+          "original_price": 13750,
+          "discount_amount": 0,
+          "final_price": 13750,
+          "promo_applied": false,
+          "day_wise_beforediscount": [
+            "13750.0000"
+          ]
+        },
+        {
+          "roomtypeunkid": "4692400000001000003",
+          "roomrateunkid": "4692400000000000016",
+          "ratetypeunkid": "4692400000000000001",
+          "Room_Name": "Presidentail Suite - CP",
+          "Roomtype_Name": "Presidentail Suite",
+          "Roomtype": "",
+          "Room_Description": "Presidentail Suite - EP",
+          "max_adult_occupancy": 6,
+          "max_child_occupancy": 2,
+          "available_rooms": 2,
+          "avg_price_per_night": 14250,
+          "total_price": 13750,
+          "currency_sign": "Rs",
+          "RoomAmenities": "",
+          "room_main_image": "https://static.ipms247.com/uploads/46924_20240628070714_0174346001719558434_643_IMG_5848_-_Copy.JPG",
+          "room_rates_info": {
+            "before_discount_inclusive_tax_adjustment": [],
+            "exclusive_tax": {
+              "2026-03-26": "13750.0000"
+            },
+            "exclusivetax_baserate": {
+              "2026-03-26": "13750.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 13750
+            },
+            "rack_rate": "12500.0000",
+            "totalprice_room_only": 13750,
+            "totalprice_inclusive_all": 13750,
+            "avg_per_night_before_discount": "",
+            "avg_per_night_after_discount": 13750,
+            "avg_per_night_without_tax": 13750,
+            "day_wise_baserackrate": [
+              "13750.0000"
+            ],
+            "day_wise_beforediscount": [
+              "13750.0000"
+            ]
+          },
+          "extra_adult_rates_info": {
+            "exclusive_tax": {
+              "2026-03-26": "1200.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 1200
+            },
+            "rack_rate": "1200.0000"
+          },
+          "extra_child_rates_info": {
+            "exclusive_tax": {
+              "2026-03-26": "1000.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 1000
+            },
+            "rack_rate": "1000.0000"
+          },
+          "rack_rate": 13000,
+          "rack_rate_adult": 1200,
+          "rack_rate_child": 1000,
+          "pricePerNight": 14250,
+          "totalPrice": 13750,
+          "original_price": 13750,
+          "discount_amount": 0,
+          "final_price": 13750,
+          "promo_applied": false,
+          "day_wise_beforediscount": [
+            "14250"
+          ]
+        },
+        {
+          "roomtypeunkid": "4692400000002000003",
+          "roomrateunkid": "4692400000000000016",
+          "ratetypeunkid": "4692400000000000001",
+          "Room_Name": "Presidentail Suite - MAP",
+          "Roomtype_Name": "Presidentail Suite",
+          "Roomtype": "",
+          "Room_Description": "Presidentail Suite - EP",
+          "max_adult_occupancy": 6,
+          "max_child_occupancy": 2,
+          "available_rooms": 2,
+          "avg_price_per_night": 14750,
+          "total_price": 13750,
+          "currency_sign": "Rs",
+          "RoomAmenities": "",
+          "room_main_image": "https://static.ipms247.com/uploads/46924_20240628070714_0174346001719558434_643_IMG_5848_-_Copy.JPG",
+          "room_rates_info": {
+            "before_discount_inclusive_tax_adjustment": [],
+            "exclusive_tax": {
+              "2026-03-26": "13750.0000"
+            },
+            "exclusivetax_baserate": {
+              "2026-03-26": "13750.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 13750
+            },
+            "rack_rate": "12500.0000",
+            "totalprice_room_only": 13750,
+            "totalprice_inclusive_all": 13750,
+            "avg_per_night_before_discount": "",
+            "avg_per_night_after_discount": 13750,
+            "avg_per_night_without_tax": 13750,
+            "day_wise_baserackrate": [
+              "13750.0000"
+            ],
+            "day_wise_beforediscount": [
+              "13750.0000"
+            ]
+          },
+          "extra_adult_rates_info": {
+            "exclusive_tax": {
+              "2026-03-26": "1200.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 1200
+            },
+            "rack_rate": "1200.0000"
+          },
+          "extra_child_rates_info": {
+            "exclusive_tax": {
+              "2026-03-26": "1000.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 1000
+            },
+            "rack_rate": "1000.0000"
+          },
+          "rack_rate": 13500,
+          "rack_rate_adult": 1200,
+          "rack_rate_child": 1000,
+          "pricePerNight": 14750,
+          "totalPrice": 13750,
+          "original_price": 13750,
+          "discount_amount": 0,
+          "final_price": 13750,
+          "promo_applied": false,
+          "day_wise_beforediscount": [
+            "14750"
+          ]
+        },
+        {
+          "roomtypeunkid": "4692400000000000005",
+          "roomrateunkid": "4692400000000000014",
+          "ratetypeunkid": "4692400000000000001",
+          "Room_Name": "DELUXE EDGE VIEW EP",
+          "Roomtype_Name": "DELUXE EDGE VIEW",
+          "Roomtype": "",
+          "Room_Description": "DELUXE EDGE VIEW EP",
+          "max_adult_occupancy": 3,
+          "max_child_occupancy": 2,
+          "available_rooms": 0,
+          "avg_price_per_night": 6050,
+          "total_price": 6050,
+          "currency_sign": "Rs",
+          "RoomAmenities": "",
+          "room_main_image": "https://static.ipms247.com/uploads/46924_20251010071529_0664397001760080529_835_9a1aa1da-8145-44ba-ac25-087a08ea7611.jpg",
+          "room_rates_info": {
+            "before_discount_inclusive_tax_adjustment": [],
+            "exclusive_tax": {
+              "2026-03-26": "6050.0000"
+            },
+            "exclusivetax_baserate": {
+              "2026-03-26": "6050.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 6050
+            },
+            "rack_rate": "5500.0000",
+            "totalprice_room_only": 6050,
+            "totalprice_inclusive_all": 6050,
+            "avg_per_night_before_discount": "",
+            "avg_per_night_after_discount": 6050,
+            "avg_per_night_without_tax": 6050,
+            "day_wise_baserackrate": [
+              "6050.0000"
+            ],
+            "day_wise_beforediscount": [
+              "6050.0000"
+            ]
+          },
+          "extra_adult_rates_info": {
+            "exclusive_tax": {
+              "2026-03-26": "1200.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 1200
+            },
+            "rack_rate": "1200.0000"
+          },
+          "extra_child_rates_info": {
+            "exclusive_tax": {
+              "2026-03-26": "1000.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 1000
+            },
+            "rack_rate": "1000.0000"
+          },
+          "rack_rate": 5500,
+          "rack_rate_adult": 1200,
+          "rack_rate_child": 1000,
+          "pricePerNight": 6050,
+          "totalPrice": 6050,
+          "original_price": 6050,
+          "discount_amount": 0,
+          "final_price": 6050,
+          "promo_applied": false,
+          "day_wise_beforediscount": [
+            "6050.0000"
+          ]
+        },
+        {
+          "roomtypeunkid": "4692400000001000005",
+          "roomrateunkid": "4692400000000000014",
+          "ratetypeunkid": "4692400000000000001",
+          "Room_Name": "DELUXE EDGE VIEW EP",
+          "Roomtype_Name": "DELUXE EDGE VIEW",
+          "Roomtype": "",
+          "Room_Description": "DELUXE EDGE VIEW EP",
+          "max_adult_occupancy": 3,
+          "max_child_occupancy": 2,
+          "available_rooms": 0,
+          "avg_price_per_night": 6550,
+          "total_price": 6050,
+          "currency_sign": "Rs",
+          "RoomAmenities": "",
+          "room_main_image": "https://static.ipms247.com/uploads/46924_20251010071529_0664397001760080529_835_9a1aa1da-8145-44ba-ac25-087a08ea7611.jpg",
+          "room_rates_info": {
+            "before_discount_inclusive_tax_adjustment": [],
+            "exclusive_tax": {
+              "2026-03-26": "6050.0000"
+            },
+            "exclusivetax_baserate": {
+              "2026-03-26": "6050.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 6050
+            },
+            "rack_rate": "5500.0000",
+            "totalprice_room_only": 6050,
+            "totalprice_inclusive_all": 6050,
+            "avg_per_night_before_discount": "",
+            "avg_per_night_after_discount": 6050,
+            "avg_per_night_without_tax": 6050,
+            "day_wise_baserackrate": [
+              "6050.0000"
+            ],
+            "day_wise_beforediscount": [
+              "6050.0000"
+            ]
+          },
+          "extra_adult_rates_info": {
+            "exclusive_tax": {
+              "2026-03-26": "1200.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 1200
+            },
+            "rack_rate": "1200.0000"
+          },
+          "extra_child_rates_info": {
+            "exclusive_tax": {
+              "2026-03-26": "1000.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 1000
+            },
+            "rack_rate": "1000.0000"
+          },
+          "rack_rate": 6000,
+          "rack_rate_adult": 1200,
+          "rack_rate_child": 1000,
+          "pricePerNight": 6550,
+          "totalPrice": 6050,
+          "original_price": 6050,
+          "discount_amount": 0,
+          "final_price": 6050,
+          "promo_applied": false,
+          "day_wise_beforediscount": [
+            "6550"
+          ]
+        },
+        {
+          "roomtypeunkid": "4692400000002000005",
+          "roomrateunkid": "4692400000000000014",
+          "ratetypeunkid": "4692400000000000001",
+          "Room_Name": "DELUXE EDGE VIEW EP",
+          "Roomtype_Name": "DELUXE EDGE VIEW",
+          "Roomtype": "",
+          "Room_Description": "DELUXE EDGE VIEW EP",
+          "max_adult_occupancy": 3,
+          "max_child_occupancy": 2,
+          "available_rooms": 0,
+          "avg_price_per_night": 7050,
+          "total_price": 6050,
+          "currency_sign": "Rs",
+          "RoomAmenities": "",
+          "room_main_image": "https://static.ipms247.com/uploads/46924_20251010071529_0664397001760080529_835_9a1aa1da-8145-44ba-ac25-087a08ea7611.jpg",
+          "room_rates_info": {
+            "before_discount_inclusive_tax_adjustment": [],
+            "exclusive_tax": {
+              "2026-03-26": "6050.0000"
+            },
+            "exclusivetax_baserate": {
+              "2026-03-26": "6050.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 6050
+            },
+            "rack_rate": "5500.0000",
+            "totalprice_room_only": 6050,
+            "totalprice_inclusive_all": 6050,
+            "avg_per_night_before_discount": "",
+            "avg_per_night_after_discount": 6050,
+            "avg_per_night_without_tax": 6050,
+            "day_wise_baserackrate": [
+              "6050.0000"
+            ],
+            "day_wise_beforediscount": [
+              "6050.0000"
+            ]
+          },
+          "extra_adult_rates_info": {
+            "exclusive_tax": {
+              "2026-03-26": "1200.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 1200
+            },
+            "rack_rate": "1200.0000"
+          },
+          "extra_child_rates_info": {
+            "exclusive_tax": {
+              "2026-03-26": "1000.0000"
+            },
+            "tax": [],
+            "adjustment": {
+              "2026-03-26": 0
+            },
+            "inclusive_tax_adjustment": {
+              "2026-03-26": 1000
+            },
+            "rack_rate": "1000.0000"
+          },
+          "rack_rate": 6500,
+          "rack_rate_adult": 1200,
+          "rack_rate_child": 1000,
+          "pricePerNight": 7050,
+          "totalPrice": 6050,
+          "original_price": 6050,
+          "discount_amount": 0,
+          "final_price": 6050,
+          "promo_applied": false,
+          "day_wise_beforediscount": [
+            "7050"
+          ]
+        }
+      ]
+    }
+  }
+}

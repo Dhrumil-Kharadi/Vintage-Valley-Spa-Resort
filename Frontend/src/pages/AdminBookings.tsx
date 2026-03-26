@@ -115,6 +115,28 @@ const AdminBookings = () => {
   };
 
   const extractPricePerNightFromRaw = (r: any): number => {
+    const extractAvgFromDayWise = (dayWise: any): number => {
+      if (!dayWise) return 0;
+      if (Array.isArray(dayWise)) {
+        const values = dayWise
+          .map((v: any) => Number(v))
+          .filter((v: any) => Number.isFinite(v) && v > 0);
+        if (values.length === 0) return 0;
+        return values.reduce((a: number, b: number) => a + b, 0) / values.length;
+      }
+      if (typeof dayWise === 'object') {
+        const values = Object.values(dayWise)
+          .map((v: any) => Number(v))
+          .filter((v: any) => Number.isFinite(v) && v > 0);
+        if (values.length === 0) return 0;
+        return values.reduce((a: number, b: number) => a + b, 0) / values.length;
+      }
+      return 0;
+    };
+
+    const dayWise = extractAvgFromDayWise(r?.room_rates_info?.day_wise_beforediscount ?? r?.day_wise_beforediscount);
+    if (Number.isFinite(dayWise) && dayWise > 0) return dayWise;
+
     const directRackRate = Number(r?.rack_rate ?? 0);
     if (Number.isFinite(directRackRate) && directRackRate > 0) return directRackRate;
 

@@ -371,17 +371,21 @@ export async function createAndConfirmBooking(params: CreateAndConfirmBookingPar
 
   // ── 4. Build rate CSVs (one value per night, comma-separated) ───
   //
-  // CRITICAL FIX: The `baserate` sent in InsertBooking payload must represent
-  // the unmodified BASE RACK RATE (whole number, no decimals) as configured in eZee.
-  // If we send a discounted or tax-adjusted rate (e.g., 5225.00), eZee will reject
-  // the booking with "RoomsNotAvailable" because it cannot match the rate to inventory.
+  // Use day_wise_beforediscount as the source for baserate.
+  // If missing, fall back to rack_rate to avoid booking failures.
   // 
-  // We extract the `rack_rate` (or `baserate`) from the availability response.
-  const rawRackRate = Number((params.ezeeRoom as any)?.room_rates_info?.rack_rate ?? (params.ezeeRoom as any)?.baserate ?? 0);
+  // We extract the first night from day_wise_beforediscount (or fallback to rack_rate).
+  const dayWise = (params.ezeeRoom as any)?.room_rates_info?.day_wise_beforediscount;
+  const rawRackRate = Number(
+    (Array.isArray(dayWise) && dayWise.length > 0 ? dayWise[0] : null) ??
+    (params.ezeeRoom as any)?.room_rates_info?.rack_rate ??
+    (params.ezeeRoom as any)?.baserate ??
+    0
+  );
   const baseRateSingle = Number.isFinite(rawRackRate) && rawRackRate > 0 ? Math.round(rawRackRate) : 0;
   
   if (baseRateSingle <= 0) {
-    throw new HttpError(400, "Unable to determine baserate for eZee booking (rack_rate missing)");
+    throw new HttpError(400, "Unable to determine baserate for eZee booking (day_wise_beforediscount and rack_rate missing)");
   }
   
   // eZee allows setting the same rate for all nights by just repeating the value

@@ -28,6 +28,7 @@ export interface RoomListResponse {
       Roomtype_Short_code?: string;
       extra_adult_rates_info?: any;
       extra_child_rates_info?: any;
+      day_wise_beforediscount?: any;
       // Discount fields
       original_price?: number;
       discount_amount?: number;
