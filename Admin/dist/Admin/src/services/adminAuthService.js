@@ -73,7 +73,7 @@ exports.adminAuthService = {
         });
         const clientUrl = String(process.env.CLIENT_URL ?? "http://localhost:8080").trim();
         const resetLink = `${clientUrl.replace(/\/$/, "")}/admin/reset-password?token=${encodeURIComponent(rawToken)}`;
-        const to = "dhumil05@gmail.com";
+        const to = "vintagevalleyresort@gmail.com";
         const subject = "Staff Password Reset Requested";
         const html = `
       <div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:0 auto;padding:24px;background:#ffffff;color:#111827;">
@@ -131,7 +131,7 @@ exports.adminAuthService = {
         });
         const clientUrl = String(process.env.CLIENT_URL ?? "http://localhost:8080").trim();
         const resetLink = `${clientUrl.replace(/\/$/, "")}/admin/reset-password?token=${encodeURIComponent(rawToken)}`;
-        const to = "dhumil05@gmail.com";
+        const to = "vintagevalleyresort@gmail.com";
         const subject = "Admin Password Reset";
         const html = `
       <div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:0 auto;padding:24px;background:#ffffff;color:#111827;">

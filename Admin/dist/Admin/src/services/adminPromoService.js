@@ -26,6 +26,7 @@ exports.adminPromoService = {
             code: p.code,
             type: p.type,
             value: String(p.value),
+            applicableLabel: String(p.applicableLabel ?? ''),
             isActive: p.isActive,
             startsAt: p.startsAt,
             expiresAt: p.expiresAt,
@@ -66,12 +67,14 @@ exports.adminPromoService = {
         if (maxUses != null && (!Number.isFinite(maxUses) || !Number.isInteger(maxUses) || maxUses < 0)) {
             throw new errorHandler_1.HttpError(400, "Invalid maxUses");
         }
+        const applicableLabel = String(params.applicableLabel ?? '').trim().slice(0, 100);
         try {
             const promo = await client_1.prisma.promoCode.create({
                 data: {
                     code,
                     type: params.type,
                     value: valueNum.toFixed(2),
+                    applicableLabel: applicableLabel || null,
                     isActive: params.isActive ?? true,
                     startsAt,
                     expiresAt,
@@ -83,6 +86,7 @@ exports.adminPromoService = {
                 code: promo.code,
                 type: promo.type,
                 value: String(promo.value),
+                applicableLabel: String(promo.applicableLabel ?? ''),
                 isActive: promo.isActive,
                 startsAt: promo.startsAt,
                 expiresAt: promo.expiresAt,
@@ -110,6 +114,7 @@ exports.adminPromoService = {
             code: promo.code,
             type: promo.type,
             value: String(promo.value),
+            applicableLabel: String(promo.applicableLabel ?? ''),
             isActive: promo.isActive,
             startsAt: promo.startsAt,
             expiresAt: promo.expiresAt,

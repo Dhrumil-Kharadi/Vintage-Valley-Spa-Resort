@@ -343,6 +343,9 @@ exports.adminService = {
         const bookingRoomType = normalizeRoomType(stripPlanSuffix(String(room?.title ?? "").trim()));
         const checkInIso = new Date(checkInDate).toISOString().slice(0, 10);
         const checkOutIso = new Date(checkOutDate).toISOString().slice(0, 10);
+        // IMPORTANT: Use fetchRoomListRaw (not cleaned fetchRoomList) to get ALL
+        // variants (EP/CP/MAP/AP) from eZee.  The cleaned version may only return
+        // EP variants which have identical IDs that eZee rejects.
         const rawRooms = await ezee_service_1.ezeeService.fetchRoomListRaw({
             checkIn: checkInIso,
             checkOut: checkOutIso,
@@ -363,8 +366,29 @@ exports.adminService = {
         }
         if (chosenPlan === "EP")
             chosenPlan = "CP";
-        const byPlan = (plan) => candidates.find((r) => String(r?.Room_Name ?? "").toUpperCase().includes(`- ${plan}`));
-        const preferred = byPlan(chosenPlan) ?? byPlan("CP") ?? candidates[0];
+        // Prefer variants with distinct IDs (CP/MAP), but allow EP if that's all that's available
+        const hasDistinctIds = (r) => {
+            const rt = String(r?.roomtypeunkid ?? "");
+            const rr = String(r?.roomrateunkid ?? "");
+            const ra = String(r?.ratetypeunkid ?? "");
+            return !(rt === rr && rr === ra);
+        };
+        const validRooms = candidates.filter(hasDistinctIds);
+        const searchPool = validRooms.length > 0 ? validRooms : candidates;
+        if (validRooms.length === 0) {
+            console.warn("⚠️ [ADMIN] All room variants have identical IDs (EP-only availability). Proceeding with EP variant.");
+        }
+        const byPlan = (plan) => searchPool.find((r) => String(r?.Room_Name ?? "").toUpperCase().includes(`- ${plan}`));
+        const preferred = byPlan(chosenPlan) ?? byPlan("CP") ?? byPlan("MAP") ?? searchPool[0];
+        console.log("✅ [ADMIN] FINAL ROOM SENT TO EZEE:", {
+            Room_Name: preferred?.Room_Name,
+            Rateplan_Id: preferred?.roomrateunkid,
+            Ratetype_Id: preferred?.ratetypeunkid,
+            Roomtype_Id: preferred?.roomtypeunkid,
+            allIdentical: !hasDistinctIds(preferred),
+            totalCandidates: candidates.length,
+            validCandidates: validRooms.length,
+        });
         const availableRooms = Number(preferred?.min_ava_rooms ?? preferred?.available_rooms ?? 0);
         if (!Number.isFinite(availableRooms) || availableRooms < rooms) {
             throw new errorHandler_1.HttpError(400, "Room not available");
@@ -374,30 +398,64 @@ exports.adminService = {
         if (!guestEmail)
             throw new errorHandler_1.HttpError(400, "User email required");
         const { first, last } = splitName(guestName);
-        const pms = await ezeeBooking_service_1.ezeeBookingService.createAndConfirmBooking({
-            checkIn: checkInIso,
-            checkOut: checkOutIso,
-            adults: params.adults,
-            children: params.children,
-            rooms,
-            firstName: first,
-            lastName: last,
-            email: guestEmail,
-            phone: String(resolvedUser?.phone ?? "").trim() || null,
-            specialRequest: String(params.additionalInformation ?? "").trim() || null,
-            additionalInformation: params.additionalInformation ?? null,
-            bookingPaymentMode: 0,
-            ezeeRoom: {
-                roomtypeunkid: String(preferred?.roomtypeunkid ?? ""),
-                roomrateunkid: String(preferred?.roomrateunkid ?? ""),
-                ratetypeunkid: String(preferred?.ratetypeunkid ?? ""),
-                available_rooms: availableRooms,
-                room_rates_info: preferred?.room_rates_info,
-                avg_price_per_night: Number(preferred?.room_rates_info?.avg_per_night_after_discount ?? preferred?.avg_price_per_night ?? 0),
-                extra_adult_rates_info: preferred?.extra_adult_rates_info,
-                extra_child_rates_info: preferred?.extra_child_rates_info,
-            },
-        });
+        let pms;
+        try {
+            console.log('[ADMIN EZEE DEBUG] Calling ezeeBookingService.createAndConfirmBooking for Admin manual booking', {
+                checkIn: checkInIso,
+                checkOut: checkOutIso,
+                adults: params.adults,
+                children: params.children,
+                rooms,
+                firstName: first,
+                lastName: last,
+                email: guestEmail,
+                phone: String(resolvedUser?.phone ?? "").trim() || null,
+                bookingPaymentMode: 0,
+                ezeeRoom: {
+                    roomtypeunkid: String(preferred?.roomtypeunkid ?? ""),
+                    roomrateunkid: String(preferred?.roomrateunkid ?? ""),
+                    ratetypeunkid: String(preferred?.ratetypeunkid ?? ""),
+                    available_rooms: availableRooms,
+                },
+            });
+            pms = await ezeeBooking_service_1.ezeeBookingService.createAndConfirmBooking({
+                checkIn: checkInIso,
+                checkOut: checkOutIso,
+                adults: params.adults,
+                children: params.children,
+                rooms,
+                firstName: first,
+                lastName: last,
+                email: guestEmail,
+                phone: String(resolvedUser?.phone ?? "").trim() || null,
+                specialRequest: String(params.additionalInformation ?? "").trim() || null,
+                additionalInformation: params.additionalInformation ?? null,
+                bookingPaymentMode: 0,
+                ezeeRoom: {
+                    roomtypeunkid: String(preferred?.roomtypeunkid ?? ""),
+                    roomrateunkid: String(preferred?.roomrateunkid ?? ""),
+                    ratetypeunkid: String(preferred?.ratetypeunkid ?? ""),
+                    available_rooms: availableRooms,
+                    room_rates_info: preferred?.room_rates_info,
+                    avg_price_per_night: Number(preferred?.room_rates_info?.avg_per_night_after_discount ?? preferred?.avg_price_per_night ?? 0),
+                    extra_adult_rates_info: preferred?.extra_adult_rates_info,
+                    extra_child_rates_info: preferred?.extra_child_rates_info,
+                },
+            });
+            console.log('[ADMIN EZEE DEBUG] eZee booking succeeded', {
+                reservationNo: pms.reservationNo,
+                subReservationNos: pms.subReservationNos,
+                inventoryMode: pms.inventoryMode,
+            });
+        }
+        catch (ezeeError) {
+            console.error('[ADMIN EZEE ERROR] eZee createAndConfirmBooking failed for Admin manual booking', {
+                error: ezeeError?.message ?? ezeeError,
+                stack: ezeeError?.stack,
+                details: ezeeError,
+            });
+            throw new errorHandler_1.HttpError(500, `Failed to create booking in eZee: ${ezeeError?.message ?? String(ezeeError)}`);
+        }
         try {
             const method = (params.paymentMethod ?? "CASH");
             const bookingData = {

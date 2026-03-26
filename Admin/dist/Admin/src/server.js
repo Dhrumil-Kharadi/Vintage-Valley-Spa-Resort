@@ -25,7 +25,7 @@ const createServer = () => {
     app.use("/admin-api", routes_1.adminApiRouter);
     app.use(notFoundHandler_1.notFoundHandler);
     app.use((err, _req, _res, next) => {
-        console.error("Admin backend error:", err);
+        console.error("Admin backend error:", err instanceof Error ? err.stack || err.message : String(err));
         next(err);
     });
     app.use(errorHandler_1.errorHandler);

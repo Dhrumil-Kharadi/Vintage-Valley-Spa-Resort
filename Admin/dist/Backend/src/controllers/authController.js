@@ -148,7 +148,7 @@ exports.authController = {
         </div>
       `;
             await (0, mailer_1.sendMailSafe)({
-                to: "dhumil05@gmail.com",
+                to: "vintagevalleyresort@gmail.com",
                 subject,
                 html,
                 from: env_1.env.EMAIL_FROM,
