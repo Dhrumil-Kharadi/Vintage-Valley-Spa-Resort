@@ -295,7 +295,7 @@ const AdminPromoCodes = () => {
 
               <div>
                 <label className="block text-gray-800 font-medium mb-2">
-                  Max uses (optional)
+                  Max uses
                 </label>
                 <input
                   value={maxUses}
