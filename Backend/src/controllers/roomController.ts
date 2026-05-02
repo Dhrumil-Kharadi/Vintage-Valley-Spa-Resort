@@ -238,48 +238,8 @@ export const roomController = {
         };
       });
 
-      // Create CP and MAP variants for frontend dropdown pricing
-      const roomsWithVariants: any[] = [];
-      roomsWithDiscount.forEach((room) => {
-        // Add original room (usually EP)
-        roomsWithVariants.push(room);
-        
-        // Create CP variant (add 500 to base price)
-        const cpRoom = {
-          ...room,
-          Room_Name: room.Room_Name.replace(/- EP$/i, '- CP').replace(/- CP$/i, '- CP').replace(/- MAP$/i, '- CP'),
-          roomtypeunkid: String(BigInt(room.roomtypeunkid) + 1000000n), // Unique ID
-          pricePerNight: room.pricePerNight + 500,
-          avg_price_per_night: room.avg_price_per_night + 500,
-          day_wise_beforediscount: Array.isArray((room as any)?.day_wise_beforediscount)
-            ? (room as any).day_wise_beforediscount.map((v: any) => {
-                const n = Number(v);
-                return Number.isFinite(n) ? String(n + 500) : v;
-              })
-            : (room as any)?.day_wise_beforediscount,
-          rack_rate: room.rack_rate ? Number(room.rack_rate) + 500 : null,
-        };
-        roomsWithVariants.push(cpRoom);
-        
-        // Create MAP variant (add 1000 to base price)
-        const mapRoom = {
-          ...room,
-          Room_Name: room.Room_Name.replace(/- EP$/i, '- MAP').replace(/- CP$/i, '- MAP').replace(/- MAP$/i, '- MAP'),
-          roomtypeunkid: String(BigInt(room.roomtypeunkid) + 2000000n), // Unique ID
-          pricePerNight: room.pricePerNight + 1000,
-          avg_price_per_night: room.avg_price_per_night + 1000,
-          day_wise_beforediscount: Array.isArray((room as any)?.day_wise_beforediscount)
-            ? (room as any).day_wise_beforediscount.map((v: any) => {
-                const n = Number(v);
-                return Number.isFinite(n) ? String(n + 1000) : v;
-              })
-            : (room as any)?.day_wise_beforediscount,
-          rack_rate: room.rack_rate ? Number(room.rack_rate) + 1000 : null,
-        };
-        roomsWithVariants.push(mapRoom);
-      });
-
-      res.json({ ok: true, data: { rooms: roomsWithVariants } });
+      // Return the real eZee rooms directly — the API already provides EP, CP, MAP, AP variants
+      res.json({ ok: true, data: { rooms: roomsWithDiscount } });
     } catch (err: any) {
       const cached = await roomCache.findMany({ orderBy: { createdAt: "desc" } });
       if (cached.length > 0) {

@@ -43,6 +43,10 @@ interface CreateAndConfirmBookingParams {
   specialRequest?: string | null;
   additionalInformation?: string | null;
   bookingPaymentMode: number;
+  /** Final pre-tax base amount (after discount). When provided, baserate = finalBaseAmount / (nights × rooms) so eZee invoice matches our price after eZee adds its own GST. */
+  finalBaseAmount?: number;
+  /** Meal plan selected by user/admin (EP, CP, MAP). Passed as Package_Details to eZee so invoice shows the correct plan. */
+  mealPlan?: "EP" | "CP" | "MAP";
   ezeeRoom: {
     roomtypeunkid: string;
     roomrateunkid: string;
@@ -371,26 +375,54 @@ export async function createAndConfirmBooking(params: CreateAndConfirmBookingPar
 
   // ── 4. Build rate CSVs (one value per night, comma-separated) ───
   //
-  // Use day_wise_beforediscount as the source for baserate.
-  // If missing, fall back to rack_rate to avoid booking failures.
+  // Use day_wise_beforediscount as the PRIMARY source for baserate.
+  // This array contains the actual per-night room rates from eZee.
   // 
-  // We extract the first night from day_wise_beforediscount (or fallback to rack_rate).
   const dayWise = (params.ezeeRoom as any)?.room_rates_info?.day_wise_beforediscount;
-  const rawRackRate = Number(
-    (Array.isArray(dayWise) && dayWise.length > 0 ? dayWise[0] : null) ??
-    (params.ezeeRoom as any)?.room_rates_info?.rack_rate ??
-    (params.ezeeRoom as any)?.baserate ??
-    0
-  );
-  const baseRateSingle = Number.isFinite(rawRackRate) && rawRackRate > 0 ? Math.round(rawRackRate) : 0;
   
-  if (baseRateSingle <= 0) {
-    throw new HttpError(400, "Unable to determine baserate for eZee booking (day_wise_beforediscount and rack_rate missing)");
+  let baserateValues: number[] = [];
+  
+  if (Array.isArray(dayWise) && dayWise.length > 0) {
+    // day_wise_beforediscount is an array of per-night rates
+    baserateValues = dayWise.map((v: any) => {
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
+    });
+    // Ensure we have exactly `nights` values — pad with last value if needed
+    while (baserateValues.length < nights) {
+      baserateValues.push(baserateValues[baserateValues.length - 1] || 0);
+    }
+    // Trim to exactly `nights` values
+    baserateValues = baserateValues.slice(0, nights);
+  }
+
+  // Validate we have valid rates
+  const hasValidRates = baserateValues.length > 0 && baserateValues.every(v => v > 0);
+  if (!hasValidRates) {
+    throw new HttpError(400, "Unable to determine baserate for eZee booking (day_wise_beforediscount missing or empty)");
+  }
+
+  // ── Override baserate with finalBaseAmount if provided ──
+  // When our system applies a discount, we compute the final pre-tax base amount.
+  // We send (finalBaseAmount / nights / rooms) as the per-night baserate to eZee.
+  // eZee then adds its own 5% GST on top, producing the correct grand total.
+  const finalBase = Number(params.finalBaseAmount ?? 0);
+  if (Number.isFinite(finalBase) && finalBase > 0 && nights > 0 && rooms > 0) {
+    const perNightRate = Math.round(finalBase / (nights * rooms));
+    const originalRates = [...baserateValues];
+    baserateValues = Array(nights).fill(Math.max(0, perNightRate));
+    console.log("💰 [EZEE] Using finalBaseAmount for baserate (discount applied):", {
+      originalRates,
+      finalBaseAmount: finalBase,
+      perNightRate,
+      adjustedRates: baserateValues,
+      nights,
+      rooms,
+    });
   }
   
-  // eZee allows setting the same rate for all nights by just repeating the value
-  const baserateArray: string[] = Array(nights).fill(String(baseRateSingle));
-  const baserate = baserateArray.join(",");
+  // eZee expects comma-separated per-night rates
+  const baserate = baserateValues.map(v => String(v)).join(",");
 
   const extraAdultRates = extractPerNightRatesFromExtra(params.ezeeRoom?.extra_adult_rates_info, checkIn, nights);
   const extraChildRates = extractPerNightRatesFromExtra(params.ezeeRoom?.extra_child_rates_info, checkIn, nights);

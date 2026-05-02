@@ -301,7 +301,7 @@ export const generateBookingInvoicePdfBuffer = async (b: any) => {
   doc.setFont("helvetica", "normal");
   const hasMap = (b.mealPlanByDate || []).some((d: any) => d.plan === "MAP");
   const hasCp = (b.mealPlanByDate || []).some((d: any) => d.plan === "CP");
-  const mealPlan = hasMap ? "AP" : hasCp ? "CP" : "EP";
+  const mealPlan = hasMap ? "MAP" : hasCp ? "CP" : "EP";
   doc.text(`: ${roomTitle} - ${mealPlan}`, tableX + 70, y);
   y += 18;
 

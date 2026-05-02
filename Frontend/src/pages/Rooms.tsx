@@ -37,14 +37,16 @@ const normalizeRoomType = (value: string) => {
   const raw = String(value ?? "")
     .trim()
     .replace(/\s+/g, " ");
-  const lower = raw.toLowerCase();
+  // Strip plan suffixes like "- EP", "- CP", "- MAP", "- AP"
+  const stripped = raw.replace(/\s*-\s*(EP|CP|MAP|AP)\s*$/i, '').trim();
+  const lower = stripped.toLowerCase();
 
   if (lower === "deluxe studio suite") return "Deluxe Studio Suite";
   if (lower === "deluxe edge view" || lower === "deluxe edge view ") return "Deluxe Edge View";
   if (lower === "lotus family suite" || lower === "lotus family suit") return "Lotus Family Suite";
   if (lower === "presidential suite" || lower === "presidentail suite") return "Presidential Suite"; // Handle typo
 
-  return raw;
+  return stripped;
 };
 
 const ALLOWED_ROOM_TYPES = new Set([
@@ -507,12 +509,26 @@ const Rooms = () => {
     if (roomListWithDiscount.length > 0) {
       console.log('[ROOMS DEBUG] Using roomListWithDiscount data:', roomListWithDiscount);
       
-      const roomOrder = [
+      const standardOrder = [
         'Deluxe Studio Suite',
         'Deluxe Edge View',
         'Lotus Family Suite',
         'Presidential Suite',
       ];
+
+      // Dynamically find any new room types from the API that aren't in our standard order
+      const apiRoomTypes = new Set<string>();
+      roomListWithDiscount.forEach((r: any) => {
+        const rawName = String(r?.Roomtype_Name ?? r?.Roomtype ?? r?.Room_Name ?? '').trim();
+        const base = rawName.split(' - ')[0];
+        if (base) apiRoomTypes.add(normalizeRoomType(base));
+      });
+      
+      const extraRooms = Array.from(apiRoomTypes).filter(rt => 
+        !standardOrder.some(so => so.toLowerCase() === rt.toLowerCase())
+      );
+      
+      const roomOrder = [...standardOrder, ...extraRooms];
 
       const out: UiRoom[] = [];
       let idx = 0;
@@ -541,26 +557,10 @@ const Rooms = () => {
           }
         }
         
-        // If still no matching room, create a fallback room
-          finalMatchingRoom = {
-            roomtypeunkid: "0",
-            Room_Name: `${roomType} - EP`,
-            Room_Description: `${roomType} - EP`,
-            max_adult_occupancy: 4,
-            max_child_occupancy: 2,
-            available_rooms: 0,
-            rack_rate: roomType === 'Lotus Family Suite' ? 8000 : 
-                      roomType === 'Presidential Suite' ? 12500 :
-                      roomType === 'Deluxe Edge View' ? 5500 : 4500,
-            avg_price_per_night: roomType === 'Lotus Family Suite' ? 7500 :
-                                roomType === 'Presidential Suite' ? 11875 :
-                                roomType === 'Deluxe Edge View' ? 5225 : 4275,
-            total_price: roomType === 'Lotus Family Suite' ? 7500 :
-                        roomType === 'Presidential Suite' ? 11875 :
-                        roomType === 'Deluxe Edge View' ? 5225 : 4275,
-            currency_sign: '₹',
-            RoomAmenities: 'WiFi, AC, TV',
-          } as any;
+        // If still no matching room, skip this room entirely (don't show if not in API)
+        if (!finalMatchingRoom) {
+          continue;
+        }
 
         idx += 1;
 
@@ -572,7 +572,10 @@ const Rooms = () => {
 
         // Derive EP/CP/MAP plan prices from actual API variants first (some rooms only have CP/MAP)
         const candidatesForType = [...roomListWithDiscount, ...rawRooms].filter((rr: any) => {
-          const rt = normalizeRoomType(String(rr?.Roomtype_Name ?? rr?.Roomtype ?? rr?.Room_Name ?? '')).toLowerCase();
+          // Try Roomtype_Name first, then Roomtype, then strip plan suffix from Room_Name
+          const rawName = String(rr?.Roomtype_Name ?? rr?.Roomtype ?? '').trim();
+          const nameToNormalize = rawName || String(rr?.Room_Name ?? '');
+          const rt = normalizeRoomType(nameToNormalize).toLowerCase();
           return rt === roomType.toLowerCase();
         });
         const epRoom = candidatesForType.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'EP'));
@@ -589,9 +592,25 @@ const Rooms = () => {
         const cpPrice = Number.isFinite(cpFromApi) && cpFromApi > 0 ? cpFromApi : base + 500;
         const mapPrice = Number.isFinite(mapFromApi) && mapFromApi > 0 ? mapFromApi : base + 1000;
 
-        const avail = Math.max(0, ...candidatesForType.map((c: any) => getAvailabilityFromRaw(c)));
+        // Get availability: prefer eZee API candidates, then fall back to matched room, then database
+        let avail = 0;
+        if (candidatesForType.length > 0) {
+          avail = Math.max(0, ...candidatesForType.map((c: any) => getAvailabilityFromRaw(c)));
+        } else {
+          // No eZee API data for this room type — fall back to finalMatchingRoom or database
+          const matchedAvail = getAvailabilityFromRaw(finalMatchingRoom);
+          if (matchedAvail > 0) {
+            avail = matchedAvail;
+          } else {
+            // Last resort: use database room availability
+            const dbRoom = getDatabaseRoom(roomType);
+            avail = dbRoom?.availableRooms ?? 0;
+          }
+        }
 
         console.log(`[ROOMS DEBUG] Processed ${roomType}:`, {
+          candidatesCount: candidatesForType.length,
+          availability: avail,
           day_wise_beforediscount: (finalMatchingRoom as any)?.day_wise_beforediscount,
           rack_rate: finalMatchingRoom.rack_rate,
           avg_price_per_night: finalMatchingRoom.avg_price_per_night,
@@ -649,12 +668,18 @@ const Rooms = () => {
         byRoomType.set(key, list);
       }
 
-      const roomOrder = [
+      const standardOrder = [
         'Deluxe Studio Suite',
         'Deluxe Edge View',
         'Lotus Family Suite',
         'Presidential Suite',
       ];
+
+      const extraRooms = Array.from(byRoomType.keys()).filter(rt => 
+        !standardOrder.some(so => so.toLowerCase() === rt.toLowerCase())
+      );
+      
+      const roomOrder = [...standardOrder, ...extraRooms];
 
       const out: UiRoom[] = [];
       let idx = 0;
@@ -928,10 +953,15 @@ const Rooms = () => {
       </section>
 
       {/* Rooms Section */}
-      <section className="section-padding">
+      <section className="section-padding min-h-[60vh]">
         <div className="max-w-7xl mx-auto space-y-16">
-          {toUiRooms.length === 0 ? (
-            <div className="text-gray-800/70">No rooms found.</div>
+          {(roomListLoading || rawLoading) ? (
+            <div className="flex flex-col items-center justify-center py-32 space-y-4">
+              <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-gold"></div>
+              <p className="text-gray-500 font-medium animate-pulse">Fetching live room data...</p>
+            </div>
+          ) : toUiRooms.length === 0 ? (
+            <div className="text-gray-800/70 text-center py-20">No rooms available for the selected dates.</div>
           ) : (
             toUiRooms.map((room, index) => (
               <div 

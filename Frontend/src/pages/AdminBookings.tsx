@@ -181,13 +181,11 @@ const AdminBookings = () => {
   }>({});
 
   const availablePlanOptions = useMemo(() => {
+    // Always show all 3 plans — CP/MAP are derived from EP + addon pricing,
+    // so they're always available even if eZee only returns EP variants.
     const candidates: MealPlan[] = ["EP", "CP", "MAP"];
-    const present = candidates.filter((p) => {
-      const price = Number((livePlans as any)?.[p]?.pricePerNight ?? 0);
-      return Number.isFinite(price) && price > 0;
-    });
-    return present.length > 0 ? present : candidates;
-  }, [livePlans]);
+    return candidates;
+  }, []);
 
   const defaultPlanForSelection = useMemo<MealPlan>(() => {
     if (availablePlanOptions.includes("CP")) return "CP";

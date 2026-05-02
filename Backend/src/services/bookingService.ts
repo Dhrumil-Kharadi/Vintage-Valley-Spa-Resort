@@ -655,12 +655,11 @@ export const bookingService = {
     }
 
     const nightPlans = Array.isArray((booking as any).mealPlanByDate) ? (booking as any).mealPlanByDate : [];
-    let chosenPlan: "EP" | "CP" | "MAP" = "CP";
+    let chosenPlan: "EP" | "CP" | "MAP" = "EP";
     if (nightPlans.length > 0) {
       const p = String(nightPlans[0]?.plan ?? "").toUpperCase();
       if (p === "EP" || p === "CP" || p === "MAP") chosenPlan = p as any;
     }
-    if (chosenPlan === "EP") chosenPlan = "CP";
 
     // Prefer variants with distinct IDs (CP/MAP), but allow EP if that's all available
     const hasDistinctIds = (r: any) => {
@@ -717,6 +716,16 @@ export const bookingService = {
         },
       });
 
+      // Only override eZee baserate when a discount was applied (promo code or global flat).
+      // Without discount, let eZee use its original day_wise_beforediscount rates.
+      // When discounted: reverse the 5% GST that eZee will add, so eZee grand total = our total.
+      const bookingDiscountAmt = Number((booking as any).discountAmount ?? 0);
+      const hasDiscount = Number.isFinite(bookingDiscountAmt) && bookingDiscountAmt > 0;
+      const bookingFinalAmount = Number((booking as any).amount ?? 0);
+      const bookingBaseForEzee = hasDiscount && Number.isFinite(bookingFinalAmount) && bookingFinalAmount > 0
+        ? Math.round((bookingFinalAmount / 1.05) * 100) / 100
+        : undefined;
+
       pms = await ezeeBookingService.createAndConfirmBooking({
         checkIn: checkInIso,
         checkOut: checkOutIso,
@@ -730,6 +739,8 @@ export const bookingService = {
         specialRequest: String((booking as any).additionalInformation ?? "").trim() || null,
         additionalInformation: (booking as any).additionalInformation ?? null,
         bookingPaymentMode: 3,
+        finalBaseAmount: bookingBaseForEzee,
+        mealPlan: chosenPlan,
         ezeeRoom: {
           roomtypeunkid: String(preferred?.roomtypeunkid ?? ""),
           roomrateunkid: String(preferred?.roomrateunkid ?? ""),
