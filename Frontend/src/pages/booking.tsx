@@ -117,6 +117,7 @@ const Booking = () => {
   const [extraAdultsAbove10, setExtraAdultsAbove10] = useState(0);
   const [additionalInformation, setAdditionalInformation] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [promoInput, setPromoInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<{ code: string; type?: string; value?: number; discountAmount?: number } | null>(null);
@@ -1169,7 +1170,67 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
       return;
     }
 
+    setIsSubmitting(true);
+    setFormError(null);
+
     try {
+      // --- LIVE AVAILABILITY CHECK BEFORE BOOKING ---
+      const adultsCount = (() => {
+        const baseAdults = Number(room?.person ?? 2);
+        const extraAdults = Number(extraAdultsAbove10 ?? 0);
+        const computed = baseAdults + extraAdults;
+        return Number.isFinite(computed) && computed > 0 ? computed : baseAdults;
+      })();
+
+      const liveResp = await roomService.getRoomList({
+        checkIn,
+        checkOut,
+        adults: Number.isFinite(adultsCount) ? adultsCount : 1,
+        children: Number.isFinite(children5To10) ? children5To10 : 0,
+        rooms: Number.isFinite(rooms) ? rooms : 1,
+      });
+
+      if (!liveResp.ok || !liveResp.data.rooms || liveResp.data.rooms.length === 0) {
+        setFormError('Room is currently not available for the selected dates.');
+        toast.error('Room is currently not available for the selected dates.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const titleNorm = normalizeRoomType(String(room?.title ?? roomNameFromQuery ?? ''));
+      const getAnyRoomTypeName = (r: any) => String(r?.Roomtype_Name ?? r?.Roomtype ?? r?.Room_Name ?? '').trim();
+      
+      const liveRoomMatches = liveResp.data.rooms.filter((r: any) => {
+        const raw = getAnyRoomTypeName(r);
+        if (!raw) return false;
+        const base = raw.split(' - ')[0] ?? raw;
+        return normalizeRoomType(base) === titleNorm;
+      });
+
+      if (liveRoomMatches.length === 0) {
+        setFormError('Room is currently not available for the selected dates.');
+        toast.error('Room is currently not available for the selected dates.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      let maxAvail = 0;
+      for (const r of liveRoomMatches) {
+         const avail = extractAvailability(r);
+         if (avail > maxAvail) maxAvail = avail;
+      }
+
+      if (maxAvail < rooms) {
+        const msg = maxAvail === 0 
+          ? 'Room is currently not available for the selected dates.'
+          : `Only ${maxAvail} room(s) available for the selected dates.`;
+        setFormError(msg);
+        toast.error(msg);
+        setIsSubmitting(false);
+        return;
+      }
+      // --- END LIVE CHECK ---
+
       const finalTotal = appliedPromo ? discounted.total : priceBreakdown.totalAmount;
       
       console.log('[FRONTEND DEBUG] Sending booking with total amount:', {
@@ -1302,6 +1363,8 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
     } catch {
       setFormError('Booking failed');
       toast.error('Booking failed');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1982,13 +2045,20 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
                 </div>
 
                 <button
-                  disabled={nights === 0}
-                  className="w-full bg-gold text-gray-800 px-6 py-3 rounded-full font-semibold hover:bg-bronze transition-colors duration-200"
+                  disabled={nights === 0 || isSubmitting}
+                  className="w-full bg-gold text-gray-800 px-6 py-3 rounded-full font-semibold hover:bg-bronze transition-colors duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-2"
                   onClick={() => {
                     submitBooking();
                   }}
                 >
-                  Confirm Booking
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-gray-800 border-t-transparent rounded-full animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    'Confirm Booking'
+                  )}
                 </button>
 
                 {nights === 0 && (
