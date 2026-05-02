@@ -42,18 +42,41 @@ const toInt = (value, fallback) => {
 const extractPricePerNight = (r, checkIn, checkOut, nights) => {
     // Enhanced price extraction logic matching ezee.service.ts
     const rateInfo = r?.room_rates_info || {};
+    const extractAvgFromDayWise = (dayWise) => {
+        if (!dayWise)
+            return 0;
+        if (Array.isArray(dayWise)) {
+            const values = dayWise
+                .map((v) => Number(v))
+                .filter((v) => Number.isFinite(v) && v > 0);
+            if (values.length === 0)
+                return 0;
+            return values.reduce((a, b) => a + b, 0) / values.length;
+        }
+        if (typeof dayWise === "object") {
+            const values = Object.values(dayWise)
+                .map((v) => Number(v))
+                .filter((v) => Number.isFinite(v) && v > 0);
+            if (values.length === 0)
+                return 0;
+            return values.reduce((a, b) => a + b, 0) / values.length;
+        }
+        return 0;
+    };
     console.log(`[DEBUG] extractPricePerNight for room: ${r.Room_Name}`, {
+        day_wise_beforediscount: rateInfo.day_wise_beforediscount,
         rack_rate: rateInfo.rack_rate,
         avg_price_per_night: r.avg_price_per_night,
         avg_per_night_after_discount: rateInfo.avg_per_night_after_discount,
         totalprice_inclusive_all: rateInfo.totalprice_inclusive_all,
-        exclusive_tax: rateInfo.exclusive_tax
+        exclusive_tax: rateInfo.exclusive_tax,
     });
-    // PRIORITIZE rack_rate as primary price source
+    // PRIORITIZE day_wise_beforediscount as primary price source
     let price = 0;
-    if (rateInfo.rack_rate) {
-        price = Number(rateInfo.rack_rate);
-        console.log(`[DEBUG] Using rack_rate: ${price}`);
+    const dayWiseBeforeDiscount = extractAvgFromDayWise(rateInfo.day_wise_beforediscount);
+    if (Number.isFinite(dayWiseBeforeDiscount) && dayWiseBeforeDiscount > 0) {
+        price = dayWiseBeforeDiscount;
+        console.log(`[DEBUG] Using day_wise_beforediscount (avg): ${price}`);
     }
     else if (rateInfo.avg_per_night_after_discount) {
         price = Number(rateInfo.avg_per_night_after_discount);
@@ -71,7 +94,7 @@ const extractPricePerNight = (r, checkIn, checkOut, nights) => {
         price = Number(rateInfo.totalprice_room_only) / nights;
         console.log(`[DEBUG] Using totalprice_room_only / nights: ${rateInfo.totalprice_room_only} / ${nights} = ${price}`);
     }
-    else if (rateInfo.exclusive_tax && typeof rateInfo.exclusive_tax === 'object') {
+    else if (rateInfo.exclusive_tax && typeof rateInfo.exclusive_tax === "object") {
         // Handle case where exclusive_tax is an object with date keys
         const taxValues = Object.values(rateInfo.exclusive_tax)
             .map((v) => Number(v))
@@ -80,6 +103,10 @@ const extractPricePerNight = (r, checkIn, checkOut, nights) => {
             price = taxValues[0]; // Use first night's price
             console.log(`[DEBUG] Using exclusive_tax value: ${price}`);
         }
+    }
+    else if (rateInfo.rack_rate) {
+        price = Number(rateInfo.rack_rate);
+        console.log(`[DEBUG] Using fallback rack_rate: ${price}`);
     }
     // Final fallback to original avg_price_per_night
     if (price === 0) {
@@ -196,39 +223,15 @@ exports.roomController = {
                     discount_amount: discountAmount,
                     final_price: finalPrice,
                     promo_applied: promoApplied,
+                    day_wise_beforediscount: room?.room_rates_info?.day_wise_beforediscount ?? null,
                     // Include rack_rate fields for frontend EP/CP/MAP pricing
                     rack_rate: room.rack_rate,
                     rack_rate_adult: room.rack_rate_adult,
                     rack_rate_child: room.rack_rate_child,
                 };
             });
-            // Create CP and MAP variants for frontend dropdown pricing
-            const roomsWithVariants = [];
-            roomsWithDiscount.forEach((room) => {
-                // Add original room (usually EP)
-                roomsWithVariants.push(room);
-                // Create CP variant (add 500 to base price)
-                const cpRoom = {
-                    ...room,
-                    Room_Name: room.Room_Name.replace(/- EP$/i, '- CP').replace(/- CP$/i, '- CP').replace(/- MAP$/i, '- CP'),
-                    roomtypeunkid: String(BigInt(room.roomtypeunkid) + 1000000n), // Unique ID
-                    pricePerNight: room.pricePerNight + 500,
-                    avg_price_per_night: room.avg_price_per_night + 500,
-                    rack_rate: room.rack_rate ? Number(room.rack_rate) + 500 : null,
-                };
-                roomsWithVariants.push(cpRoom);
-                // Create MAP variant (add 1000 to base price)
-                const mapRoom = {
-                    ...room,
-                    Room_Name: room.Room_Name.replace(/- EP$/i, '- MAP').replace(/- CP$/i, '- MAP').replace(/- MAP$/i, '- MAP'),
-                    roomtypeunkid: String(BigInt(room.roomtypeunkid) + 2000000n), // Unique ID
-                    pricePerNight: room.pricePerNight + 1000,
-                    avg_price_per_night: room.avg_price_per_night + 1000,
-                    rack_rate: room.rack_rate ? Number(room.rack_rate) + 1000 : null,
-                };
-                roomsWithVariants.push(mapRoom);
-            });
-            res.json({ ok: true, data: { rooms: roomsWithVariants } });
+            // Return the real eZee rooms directly — the API already provides EP, CP, MAP, AP variants
+            res.json({ ok: true, data: { rooms: roomsWithDiscount } });
         }
         catch (err) {
             const cached = await roomCache.findMany({ orderBy: { createdAt: "desc" } });
@@ -270,9 +273,11 @@ exports.roomController = {
                     currency_sign: "₹",
                     RoomAmenities: "WiFi, AC, TV",
                     rack_rate: 4500,
+                    day_wise_beforediscount: ["4275.0000"],
                     room_rates_info: {
                         exclusive_tax: { "2026-03-05": "4275.0000", "2026-03-06": "4275.0000" },
-                        rack_rate: "4500.0000"
+                        rack_rate: "4500.0000",
+                        day_wise_beforediscount: ["4275.0000"]
                     }
                 },
                 {
@@ -287,9 +292,11 @@ exports.roomController = {
                     currency_sign: "₹",
                     RoomAmenities: "WiFi, AC, TV, Breakfast",
                     rack_rate: 5000,
+                    day_wise_beforediscount: ["4775.0000"],
                     room_rates_info: {
                         exclusive_tax: { "2026-03-05": "4775.0000", "2026-03-06": "4775.0000" },
-                        rack_rate: "5000.0000"
+                        rack_rate: "5000.0000",
+                        day_wise_beforediscount: ["4775.0000"]
                     }
                 },
                 {
@@ -304,9 +311,11 @@ exports.roomController = {
                     currency_sign: "₹",
                     RoomAmenities: "WiFi, AC, TV, Living Area",
                     rack_rate: 12500,
+                    day_wise_beforediscount: ["11875.0000"],
                     room_rates_info: {
                         exclusive_tax: { "2026-03-05": "11875.0000", "2026-03-06": "11875.0000" },
-                        rack_rate: "12500.0000"
+                        rack_rate: "12500.0000",
+                        day_wise_beforediscount: ["11875.0000"]
                     }
                 },
                 {
@@ -321,9 +330,11 @@ exports.roomController = {
                     currency_sign: "₹",
                     RoomAmenities: "WiFi, AC, TV, View",
                     rack_rate: 5500,
+                    day_wise_beforediscount: ["5225.0000"],
                     room_rates_info: {
                         exclusive_tax: { "2026-03-05": "5225.0000", "2026-03-06": "5225.0000" },
-                        rack_rate: "5500.0000"
+                        rack_rate: "5500.0000",
+                        day_wise_beforediscount: ["5225.0000"]
                     }
                 },
                 {
@@ -338,9 +349,11 @@ exports.roomController = {
                     currency_sign: "₹",
                     RoomAmenities: "WiFi, AC, TV, Kitchen, Living Area",
                     rack_rate: 8000,
+                    day_wise_beforediscount: ["7500.0000"],
                     room_rates_info: {
                         exclusive_tax: { "2026-03-05": "7500.0000", "2026-03-06": "7500.0000" },
-                        rack_rate: "8000.0000"
+                        rack_rate: "8000.0000",
+                        day_wise_beforediscount: ["7500.0000"]
                     }
                 }
             ];

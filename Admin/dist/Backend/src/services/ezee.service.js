@@ -227,6 +227,7 @@ exports.ezeeService = {
                 const rackRate = toNumber(rateInfo.rack_rate, 0);
                 const rackRateAdult = toNumber(r?.extra_adult_rates_info?.rack_rate, 0);
                 const rackRateChild = toNumber(r?.extra_child_rates_info?.rack_rate, 0);
+                const dayWiseBeforeDiscount = rateInfo?.day_wise_beforediscount;
                 const total = baseTotal * (numRooms > 1 ? numRooms : 1);
                 return {
                     roomtypeunkid: String(r?.roomtypeunkid ?? r?.Roomtypeunkid ?? r?.RoomTypeUNKID ?? ""),
@@ -247,6 +248,7 @@ exports.ezeeService = {
                     room_rates_info: r?.room_rates_info,
                     extra_adult_rates_info: r?.extra_adult_rates_info,
                     extra_child_rates_info: r?.extra_child_rates_info,
+                    day_wise_beforediscount: dayWiseBeforeDiscount,
                     rack_rate: rackRate,
                     rack_rate_adult: rackRateAdult,
                     rack_rate_child: rackRateChild,

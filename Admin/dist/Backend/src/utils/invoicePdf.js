@@ -245,7 +245,7 @@ const generateBookingInvoicePdfBuffer = async (b) => {
     doc.setFont("helvetica", "normal");
     const hasMap = (b.mealPlanByDate || []).some((d) => d.plan === "MAP");
     const hasCp = (b.mealPlanByDate || []).some((d) => d.plan === "CP");
-    const mealPlan = hasMap ? "AP" : hasCp ? "CP" : "EP";
+    const mealPlan = hasMap ? "MAP" : hasCp ? "CP" : "EP";
     doc.text(`: ${roomTitle} - ${mealPlan}`, tableX + 70, y);
     y += 18;
     addPageIfNeeded(y + 180);

@@ -318,7 +318,9 @@ exports.bookingService = {
                 if (values.length > 0)
                     return values[0];
             }
-            const rack = Number(extra?.rack_rate ?? 0);
+            const dayWise = extra?.day_wise_beforediscount;
+            const rack = Number((Array.isArray(dayWise) && dayWise.length > 0 ? dayWise[0] : null) ??
+                extra?.rack_rate ?? 0);
             return Number.isFinite(rack) && rack > 0 ? rack : 0;
         };
         // Compute room total per night based on meal plan per date
@@ -602,14 +604,12 @@ exports.bookingService = {
             throw new errorHandler_1.HttpError(400, "Selected room not available for these dates");
         }
         const nightPlans = Array.isArray(booking.mealPlanByDate) ? booking.mealPlanByDate : [];
-        let chosenPlan = "CP";
+        let chosenPlan = "EP";
         if (nightPlans.length > 0) {
             const p = String(nightPlans[0]?.plan ?? "").toUpperCase();
             if (p === "EP" || p === "CP" || p === "MAP")
                 chosenPlan = p;
         }
-        if (chosenPlan === "EP")
-            chosenPlan = "CP";
         // Prefer variants with distinct IDs (CP/MAP), but allow EP if that's all available
         const hasDistinctIds = (r) => {
             const rt = String(r?.roomtypeunkid ?? "");
@@ -658,6 +658,15 @@ exports.bookingService = {
                     available_rooms: availableRooms,
                 },
             });
+            // Only override eZee baserate when a discount was applied (promo code or global flat).
+            // Without discount, let eZee use its original day_wise_beforediscount rates.
+            // When discounted: reverse the 5% GST that eZee will add, so eZee grand total = our total.
+            const bookingDiscountAmt = Number(booking.discountAmount ?? 0);
+            const hasDiscount = Number.isFinite(bookingDiscountAmt) && bookingDiscountAmt > 0;
+            const bookingFinalAmount = Number(booking.amount ?? 0);
+            const bookingBaseForEzee = hasDiscount && Number.isFinite(bookingFinalAmount) && bookingFinalAmount > 0
+                ? Math.round((bookingFinalAmount / 1.05) * 100) / 100
+                : undefined;
             pms = await ezeeBooking_service_1.ezeeBookingService.createAndConfirmBooking({
                 checkIn: checkInIso,
                 checkOut: checkOutIso,
@@ -671,6 +680,8 @@ exports.bookingService = {
                 specialRequest: String(booking.additionalInformation ?? "").trim() || null,
                 additionalInformation: booking.additionalInformation ?? null,
                 bookingPaymentMode: 3,
+                finalBaseAmount: bookingBaseForEzee,
+                mealPlan: chosenPlan,
                 ezeeRoom: {
                     roomtypeunkid: String(preferred?.roomtypeunkid ?? ""),
                     roomrateunkid: String(preferred?.roomrateunkid ?? ""),

@@ -79,7 +79,7 @@ const sendMailSafe = async (params) => {
     if (port === 465 && secure === false)
         secure = true;
     // eslint-disable-next-line no-console
-    console.error("MAILER CONFIG >>>", {
+    console.log("MAILER CONFIG >>>", {
         host,
         port,
         secure,
@@ -140,7 +140,7 @@ const sendMailSafe = async (params) => {
             info = await sendWith({ host, port: 465, secure: true, label: "fallback_465_ssl" });
         }
         // eslint-disable-next-line no-console
-        console.error("MAILER SENT >>>", {
+        console.log("MAILER SENT >>>", {
             to: params.to,
             subject: params.subject,
             messageId: info?.messageId,

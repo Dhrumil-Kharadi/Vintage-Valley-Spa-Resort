@@ -358,14 +358,12 @@ exports.adminService = {
             throw new errorHandler_1.HttpError(400, "Selected room not available for these dates");
         }
         const nightPlans = Array.isArray(mealPlanByDate) ? mealPlanByDate : [];
-        let chosenPlan = "CP";
+        let chosenPlan = "EP";
         if (nightPlans.length > 0) {
             const p = String(nightPlans[0]?.plan ?? "").toUpperCase();
             if (p === "EP" || p === "CP" || p === "MAP")
                 chosenPlan = p;
         }
-        if (chosenPlan === "EP")
-            chosenPlan = "CP";
         // Prefer variants with distinct IDs (CP/MAP), but allow EP if that's all that's available
         const hasDistinctIds = (r) => {
             const rt = String(r?.roomtypeunkid ?? "");
@@ -418,6 +416,10 @@ exports.adminService = {
                     available_rooms: availableRooms,
                 },
             });
+            // Only override eZee baserate when admin has applied a discount (amountOverride).
+            // Without override, let eZee use its original day_wise_beforediscount rates.
+            // When overriding: reverse the 5% GST that eZee will add, so eZee grand total = our total.
+            const ezeeBaseAmount = hasOverride ? round2(override / 1.05) : undefined;
             pms = await ezeeBooking_service_1.ezeeBookingService.createAndConfirmBooking({
                 checkIn: checkInIso,
                 checkOut: checkOutIso,
@@ -431,6 +433,8 @@ exports.adminService = {
                 specialRequest: String(params.additionalInformation ?? "").trim() || null,
                 additionalInformation: params.additionalInformation ?? null,
                 bookingPaymentMode: 0,
+                finalBaseAmount: ezeeBaseAmount,
+                mealPlan: chosenPlan,
                 ezeeRoom: {
                     roomtypeunkid: String(preferred?.roomtypeunkid ?? ""),
                     roomrateunkid: String(preferred?.roomrateunkid ?? ""),
