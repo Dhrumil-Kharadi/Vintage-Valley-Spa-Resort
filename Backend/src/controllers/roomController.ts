@@ -489,4 +489,60 @@ export const roomController = {
       });
     }
   }),
+
+  // ── Lotus Family Suite availability (separate kiosk API) ────────
+  lotusAvailability: asyncHandler(async (req, res) => {
+    const today = isoToday();
+    const checkIn = normalizeIsoDateQuery(req.query.checkIn, today);
+    const checkOut = normalizeIsoDateQuery(req.query.checkOut, addDaysIso(checkIn, 1));
+
+    try {
+      const axios = (await import("axios")).default;
+      const body = {
+        RES_Request: {
+          Request_Type: "RoomAvailability",
+          Authentication: {
+            HotelCode: "46924",
+            AuthCode: "5295697129d7c0f7f5-13a2-11f1-9",
+          },
+          RoomData: {
+            RoomtypeID: "4692400000000000002",
+            from_date: checkIn,
+            to_date: checkOut,
+          },
+        },
+      };
+
+      const response = await axios.post(
+        "https://live.ipms247.com/index.php/page/service.kioskconnectivity",
+        body,
+        { timeout: 15000, headers: { "Content-Type": "application/json" } },
+      );
+
+      const data = response.data;
+      const errorCode = String(data?.Errors?.ErrorCode ?? "");
+      const roomList = Array.isArray(data?.Success?.RoomList) ? data.Success.RoomList : [];
+      const roomData = roomList.length > 0 && Array.isArray(roomList[0]?.RoomData) ? roomList[0].RoomData : [];
+
+      const available = errorCode === "0" && roomData.length > 0;
+
+      res.json({
+        success: true,
+        available,
+        availableCount: roomData.length,
+        roomtypeId: "4692400000000000002",
+        roomtypeName: "Lotus Family Suite",
+      });
+    } catch (err: any) {
+      console.error("[LOTUS] Availability check failed:", err?.message ?? err);
+      res.json({
+        success: true,
+        available: false,
+        availableCount: 0,
+        roomtypeId: "4692400000000000002",
+        roomtypeName: "Lotus Family Suite",
+        error: "Failed to check Lotus availability",
+      });
+    }
+  }),
 };

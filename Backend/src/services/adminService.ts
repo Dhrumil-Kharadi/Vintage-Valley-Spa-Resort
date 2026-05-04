@@ -447,9 +447,14 @@ export const adminService = {
       });
       // Only override eZee baserate when admin has applied a discount (amountOverride).
       // Without override, let eZee use its original day_wise_beforediscount rates.
-      // When overriding: reverse the 5% GST that eZee will add, so eZee grand total = our total.
-      const ezeeBaseAmount = hasOverride ? round2(override / 1.05) : undefined;
-
+      // When overriding: reverse the GST that eZee will add, so eZee grand total = our total.
+      // Based on eZee invoices, this hotel's eZee account adds 5% GST for rates <= 7500, and 18% for > 7500.
+      let ezeeBaseAmount: number | undefined;
+      if (hasOverride) {
+        const perNight = override / (rooms * nights);
+        const gstRate = perNight <= 7875 ? 1.05 : 1.18; // 7875 is 7500 + 5% tax
+        ezeeBaseAmount = round2(override / gstRate);
+      }
       pms = await ezeeBookingService.createAndConfirmBooking({
         checkIn: checkInIso,
         checkOut: checkOutIso,

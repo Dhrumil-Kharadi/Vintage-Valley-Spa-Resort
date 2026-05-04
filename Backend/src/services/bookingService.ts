@@ -718,13 +718,21 @@ export const bookingService = {
 
       // Only override eZee baserate when a discount was applied (promo code or global flat).
       // Without discount, let eZee use its original day_wise_beforediscount rates.
-      // When discounted: reverse the 5% GST that eZee will add, so eZee grand total = our total.
+      // When discounted: reverse the GST that eZee will add, so eZee grand total = our total.
+      // Based on eZee invoices, this hotel's eZee account adds 5% GST for rates <= 7500, and 18% for > 7500.
       const bookingDiscountAmt = Number((booking as any).discountAmount ?? 0);
       const hasDiscount = Number.isFinite(bookingDiscountAmt) && bookingDiscountAmt > 0;
       const bookingFinalAmount = Number((booking as any).amount ?? 0);
-      const bookingBaseForEzee = hasDiscount && Number.isFinite(bookingFinalAmount) && bookingFinalAmount > 0
-        ? Math.round((bookingFinalAmount / 1.05) * 100) / 100
-        : undefined;
+      
+      let bookingBaseForEzee: number | undefined;
+      if (hasDiscount && Number.isFinite(bookingFinalAmount) && bookingFinalAmount > 0) {
+        const ci = new Date(checkInIso);
+        const co = new Date(checkOutIso);
+        const nights = Math.max(1, Math.ceil((co.getTime() - ci.getTime()) / (1000 * 60 * 60 * 24)));
+        const perNight = bookingFinalAmount / (roomsRequested * nights);
+        const gstRate = perNight <= 7875 ? 1.05 : 1.18; // 7875 is 7500 + 5% tax
+        bookingBaseForEzee = Math.round((bookingFinalAmount / gstRate) * 100) / 100;
+      }
 
       pms = await ezeeBookingService.createAndConfirmBooking({
         checkIn: checkInIso,

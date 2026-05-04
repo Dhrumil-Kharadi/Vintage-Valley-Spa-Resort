@@ -97,6 +97,9 @@ const Rooms = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Lotus Family Suite availability (from separate kiosk API)
+  const [lotusAvailability, setLotusAvailability] = useState<{ available: boolean; count: number }>({ available: false, count: 0 });
+
   // Promo cards state
   const [activePromos, setActivePromos] = useState<any[]>([]);
   const [selectedRoomTitle, setSelectedRoomTitle] = useState<string | null>(null);
@@ -183,12 +186,29 @@ const Rooms = () => {
     navigate(`/booking?room=${encodeURIComponent(selectedRoomTitle)}`);
   };
 
+  // Fetch Lotus Family Suite availability from separate kiosk API
+  const fetchLotusAvailability = async () => {
+    try {
+      const response = await fetch(`/api/rooms/lotus-availability?checkIn=${encodeURIComponent(checkIn)}&checkOut=${encodeURIComponent(checkOut)}`);
+      const data = await response.json().catch(() => null);
+      if (data?.success) {
+        setLotusAvailability({ available: Boolean(data.available), count: Number(data.availableCount ?? 0) });
+        console.log('[DEBUG] Lotus availability:', data);
+      } else {
+        setLotusAvailability({ available: false, count: 0 });
+      }
+    } catch {
+      setLotusAvailability({ available: false, count: 0 });
+    }
+  };
+
   // Fetch database rooms on component mount
   useEffect(() => {
     fetchDatabaseRooms();
     fetchRawRooms();
     fetchLiveRoomPrices();
     fetchRoomListWithDiscount();
+    fetchLotusAvailability();
   }, []);
 
   const fetchRoomListWithDiscount = async () => {
@@ -299,6 +319,7 @@ const Rooms = () => {
     fetchRawRooms();
     fetchLiveRoomPrices();
     fetchRoomListWithDiscount();
+    fetchLotusAvailability();
   }, [checkIn, checkOut]);
 
   // Get database room for a room title
@@ -557,8 +578,32 @@ const Rooms = () => {
           }
         }
         
-        // If still no matching room, skip this room entirely (don't show if not in API)
+        // If still no matching room: for Lotus, use kiosk API + static data; for others, skip
         if (!finalMatchingRoom) {
+          if (roomType === 'Lotus Family Suite' && lotusAvailability.available && lotusAvailability.count > 0) {
+            // Lotus not in standard API but available via separate kiosk API — create synthetic entry from static data
+            const lotusStatic = staticRooms.find((sr) => sr.title === 'Lotus Family Suite');
+            if (lotusStatic) {
+              idx += 1;
+              out.push({
+                id: idx,
+                title: 'Lotus Family Suite',
+                subtitle: lotusStatic.subtitle || 'Spacious Luxury for Families',
+                images: lotusStatic.images && lotusStatic.images.length > 0 ? lotusStatic.images : ['/images/room/1.jpeg', '/images/room/4.jpeg', '/images/room/5.jpeg'],
+                description: lotusStatic.description || 'Luxury accommodation',
+                capacity: lotusStatic.capacity || '4 Guests',
+                bedType: lotusStatic.bedType || 'King Bed',
+                size: lotusStatic.size || 'Spacious',
+                available: lotusAvailability.count,
+                pricing: {
+                  weekday: !hasInteractedWithDates ? '₹0' : lotusStatic.pricing?.weekday ?? '₹8,000',
+                  weekend: !hasInteractedWithDates ? '₹0' : lotusStatic.pricing?.weekend ?? '₹9,000',
+                },
+                planPrices: { ep: '', cp: '', map: '' },
+                amenities: (lotusStatic.amenities ?? []).map((a: any) => ({ icon: a.icon, name: a.name })),
+              });
+            }
+          }
           continue;
         }
 
@@ -685,7 +730,33 @@ const Rooms = () => {
       let idx = 0;
       for (const roomType of roomOrder) {
         const list = byRoomType.get(roomType);
-        if (!list || !list.length) continue;
+        if (!list || !list.length) {
+          // For Lotus, use kiosk API + static data when not in rawRooms
+          if (roomType === 'Lotus Family Suite' && lotusAvailability.available && lotusAvailability.count > 0) {
+            const lotusStatic = staticRooms.find((sr) => sr.title === 'Lotus Family Suite');
+            if (lotusStatic) {
+              idx += 1;
+              out.push({
+                id: idx,
+                title: 'Lotus Family Suite',
+                subtitle: lotusStatic.subtitle || 'Spacious Luxury for Families',
+                images: lotusStatic.images && lotusStatic.images.length > 0 ? lotusStatic.images : ['/images/room/1.jpeg', '/images/room/4.jpeg', '/images/room/5.jpeg'],
+                description: lotusStatic.description || 'Luxury accommodation',
+                capacity: lotusStatic.capacity || '4 Guests',
+                bedType: lotusStatic.bedType || 'King Bed',
+                size: lotusStatic.size || 'Spacious',
+                available: lotusAvailability.count,
+                pricing: {
+                  weekday: !hasInteractedWithDates ? '₹0' : lotusStatic.pricing?.weekday ?? '₹8,000',
+                  weekend: !hasInteractedWithDates ? '₹0' : lotusStatic.pricing?.weekend ?? '₹9,000',
+                },
+                planPrices: { ep: '', cp: '', map: '' },
+                amenities: (lotusStatic.amenities ?? []).map((a: any) => ({ icon: a.icon, name: a.name })),
+              });
+            }
+          }
+          continue;
+        }
 
         const cp = list.find((rr) => isPlan(String(rr?.Room_Name ?? ''), 'CP'));
         const ep = list.find((rr) => isPlan(String(rr?.Room_Name ?? ''), 'EP'));
@@ -780,7 +851,7 @@ const Rooms = () => {
         }),
       };
     });
-  }, [dbRooms, rawRooms, roomListWithDiscount]);
+  }, [dbRooms, rawRooms, roomListWithDiscount, lotusAvailability]);
 
   return (
     <div className="min-h-screen bg-ivory">

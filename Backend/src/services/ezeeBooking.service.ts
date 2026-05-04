@@ -314,6 +314,73 @@ function diagnosePayload(data: any, nights: number): string[] {
   return issues;
 }
 
+// ─── RateTypeID / RatePlanID static mapping ──────────────────────────
+//
+// Ensures the correct IDs are sent to eZee based on the room type AND
+// the meal plan the user selected (EP/CP/MAP/AP).
+//
+const RATE_TYPE_BY_PLAN: Record<string, string> = {
+  EP:  "4692400000000000001",
+  CP:  "4692400000000000002",
+  MAP: "4692400000000000003",
+  AP:  "4692400000000000004",
+};
+
+const RATE_PLAN_MAP: Record<string, Record<string, string>> = {
+  // Deluxe Studio Suite
+  "4692400000000000001": {
+    EP:  "4692400000000000001",
+    CP:  "4692400000000000002",
+    MAP: "4692400000000000003",
+    AP:  "4692400000000000004",
+  },
+  // Lotus Family Suite
+  "4692400000000000002": {
+    EP:  "4692400000000000011",
+    CP:  "4692400000000000005",
+    MAP: "4692400000000000006",
+    AP:  "4692400000000000007",
+  },
+  // Presidential Suite
+  "4692400000000000003": {
+    EP:  "4692400000000000016",
+    CP:  "4692400000000000008",
+    MAP: "4692400000000000009",
+    AP:  "4692400000000000010",
+  },
+  // Deluxe Edge View
+  "4692400000000000005": {
+    EP:  "4692400000000000014",
+    CP:  "4692400000000000013",
+    MAP: "4692400000000000015",
+    AP:  "4692400000000000012",
+  },
+};
+
+/**
+ * Pure lookup: given a roomTypeID and selectedPlan, returns the correct
+ * RatePlanID and RateTypeID to send to eZee.
+ * Returns null if the combination is not recognised (caller should fall back).
+ */
+export function getRatePlanAndType(
+  roomTypeID: string,
+  selectedPlan: string,
+): { RatePlanID: string; RateTypeID: string } | null {
+  const plan = String(selectedPlan ?? "").trim().toUpperCase();
+  const rateTypeID = RATE_TYPE_BY_PLAN[plan];
+  const roomPlans = RATE_PLAN_MAP[String(roomTypeID ?? "").trim()];
+  const ratePlanID = roomPlans?.[plan];
+
+  if (!rateTypeID || !ratePlanID) {
+    console.warn(
+      `⚠️ [EZEE] getRatePlanAndType: unrecognised roomTypeID="${roomTypeID}" or plan="${selectedPlan}". Falling back to existing IDs.`,
+    );
+    return null;
+  }
+
+  return { RatePlanID: ratePlanID, RateTypeID: rateTypeID };
+}
+
 // ─── Main booking function ───────────────────────────────────────────
 
 export async function createAndConfirmBooking(params: CreateAndConfirmBookingParams): Promise<{
@@ -449,18 +516,38 @@ export async function createAndConfirmBooking(params: CreateAndConfirmBookingPar
   // identical — eZee rejects this with ParametersMissing.  The caller
   // MUST select a CP/MAP variant that has distinct IDs.
   //
-  const roomtypeId = assertNonEmpty(String(params.ezeeRoom.roomtypeunkid), "Roomtype_Id");
-  const rateplanId = assertNonEmpty(String(params.ezeeRoom.roomrateunkid), "Rateplan_Id (roomrateunkid)");
-  const ratetypeId = assertNonEmpty(String(params.ezeeRoom.ratetypeunkid), "Ratetype_Id (ratetypeunkid)");
+  let roomtypeId = assertNonEmpty(String(params.ezeeRoom.roomtypeunkid), "Roomtype_Id");
+  let rateplanId = assertNonEmpty(String(params.ezeeRoom.roomrateunkid), "Rateplan_Id (roomrateunkid)");
+  let ratetypeId = assertNonEmpty(String(params.ezeeRoom.ratetypeunkid), "Ratetype_Id (ratetypeunkid)");
+
+  // ── Override Ratetype_Id with static mapping ─────────
+  // The availability API may return generic IDs or EP-only IDs. We override the
+  // Ratetype_Id based on the selected meal plan so the eZee invoice shows the correct plan.
+  // CRITICAL FIX: We DO NOT override Rateplan_Id, because Rateplan_Id governs inventory.
+  // If we override Rateplan_Id to a plan that the API didn't return, eZee rejects it with
+  // 'RoomsNotAvailable'. We must use the Rateplan_Id that actually has inventory.
+  const selectedPlan = String(params.mealPlan ?? "EP").trim().toUpperCase();
+  const mapped = getRatePlanAndType(roomtypeId, selectedPlan);
+  if (mapped) {
+    console.log("🗺️ [EZEE] Overriding Ratetype_Id for correct invoice display:", {
+      originalRatetypeId: ratetypeId,
+      newRatetypeId: mapped.RateTypeID,
+      originalRateplanId: rateplanId,
+      selectedPlan,
+    });
+    ratetypeId = mapped.RateTypeID;
+    // We intentionally leave rateplanId alone!
+  }
 
   // ── ID DISTINCTNESS CHECK ───────────────────────────────────────
   const allIdentical = (roomtypeId === rateplanId && rateplanId === ratetypeId);
 
-  console.log("🔑 [EZEE] ID CHECK (from availability API):", {
+  console.log("🔑 [EZEE] ID CHECK (final):", {
     Roomtype_Id: roomtypeId,
     Rateplan_Id: rateplanId,
     Ratetype_Id: ratetypeId,
     allIdentical,
+    mealPlan: selectedPlan,
   });
 
   if (allIdentical) {
@@ -710,4 +797,5 @@ export async function createAndConfirmBooking(params: CreateAndConfirmBookingPar
 
 export const ezeeBookingService = {
   createAndConfirmBooking,
+  getRatePlanAndType,
 };
