@@ -502,7 +502,10 @@ export async function createAndConfirmBooking(params: CreateAndConfirmBookingPar
   // Per eZee guidelines and standalone testing, sending Source_Id 
   // or paymenttypeunkid can artificially restrict availability and 
   // cause "RoomsNotAvailable" errors if the rate plan isn't mapped 
-  // to that source ID in eZee. We will always send empty strings.
+  // to that source ID in eZee. We send empty strings by default,
+  // but for successful prepaid Razorpay transactions (bookingPaymentMode === 3),
+  // we send the configured EZEE_PAYMENTTYPEUNKID so the invoice correctly
+  // reflects the prepaid status.
 
   // ── 6. Build Room_Details OBJECT (Room_1, Room_2, …) ────────────
   //
@@ -603,7 +606,9 @@ export async function createAndConfirmBooking(params: CreateAndConfirmBookingPar
     Fax: "",
     Device: "",
     Languagekey: "en",
-    paymenttypeunkid: "",
+    paymenttypeunkid: (params.bookingPaymentMode === 3 && env.EZEE_PAYMENTTYPEUNKID)
+      ? String(env.EZEE_PAYMENTTYPEUNKID)
+      : "",
   };
 
   // ── 8. Sanitize: remove undefined/null fields ───────────────────

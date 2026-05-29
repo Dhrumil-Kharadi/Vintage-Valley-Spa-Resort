@@ -2045,7 +2045,7 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
                 </div>
 
                 <button
-                  disabled={nights === 0 || isSubmitting}
+                  disabled={nights === 0 || isSubmitting || ezeeLoading}
                   className="w-full bg-gold text-gray-800 px-6 py-3 rounded-full font-semibold hover:bg-bronze transition-colors duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-2"
                   onClick={() => {
                     submitBooking();
@@ -2055,6 +2055,11 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
                     <>
                       <div className="w-5 h-5 border-2 border-gray-800 border-t-transparent rounded-full animate-spin" />
                       Verifying...
+                    </>
+                  ) : ezeeLoading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-gray-800 border-t-transparent rounded-full animate-spin" />
+                      Fetching Live Prices...
                     </>
                   ) : (
                     'Confirm Booking'

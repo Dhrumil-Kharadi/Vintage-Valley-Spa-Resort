@@ -81,6 +81,8 @@ export const adminController: Record<"users" | "rooms" | "bookings" | "newBookin
       mealPlanByDate: z
         .array(z.object({ date: z.string().min(1), plan: z.enum(["EP", "CP", "MAP"]) }))
         .optional(),
+      promoCode: z.string().nullable().optional(),
+      discountAmount: z.number().nonnegative().optional(),
     });
 
     const body = schema.parse(req.body);
@@ -106,6 +108,8 @@ export const adminController: Record<"users" | "rooms" | "bookings" | "newBookin
       extraAdults: body.extraAdults,
       additionalInformation: body.additionalInformation ?? null,
       mealPlanByDate: body.mealPlanByDate,
+      promoCode: body.promoCode,
+      discountAmount: body.discountAmount,
     });
 
     res.json({ ok: true, data: { booking } });

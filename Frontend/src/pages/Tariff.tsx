@@ -196,7 +196,7 @@ const Tariff = () => {
           <div className="bg-white rounded-3xl luxury-shadow overflow-hidden">
             <div className="bg-gradient-to-r from-gray-800 to-gray-800/90 text-ivory p-6">
               <h2 className="font-playfair text-3xl font-bold text-center">
-                ROOM TARIFF 2024 - 2025
+                ROOM TARIFF 2025 - 2026
               </h2>
             </div>
 

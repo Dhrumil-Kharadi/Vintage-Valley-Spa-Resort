@@ -146,6 +146,8 @@ export const adminService = {
     additionalInformation?: string | null;
     mealPlanByDate?: Array<{ date: string; plan: "EP" | "CP" | "MAP" }>;
     amountOverride?: number;
+    promoCode?: string | null;
+    discountAmount?: number;
   }) {
     let userId = params.userId?.trim() ? String(params.userId).trim() : "";
     const staffName = String((params as any).staffName ?? "").trim();
@@ -496,6 +498,16 @@ export const adminService = {
     }
 
     try {
+      let promoCodeId: string | null = null;
+      if (params.promoCode) {
+        const promo = await prisma.promoCode.findUnique({
+          where: { code: params.promoCode },
+        });
+        if (promo) {
+          promoCodeId = promo.id;
+        }
+      }
+
       const method = (params.paymentMethod ?? "CASH") as "CASH" | "UPI" | "CARD";
       const bookingData: any = {
         userId,
@@ -522,6 +534,9 @@ export const adminService = {
         ezeeSubReservationNos: pms.subReservationNos,
         ezeeInventoryMode: pms.inventoryMode,
         ezeeConfirmedAt: new Date(),
+        promoCodeId,
+        promoCode: params.promoCode ?? null,
+        discountAmount: params.discountAmount ? new Prisma.Decimal(params.discountAmount.toFixed(2)) : new Prisma.Decimal("0.00"),
       };
 
       // Only include mealPlanByDate if it has values
@@ -548,6 +563,13 @@ export const adminService = {
             },
           },
         });
+
+        if (promoCodeId) {
+          await (tx as any).promoCode.update({
+            where: { id: promoCodeId },
+            data: { usedCount: { increment: 1 } },
+          });
+        }
 
         // Then fetch the booking with all required relations
         const fullBooking = await tx.booking.findUnique({

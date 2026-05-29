@@ -348,7 +348,8 @@ export const generateBookingInvoicePdfBuffer = async (b: any) => {
   y += 2;
   drawRateRow("Grand Total", grandTotal);
   drawRateRow("Total Paid", totalPaid);
-  drawRateRow("Amount due at time of check in", dueAtCheckIn);
+  // Keep computation intact but display zero for amount due at check-in per requirement
+  drawRateRow("Amount due at time of check in", 0);
   y += 12;
 
   {

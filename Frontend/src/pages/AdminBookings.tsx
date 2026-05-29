@@ -888,6 +888,12 @@ const AdminBookings = () => {
           additionalInformation: additionalInformation.trim() ? additionalInformation.trim() : null,
           mealPlanByDate: nightDates.map((d) => ({ date: d, plan: mealPlanByDate[d] ?? "CP" })),
           amountOverride: overrideAmount !== null ? Number(overrideAmount) : undefined,
+          promoCode: appliedPromo?.code ?? (globalPromo?.promoApplied ? "GLOBAL" : null),
+          discountAmount: appliedPromo 
+            ? (discountedEstimate?.discount ?? 0) 
+            : (globalPromo?.promoApplied 
+                ? (Math.max(0, Number(globalPromo.discountPerNight)) * nights * rooms) 
+                : 0),
         }),
       });
 

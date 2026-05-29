@@ -52,6 +52,8 @@ export const adminDataController = {
         .array(z.object({ date: z.string().min(1), plan: z.enum(["EP", "CP", "MAP"]) }))
         .optional(),
       amountOverride: z.number().finite().nonnegative().optional(),
+      promoCode: z.string().nullable().optional(),
+      discountAmount: z.number().nonnegative().optional(),
     });
 
     const body = schema.parse(req.body);
@@ -79,6 +81,8 @@ export const adminDataController = {
       additionalInformation: body.additionalInformation ?? null,
       mealPlanByDate: body.mealPlanByDate,
       amountOverride: body.amountOverride,
+      promoCode: body.promoCode,
+      discountAmount: body.discountAmount,
     });
 
     res.json({ ok: true, data: { booking } });
