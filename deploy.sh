@@ -19,6 +19,15 @@ npx prisma generate
 echo "🏗 Building Backend..."
 npm run build
 
+echo "📦 Setting up Admin..."
+cd ../Admin
+
+echo "📦 Installing dependencies..."
+npm install
+
+echo "🏗 Building Admin..."
+npm run build
+
 echo "📦 Setting up Frontend..."
 cd ../Frontend
 
