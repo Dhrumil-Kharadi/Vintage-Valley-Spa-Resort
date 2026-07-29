@@ -3,6 +3,7 @@ import Footer from "@/components/Footer";
 import FloatingContact from "@/components/FloatingContact";
 import { roomLivePriceService, RoomPrice } from "../lib/roomLivePrice.service";
 import { useEffect, useState } from "react";
+import { openEzeeBookingEngine } from "../services/ezeeBookingService";
 
 const getAvailabilityStatus = (availability: number, requestedRooms: number) => {
   if (availability < requestedRooms) {
@@ -214,12 +215,10 @@ const RoomMinimal = () => {
                           disabled={isSoldOut}
                           onClick={() => {
                             if (!isSoldOut) {
-                              const msg = encodeURIComponent(
-                                `Hello! I want to book ${room.roomType}.\nCheck-in: ${checkIn}\nCheck-out: ${checkOut}\nAdults: ${adults}\nChildren: ${children}\nRooms: ${rooms}`
-                              );
-                              window.open(`https://wa.me/919371179888?text=${msg}`, "_blank");
+                              openEzeeBookingEngine({ checkIn, checkOut, adults, children });
                             }
                           }}
+
                         >
                           {isSoldOut ? "Sold Out" : "Book Now"}
                         </button>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
+import { openEzeeBookingEngine } from '../services/ezeeBookingService';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -146,15 +147,15 @@ const Navbar = () => {
           <div className="hidden md:flex items-center space-x-4 sm:space-x-8">
             {navLinks.map((link) => (
               link.name === 'Book Now' ? (
-                <Link
+                <button
                   key={`${link.path}:${link.name}`}
-                  to={link.path}
+                  onClick={() => openEzeeBookingEngine()}
                   className={`px-5 py-2.5 rounded-full font-semibold text-sm sm:text-base transition-all duration-200 border border-gold/30 shadow-sm hover:shadow-md active:scale-[0.99] ${
                     isScrolled ? 'bg-gold text-gray-800 hover:bg-bronze' : 'bg-gold text-gray-800 hover:bg-bronze'
                   }`}
                 >
                   {link.name}
-                </Link>
+                </button>
               ) : (
                 <Link
                   key={link.path}
@@ -217,13 +218,15 @@ const Navbar = () => {
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center gap-2">
             {bookNowLink && (
-              <Link
-                to={bookNowLink.path}
+              <button
                 className="px-4 py-2 rounded-full font-semibold text-sm bg-gold text-gray-800 hover:bg-bronze transition-colors duration-200"
-                onClick={() => setIsMobileMenuOpen(false)}
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  openEzeeBookingEngine();
+                }}
               >
                 Book Now
-              </Link>
+              </button>
             )}
             <button
               className="p-2"

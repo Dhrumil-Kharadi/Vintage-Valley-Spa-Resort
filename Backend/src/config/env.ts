@@ -11,7 +11,7 @@ const envSchema = z.object({
 
   CLIENT_URL: z.string().default("http://localhost:8080"),
 
-  DATABASE_URL: z.string().min(1),
+  DATABASE_URL: z.string().transform((val) => val.trim()).pipe(z.string().min(1)).default("mysql://root:@localhost:3306/vintage_valley"),
 
   JWT_SECRET: z.string().min(16),
   JWT_EXPIRES_IN: z.string().default("7d"),

@@ -3,6 +3,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Calendar, Users, Coffee, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
+import { openEzeeBookingEngine } from '../services/ezeeBookingService';
 
 const Tariff = () => {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
@@ -324,9 +325,13 @@ const Tariff = () => {
             Book your perfect getaway and create unforgettable memories at Vintage Valley Resort
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="bg-gold text-gray-800 px-8 py-4 rounded-full font-semibold text-lg hover:bg-bronze transition-all duration-300 transform hover:scale-105">
+            <button 
+              onClick={() => openEzeeBookingEngine()}
+              className="bg-gold text-gray-800 px-8 py-4 rounded-full font-semibold text-lg hover:bg-bronze transition-all duration-300 transform hover:scale-105"
+            >
               Book Now
             </button>
+
             <button className="border-2 border-ivory text-ivory px-8 py-4 rounded-full font-semibold text-lg hover:bg-ivory hover:text-gray-800 transition-all duration-300">
               Call +91 9371179888
             </button>

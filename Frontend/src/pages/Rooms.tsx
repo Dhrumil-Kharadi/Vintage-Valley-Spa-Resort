@@ -8,6 +8,8 @@ import { toast } from 'react-toastify';
 import { rooms as staticRooms } from '../roomsData';
 import { roomDatabaseService, DatabaseRoom } from '../lib/roomDatabase.service';
 import { roomService, RoomPrice, RoomListResponse } from '../lib/roomService';
+import { openEzeeBookingEngine } from '../services/ezeeBookingService';
+import EzeeBookingWidget from '../components/EzeeBookingWidget';
 
 type UiRoom = {
   id: number;
@@ -505,14 +507,14 @@ const Rooms = () => {
   };
 
   const goToBooking = (roomId: number) => {
-    navigate(`/booking/${roomId}`);
+    openEzeeBookingEngine({ checkIn, checkOut, adults: 2, children: 0 });
   };
 
   const goToBookingByName = (roomName: string) => {
     const name = String(roomName ?? '').trim();
     if (!name) return;
     setSelectedRoomTitle(name);
-    navigate(`/booking?room=${encodeURIComponent(name)}`);
+    openEzeeBookingEngine({ checkIn, checkOut, adults: 2, children: 0 });
   };
 
   const amenityIconByName: Record<string, any> = {
@@ -944,6 +946,7 @@ const Rooms = () => {
                 <span className="text-sm font-medium uppercase tracking-widest">Pricing & Offers Updated for {nights} {nights === 1 ? 'Night' : 'Nights'}</span>
               </div>
             )}
+
           </div>
         </div>
       </section>
@@ -1162,35 +1165,17 @@ const Rooms = () => {
 
                 {/* CTA Buttons */}
                 <div className="flex flex-col sm:flex-row gap-4">
-                  {(() => {
-                    const candidates = [...roomListWithDiscount, ...rawRooms].filter((rr: any) => {
-                      const rt = normalizeRoomType(String(rr?.Roomtype_Name ?? rr?.Roomtype ?? rr?.Room_Name ?? ''));
-                      return rt.toLowerCase() === room.title.toLowerCase();
-                    });
-                    const cp = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'CP'));
-                    const ep = candidates.find((rr: any) => isPlan(String(rr?.Room_Name ?? ''), 'EP'));
-                    const preferred = cp ?? ep ?? candidates[0];
-                    const avail = Math.max(0, ...candidates.map((c: any) => getAvailabilityFromRaw(c)));
-                    const isSoldOut = preferred ? avail < 1 : true;
-                    
-                    return (
-                      <button
-                        onClick={() => {
-                          if (!room.title) return;
-                          setSelectedRoomTitle(room.title);
-                          goToBookingByName(room.title);
-                        }}
-                        className={`px-6 py-3 rounded-full font-semibold transition-colors duration-200 ${
-                          isSoldOut
-                            ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                            : 'bg-gold text-gray-800 hover:bg-bronze'
-                        }`}
-                        disabled={isSoldOut}
-                      >
-                        {isSoldOut ? 'Sold Out' : 'Book This Suite'}
-                      </button>
-                    );
-                  })()}
+                  <button
+                    onClick={() => {
+                      if (!room.title) return;
+                      setSelectedRoomTitle(room.title);
+                      goToBookingByName(room.title);
+                    }}
+                    className="px-6 py-3 rounded-full font-semibold transition-colors duration-200 bg-gold text-gray-800 hover:bg-bronze"
+                  >
+                    Book This Suite
+                  </button>
+
                   <button
                     className="border-2 border-gray-800 text-gray-800 px-6 py-3 rounded-full font-semibold hover:bg-gray-800 hover:text-ivory transition-colors duration-200 flex-1 sm:flex-none"
                     onClick={() => {

@@ -5,6 +5,7 @@ import { Wifi, Car, Tv, Bath, Users, Bed, Mountain, Coffee } from "lucide-react"
 import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { roomDatabaseService, DatabaseRoom } from "../lib/roomDatabase.service";
+import { openEzeeBookingEngine } from "../services/ezeeBookingService";
 
 const RoomsSynced = () => {
   const navigate = useNavigate();
@@ -333,8 +334,9 @@ const RoomsSynced = () => {
                       </div>
 
                       <button
-                        onClick={() => navigate(`/booking/${room.id}`)}
+                        onClick={() => openEzeeBookingEngine({ checkIn, checkOut, adults })}
                         disabled={isSoldOut}
+
                         className={`w-full px-8 py-4 rounded-full font-semibold transition-all duration-200 transform hover:scale-[1.02] ${
                           isSoldOut 
                             ? "bg-gray-300 text-gray-500 cursor-not-allowed"

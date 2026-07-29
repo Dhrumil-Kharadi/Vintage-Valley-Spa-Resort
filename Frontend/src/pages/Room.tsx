@@ -3,6 +3,7 @@ import Footer from "@/components/Footer";
 import FloatingContact from "@/components/FloatingContact";
 import axios from "axios";
 import { useMemo, useState } from "react";
+import { openEzeeBookingEngine } from "../services/ezeeBookingService";
 
 interface Room {
   roomtypeunkid: string;
@@ -264,14 +265,12 @@ const RoomPage = () => {
                       <button
                         className="w-full bg-gray-800 text-ivory px-6 py-3 rounded-full font-semibold hover:bg-gray-800/85 transition-colors duration-200"
                         onClick={() => {
-                          const msg = encodeURIComponent(
-                            `Hello! I want to book ${room.Room_Name}.\nCheck-in: ${checkIn}\nCheck-out: ${checkOut}\nAdults: ${adults}\nChildren: ${children}\nRooms: ${rooms}`
-                          );
-                          window.open(`https://wa.me/919371179888?text=${msg}`, "_blank");
+                          openEzeeBookingEngine({ checkIn, checkOut, adults, children });
                         }}
                       >
                         Book Now
                       </button>
+
                     </div>
                   </div>
                 </div>

@@ -8,6 +8,7 @@ import { usePolicyModals } from '@/components/PolicyModals';
 import { Star, Tag, CheckCircle } from 'lucide-react';
 import { roomDatabaseService, DatabaseRoom } from '../lib/roomDatabase.service';
 import { roomService } from '../lib/roomService';
+import { openEzeeBookingEngine } from '../services/ezeeBookingService';
 
 type RoomDetails = {
   id: string | number;
@@ -2065,6 +2066,17 @@ const extractPricePerNight = (r: EzeeRawRoom): number => {
                     'Confirm Booking'
                   )}
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    openEzeeBookingEngine({ checkIn, checkOut, adults: rooms * 2 });
+                  }}
+                  className="w-full border-2 border-gold text-gray-800 px-6 py-3 rounded-full font-semibold hover:bg-gold/10 transition-colors duration-200 flex justify-center items-center gap-2"
+                >
+                  Book via EZEE Online Engine
+                </button>
+
 
                 {nights === 0 && (
                   <p className="text-sm text-gray-800/60">
